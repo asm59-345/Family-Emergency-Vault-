@@ -1,0 +1,6 @@
+{
+  "name": "Family Emergency Vault",
+  "description": "Secure, offline-first personal financial continuity and emergency access organizer for families.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
