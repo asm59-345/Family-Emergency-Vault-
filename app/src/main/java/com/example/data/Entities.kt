@@ -96,3 +96,12 @@ data class AuditLog(
     val details: String,
     val userRole: String
 )
+
+data class LocalSecureContact(
+    val id: String,
+    val name: String,
+    val relationship: String,
+    val phone: String,
+    val altPhone: String,
+    val notes: String
+)

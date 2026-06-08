@@ -4,11 +4,20 @@ import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.MediaType.Companion.toMediaType
+import org.json.JSONObject
+import org.json.JSONArray
+import java.util.concurrent.TimeUnit
 
 enum class UserRole(val label: String, val description: String) {
     OWNER("Owner (Rahul)", "Full access - view or edit all records, manage emergency requests"),
@@ -58,11 +67,309 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
     var activeBackRoute by mutableStateOf("DASHBOARD")
     var selectedTabItem by mutableStateOf("DASHBOARD") // DASHBOARD, VAULT, CHECKLIST, CLAIMS, SETTINGS
 
+    // --- MPIN SECURITY ---
+    private val mpinPrefs = application.getSharedPreferences("vault_mpin_prefs", android.content.Context.MODE_PRIVATE)
+    var isAppMpinLocked by mutableStateOf(mpinPrefs.getBoolean("mpin_active_enabled", true)) // defaults to locked
+    var appMpin by mutableStateOf(mpinPrefs.getString("master_mpin", "4321") ?: "4321")
+        private set
+    var enteredMpinDigits by mutableStateOf("")
+    var mpinFeedbackMessage by mutableStateOf("")
+
+    fun verifyEnteredMpin() {
+        if (enteredMpinDigits == appMpin) {
+            isAppMpinLocked = false
+            enteredMpinDigits = ""
+            mpinFeedbackMessage = "Secured decryption keys loaded!"
+            viewModelScope.launch {
+                repository.logAction("MPIN Unlocked", "Master vault decryption key unlocked via 4-digit MPIN verify.", currentRole.name)
+            }
+        } else if (enteredMpinDigits.length >= 4) {
+            enteredMpinDigits = ""
+            mpinFeedbackMessage = "Incorrect MPIN. Access Denied."
+        }
+    }
+
+    fun updateMasterMpin(newMpin: String) {
+        if (newMpin.length == 4 && newMpin.all { it.isDigit() }) {
+            appMpin = newMpin
+            mpinPrefs.edit().putString("master_mpin", newMpin).apply()
+            viewModelScope.launch {
+                repository.logAction("MPIN Updated", "Vault Master access MPIN successfully updated.", currentRole.name)
+            }
+        }
+    }
+
+    fun setMpinProtectionEnabled(enabled: Boolean) {
+        mpinPrefs.edit().putBoolean("mpin_active_enabled", enabled).apply()
+        if (enabled) {
+            isAppMpinLocked = true
+        }
+    }
+
+    // --- SECURE EMERGENCY CONTACTS (LOCAL STATE PERSISTENCE) ---
+    private val securePrefs = application.getSharedPreferences("secure_emergency_contacts_prefs", android.content.Context.MODE_PRIVATE)
+    var localSecureContacts = mutableStateListOf<LocalSecureContact>()
+        private set
+
+    // --- INACTIVITY AUTO-LOCK SYSTEM ---
+    var lastUserActivityTime by mutableStateOf(System.currentTimeMillis())
+        private set
+    var autoLockRemainingSeconds by mutableStateOf(300L) // Count down from 300 seconds (5 minutes)
+        private set
+
+    fun updateUserActivity() {
+        if (!isAppMpinLocked && isLoggedIn) {
+            lastUserActivityTime = System.currentTimeMillis()
+        }
+    }
+
+    fun triggerInstantInactivityLockSimulation() {
+        isAppMpinLocked = true
+        enteredMpinDigits = ""
+        mpinFeedbackMessage = "Manual inactivity lock triggered!"
+        viewModelScope.launch {
+            repository.logAction("Dormancy Lock", "Manual lock triggered to simulate instant inactivity protection.", currentRole.name)
+        }
+    }
+
+    // --- TERMS & CONDITIONS CONSENT STORE ---
+    private val consentPrefs = application.getSharedPreferences("vault_consent_prefs", android.content.Context.MODE_PRIVATE)
+    var isTermsAccepted by mutableStateOf(consentPrefs.getBoolean("terms_accepted", false))
+        private set
+    var consentSignature by mutableStateOf(consentPrefs.getString("consent_signature", "") ?: "")
+        private set
+    var consentEmail by mutableStateOf(consentPrefs.getString("consent_email", "") ?: "")
+        private set
+    var consentName by mutableStateOf(consentPrefs.getString("consent_name", "") ?: "")
+        private set
+
+    fun acceptTerms(name: String, email: String) {
+        val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())
+        val sig = "EC-VAL-$timestamp-" + java.util.UUID.randomUUID().toString().take(8).uppercase()
+        consentPrefs.edit()
+            .putBoolean("terms_accepted", true)
+            .putString("consent_signature", sig)
+            .putString("consent_email", email)
+            .putString("consent_name", name)
+            .apply()
+        isTermsAccepted = true
+        consentSignature = sig
+        consentEmail = email
+        consentName = name
+        viewModelScope.launch {
+            repository.logAction("Legal Accepted", "User accepted Terms & Conditions with signature: $sig", currentRole.name)
+        }
+    }
+
+    fun revokeTerms() {
+        consentPrefs.edit().clear().apply()
+        isTermsAccepted = false
+        consentSignature = ""
+        consentEmail = ""
+        consentName = ""
+        viewModelScope.launch {
+            repository.logAction("Legal Revoked", "User revoked system legal consent and terms of service.", currentRole.name)
+        }
+    }
+
+    fun loadLocalSecureContacts() {
+        val cipherText = securePrefs.getString("contacts_list", "") ?: ""
+        val json = if (cipherText.isNotEmpty()) SubtleCrypto.decrypt(cipherText) else "[]"
+        val finalJson = if (json.isEmpty() || json == "[]") {
+            val fallback = securePrefs.getString("contacts_list", "[]") ?: "[]"
+            if (fallback.startsWith("[")) fallback else "[]"
+        } else {
+            json
+        }
+        try {
+            val array = JSONArray(finalJson)
+            localSecureContacts.clear()
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                localSecureContacts.add(
+                    LocalSecureContact(
+                        id = obj.getString("id"),
+                        name = obj.getString("name"),
+                        relationship = obj.getString("relationship"),
+                        phone = obj.getString("phone"),
+                        altPhone = obj.getString("altPhone"),
+                        notes = obj.getString("notes")
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun saveLocalSecureContact(item: LocalSecureContact) {
+        val existingIndex = localSecureContacts.indexOfFirst { it.id == item.id }
+        if (existingIndex >= 0) {
+            localSecureContacts[existingIndex] = item
+        } else {
+            localSecureContacts.add(item)
+        }
+        persistLocalSecureContacts()
+        viewModelScope.launch {
+            repository.logAction("Local Contact Saved", "Stored secure emergency contact: ${item.name} (${item.relationship}) completely in local state.", currentRole.name)
+        }
+    }
+
+    fun deleteLocalSecureContact(id: String) {
+        val deleted = localSecureContacts.find { it.id == id }
+        localSecureContacts.removeAll { it.id == id }
+        persistLocalSecureContacts()
+        deleted?.let {
+            viewModelScope.launch {
+                repository.logAction("Local Contact Deleted", "Deleted local secure contact: ${it.name} from local state.", currentRole.name)
+            }
+        }
+    }
+
+    private fun persistLocalSecureContacts() {
+        try {
+            val array = JSONArray()
+            for (contact in localSecureContacts) {
+                array.put(JSONObject().apply {
+                    put("id", contact.id)
+                    put("name", contact.name)
+                    put("relationship", contact.relationship)
+                    put("phone", contact.phone)
+                    put("altPhone", contact.altPhone)
+                    put("notes", contact.notes)
+                })
+            }
+            val encrypted = SubtleCrypto.encrypt(array.toString())
+            securePrefs.edit().putString("contacts_list", encrypted).apply()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun startInactivityTimer() {
+        viewModelScope.launch(Dispatchers.Main) {
+            while (true) {
+                kotlinx.coroutines.delay(1000)
+                if (isLoggedIn && !isAppMpinLocked && mpinPrefs.getBoolean("mpin_active_enabled", true)) {
+                    val idleTimeMs = System.currentTimeMillis() - lastUserActivityTime
+                    val remainingMs = (5 * 60 * 1000) - idleTimeMs
+                    if (remainingMs <= 0) {
+                        isAppMpinLocked = true
+                        enteredMpinDigits = ""
+                        mpinFeedbackMessage = "Session locked due to 5 minutes of inactivity."
+                        repository.logAction("Auto-Locked", "System entered secure deep dormancy due to 5-minute inactivity threshold.", currentRole.name)
+                    } else {
+                        autoLockRemainingSeconds = remainingMs / 1000
+                    }
+                }
+            }
+        }
+    }
+
+    // --- AI ASSISTANT WORKSPACE ---
+    var isAiChatOpen by mutableStateOf(false)
+    val aiChatHistory = mutableStateListOf<Pair<String, Boolean>>() // Pair(Message, isBot)
+    var currentAiInput by mutableStateOf("")
+    var isAiLoading by mutableStateOf(false)
+
+    fun sendMsgToAi(prompt: String) {
+        if (prompt.trim().isEmpty()) return
+        aiChatHistory.add(Pair(prompt, false))
+        currentAiInput = ""
+        isAiLoading = true
+
+        val apiKey = com.example.BuildConfig.GEMINI_API_KEY
+        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
+            viewModelScope.launch {
+                kotlinx.coroutines.delay(1000)
+                aiChatHistory.add(Pair("AI Assistant: Live Gemini connection requires a configured API key in Google AI Studio. Direct answering local bypass:\n\nIn an emergency, your secure handover organizes key checklists such as reaching Spouse (Priya), verifying nominees for BANK/INSURANCE records, and activating the 48-hour delayed dead-man threshold.", true))
+                isAiLoading = false
+                repository.logAction("AI Workspace Consulted", "Queried AI with placeholder fallback response.", currentRole.name)
+            }
+            return
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val client = OkHttpClient.Builder()
+                    .connectTimeout(60, TimeUnit.SECONDS)
+                    .readTimeout(60, TimeUnit.SECONDS)
+                    .writeTimeout(60, TimeUnit.SECONDS)
+                    .build()
+
+                val contentsArray = JSONArray()
+                
+                val systemPart = JSONObject().apply {
+                    put("role", "user")
+                    put("parts", JSONArray().apply {
+                        put(JSONObject().apply {
+                            put("text", "You are the Secure Family Continuity Assistant. Teach the user about emergency organization, nominees, dead-man switches, claims procedure and asset safety. Be very helpful, clear, and reassuring.")
+                        })
+                    })
+                }
+                contentsArray.put(systemPart)
+
+                val lastTurns = aiChatHistory.takeLast(10)
+                for (turn in lastTurns) {
+                    contentsArray.put(JSONObject().apply {
+                        put("role", if (turn.second) "model" else "user")
+                        put("parts", JSONArray().apply {
+                            put(JSONObject().apply {
+                                put("text", turn.first)
+                            })
+                        })
+                    })
+                }
+
+                val requestJson = JSONObject().apply {
+                    put("contents", contentsArray)
+                }
+
+                val requestBody = requestJson.toString().toRequestBody("application/json".toMediaType())
+                val request = Request.Builder()
+                    .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$apiKey")
+                    .post(requestBody)
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        viewModelScope.launch(Dispatchers.Main) {
+                            aiChatHistory.add(Pair("Connection Error (${response.code}). Failed to fetch response.", true))
+                            isAiLoading = false
+                        }
+                        return@launch
+                    }
+                    val bodyString = response.body?.string() ?: ""
+                    val textResponse = JSONObject(bodyString)
+                        .getJSONArray("candidates")
+                        .getJSONObject(0)
+                        .getJSONObject("content")
+                        .getJSONArray("parts")
+                        .getJSONObject(0)
+                        .getString("text")
+
+                    viewModelScope.launch(Dispatchers.Main) {
+                        aiChatHistory.add(Pair(textResponse, true))
+                        isAiLoading = false
+                    }
+                }
+            } catch (e: Exception) {
+                viewModelScope.launch(Dispatchers.Main) {
+                    aiChatHistory.add(Pair("Connection Exception: ${e.message}", true))
+                    isAiLoading = false
+                }
+            }
+        }
+    }
+
     init {
         // Trigger a check to audit log setup
         viewModelScope.launch {
             repository.logAction("App Initialised", "Vault application loaded with seed database.", currentRole.name)
         }
+        loadLocalSecureContacts()
+        startInactivityTimer()
+        aiChatHistory.add(Pair("Hello! I am your AI Secure Continuity Assistant, powered by Gemini 3.5. How can I help you coordinate backup handovers, verify nominees, or explain emergency procedures today?", true))
     }
 
     // Role switcher

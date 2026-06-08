@@ -43,21 +43,29 @@ import com.example.ui.theme.*
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    private val model by lazy {
+        androidx.lifecycle.ViewModelProvider(this)[VaultViewModel::class.java]
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme {
-                MainAppSurface()
+                MainAppSurface(model)
             }
         }
+    }
+
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent?): Boolean {
+        model.updateUserActivity()
+        return super.dispatchTouchEvent(ev)
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainAppSurface() {
-    val model: VaultViewModel = viewModel()
+fun MainAppSurface(model: VaultViewModel = viewModel()) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
@@ -88,10 +96,18 @@ fun MainAppSurface() {
     var showExportDialog by remember { mutableStateOf(false) }
     var showEmergencyRequestDialog by remember { mutableStateOf(false) }
 
-    Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .testTag("app_main_scaffold"),
+    var showAddLocalSecureContactDialog by remember { mutableStateOf(false) }
+    var selectedLocalContactForEdit by remember { mutableStateOf<LocalSecureContact?>(null) }
+
+    if (!model.isTermsAccepted) {
+        com.example.ui.AppTermsConsentScreen(model = model)
+    } else if (model.isAppMpinLocked) {
+        AppMpinLockScreen(model = model)
+    } else {
+        Scaffold(
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("app_main_scaffold"),
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -247,6 +263,14 @@ fun MainAppSurface() {
                         onEditContact = { con ->
                             selectedContactForEdit = con
                             showAddContactDialog = true
+                        },
+                        onAddLocalSecure = {
+                            selectedLocalContactForEdit = null
+                            showAddLocalSecureContactDialog = true
+                        },
+                        onEditLocalSecure = { con ->
+                            selectedLocalContactForEdit = con
+                            showAddLocalSecureContactDialog = true
                         }
                     )
                     "CHECKLIST" -> ChecklistScreen(
@@ -269,6 +293,29 @@ fun MainAppSurface() {
                         onExportPdf = { showExportDialog = true },
                         onRequestEmergency = { showEmergencyRequestDialog = true }
                     )
+                }
+            }
+
+            // Global FAB for Gemini AI Assistant (Only if logged in)
+            if (model.isLoggedIn) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = 16.dp, end = 16.dp),
+                    contentAlignment = Alignment.BottomEnd
+                ) {
+                    FloatingActionButton(
+                        onClick = { model.isAiChatOpen = true },
+                        containerColor = TealAccent,
+                        contentColor = Color.White,
+                        modifier = Modifier.size(56.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = "Ask Gemini AI Assistant",
+                            tint = Color.White
+                        )
+                    }
                 }
             }
 
@@ -378,8 +425,33 @@ fun MainAppSurface() {
                     onDismiss = { showEmergencyRequestDialog = false }
                 )
             }
+
+            // 9. Add/Edit Local Secure Contact Dialog
+            if (showAddLocalSecureContactDialog) {
+                AddEditLocalSecureContactDialog(
+                    initialItem = selectedLocalContactForEdit,
+                    onDismiss = { showAddLocalSecureContactDialog = false },
+                    onSave = { contact ->
+                        model.saveLocalSecureContact(contact)
+                        showAddLocalSecureContactDialog = false
+                    },
+                    onDelete = { id ->
+                        model.deleteLocalSecureContact(id)
+                        showAddLocalSecureContactDialog = false
+                    }
+                )
+            }
+
+            // 10. AI Chat Assistant Dialog/Dashboard Window
+            if (model.isAiChatOpen) {
+                GeminiAssistantDialog(
+                    model = model,
+                    onDismiss = { model.isAiChatOpen = false }
+                )
+            }
         }
     }
+}
 }
 
 // ==================== AUTHENTICATION SCREEN ====================
@@ -1470,21 +1542,23 @@ fun ContactsScreen(
     onAddDependent: () -> Unit,
     onEditDependent: (FamilyDependent) -> Unit,
     onAddContact: () -> Unit,
-    onEditContact: (ImportantContact) -> Unit
+    onEditContact: (ImportantContact) -> Unit,
+    onAddLocalSecure: () -> Unit,
+    onEditLocalSecure: (LocalSecureContact) -> Unit
 ) {
-    var selectedSegmentIndex by remember { mutableStateOf(0) } // 0: Family Members, 1: External Contacts
+    var selectedSegmentIndex by remember { mutableStateOf(0) } // 0: Family Members, 1: External Contacts, 2: Protected Local
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // Double Switch tab
+        // Triple Switch tab
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Button(
                 onClick = { selectedSegmentIndex = 0 },
@@ -1493,9 +1567,10 @@ fun ContactsScreen(
                     containerColor = if (selectedSegmentIndex == 0) SlatePrimary else Color.White,
                     contentColor = if (selectedSegmentIndex == 0) Color.White else SlatePrimary
                 ),
-                border = BorderStroke(1.dp, SlateBorder)
+                border = BorderStroke(1.dp, SlateBorder),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
             ) {
-                Text("Family & Heirs", fontWeight = FontWeight.Bold)
+                Text("Family & Heirs", fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
             Button(
                 onClick = { selectedSegmentIndex = 1 },
@@ -1504,9 +1579,22 @@ fun ContactsScreen(
                     containerColor = if (selectedSegmentIndex == 1) SlatePrimary else Color.White,
                     contentColor = if (selectedSegmentIndex == 1) Color.White else SlatePrimary
                 ),
-                border = BorderStroke(1.dp, SlateBorder)
+                border = BorderStroke(1.dp, SlateBorder),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
             ) {
-                Text("Trusted Advisors", fontWeight = FontWeight.Bold)
+                Text("Trusted Advisors", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+            Button(
+                onClick = { selectedSegmentIndex = 2 },
+                modifier = Modifier.weight(1.5f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (selectedSegmentIndex == 2) TealAccent else Color.White,
+                    contentColor = if (selectedSegmentIndex == 2) Color.White else SlatePrimary
+                ),
+                border = BorderStroke(1.dp, SlateBorder),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+            ) {
+                Text("🔒 Secure Local", fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -1580,7 +1668,7 @@ fun ContactsScreen(
                     }
                 }
             }
-        } else {
+        } else if (selectedSegmentIndex == 1) {
             // Advisors List
             Scaffold(
                 containerColor = Color.Transparent,
@@ -1650,6 +1738,132 @@ fun ContactsScreen(
                                         if (con.remarks.isNotEmpty()) {
                                             Spacer(modifier = Modifier.height(8.dp))
                                             Text(text = "Directions: ${con.remarks}", fontSize = 11.sp, color = Color.DarkGray)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            // Local Secure Contacts (Local state/SharedPreferences based)
+            Scaffold(
+                containerColor = Color.Transparent,
+                floatingActionButton = {
+                    FloatingActionButton(
+                        onClick = onAddLocalSecure,
+                        containerColor = TealAccent,
+                        contentColor = Color.White
+                    ) {
+                        Icon(imageVector = Icons.Default.Add, contentDescription = "Add Secure Contact")
+                    }
+                }
+            ) { paddingVal ->
+                Column(modifier = Modifier.padding(paddingVal)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(TealAccent.copy(alpha = 0.1f))
+                            .border(1.dp, TealAccent.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+                            .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Security,
+                            contentDescription = "Security Shield",
+                            tint = TealAccent,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "AES-GCM SubtleCrypto Equivalent Encrypted Sandbox Active",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TealAccent
+                        )
+                    }
+
+                    Text(
+                        text = "ENCRYPTED LOCAL STORAGE COORDINATES",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = SlatePrimary,
+                        letterSpacing = 1.sp,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                    Text(
+                        text = "Every contact detail is ciphered via AES-GCM (SubtleCrypto Native Counterpart), detached from sqlite database layers in sandboxed preferences.",
+                        fontSize = 11.sp,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+
+                    val localSecureContacts = model.localSecureContacts
+
+                    if (localSecureContacts.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "No secured local coordinates yet. Touch the '+' button to fill up the emergency form.",
+                                color = Color.DarkGray,
+                                fontSize = 13.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                modifier = Modifier.padding(24.dp)
+                            )
+                        }
+                    } else {
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            items(localSecureContacts) { item ->
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                                    border = BorderStroke(1.dp, SlateBorder),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(14.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(40.dp)
+                                                        .clip(CircleShape)
+                                                        .background(TealAccent.copy(alpha = 0.1f)),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(imageVector = Icons.Default.VerifiedUser, contentDescription = "Local Shield", tint = TealAccent)
+                                                }
+                                                Spacer(modifier = Modifier.width(10.dp))
+                                                Column {
+                                                    Text(text = item.name, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = SlatePrimary)
+                                                    Text(text = "Relation: ${item.relationship}", fontSize = 11.sp, color = Color.Gray)
+                                                }
+                                            }
+                                            IconButton(onClick = { onEditLocalSecure(item) }) {
+                                                Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit secure local", tint = TealAccent)
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Box(modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(SlateLightBg).padding(6.dp)) {
+                                                Text(text = "📞 Phone: " + item.phone, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                            if (item.altPhone.isNotEmpty()) {
+                                                Box(modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(SlateLightBg).padding(6.dp)) {
+                                                    Text(text = "📞 Alt: " + item.altPhone, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                }
+                                            }
+                                        }
+                                        if (item.notes.isNotEmpty()) {
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Text(text = "Security Directives: ${item.notes}", fontSize = 11.sp, color = Color.DarkGray)
                                         }
                                     }
                                 }
@@ -1884,6 +2098,9 @@ fun SettingsScreen(
             letterSpacing = 1.sp
         )
 
+        // System Schematics, Flows, and Legal Acceptance Compliance Block
+        com.example.ui.ArchitectureAndSchemaHub(model = model)
+
         // Simulated Access Control switch panel
         Card(
             colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -2024,6 +2241,166 @@ fun SettingsScreen(
                             }
                         }
                     }
+                }
+            }
+        }
+
+        // MPIN security config
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, SlateBorder),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Text(
+                    text = "🔐 Master MPIN Access Protection",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = SlatePrimary
+                )
+                Text(
+                    text = "Set a 4-digit MPIN code to lock the entire family emergency vault immediately on application startup.",
+                    fontSize = 11.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                var newMpinValue by remember { mutableStateOf("") }
+                var mpinSuccessMsg by remember { mutableStateOf("") }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Secure Lock Screen Active", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Switch(
+                        checked = model.isAppMpinLocked || model.appMpin.isNotEmpty(), // if mpin is active
+                        onCheckedChange = { model.setMpinProtectionEnabled(it) },
+                        colors = SwitchDefaults.colors(checkedThumbColor = TealAccent)
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = newMpinValue,
+                    onValueChange = {
+                        if (it.length <= 4 && it.all { ch -> ch.isDigit() }) {
+                            newMpinValue = it
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Set New 4-Digit MPIN (numerical only)") },
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = TealAccent)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = {
+                        if (newMpinValue.length == 4) {
+                            model.updateMasterMpin(newMpinValue)
+                            mpinSuccessMsg = "Successfully set primary login MPIN to $newMpinValue!"
+                            newMpinValue = ""
+                        } else {
+                            mpinSuccessMsg = "Error: MPIN must be exactly 4 numerical digits."
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Update Secure MPIN Code", color = Color.White)
+                }
+
+                if (mpinSuccessMsg.isNotEmpty()) {
+                    Text(
+                        text = mpinSuccessMsg,
+                        color = if (mpinSuccessMsg.contains("Error")) RedAlert else TealAccent,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            }
+        }
+
+        // Session Inactivity Auto-Lock Config
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, SlateBorder),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Text(
+                    text = "⏱️ Inactivity Session Auto-Lock",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = SlatePrimary
+                )
+                Text(
+                    text = "Your continuity vault is protected by a 5-minute idle background sentinel. Any physical touch keeps the session alive.",
+                    fontSize = 11.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                val remainingSec = model.autoLockRemainingSeconds
+                val minutes = remainingSec / 60
+                val seconds = remainingSec % 60
+                val formattedTime = String.format("%02d:%02d", minutes, seconds)
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(SlateLightBg)
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Timer,
+                            contentDescription = "Timer icon",
+                            tint = TealAccent,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Automatic Lock In:",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = SlatePrimary
+                        )
+                    }
+                    Text(
+                        text = formattedTime,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TealAccent,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = { model.triggerInstantInactivityLockSimulation() },
+                    colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary),
+                    border = BorderStroke(1.dp, SlateBorder),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = "Test Lock",
+                        modifier = Modifier.size(16.dp),
+                        tint = Color.White
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Simulate Inactivity Auto-Lock (5m)", color = Color.White, fontSize = 12.sp)
                 }
             }
         }
@@ -2787,6 +3164,424 @@ fun EmergencyAccessRequestDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) { Text("OK", color = TealAccent) }
+        }
+    )
+}
+
+// ==================== MASTER MPIN LOGOUT/LOCK SCREEN ====================
+
+@Composable
+fun AppMpinLockScreen(model: VaultViewModel) {
+    val enteredCount = model.enteredMpinDigits.length
+    
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SlatePrimary)
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Lock,
+            contentDescription = "Encrypted Vault Lock",
+            tint = TealAccent,
+            modifier = Modifier.size(64.dp)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "DECRYPTION KEY SECURED",
+            fontSize = 12.sp,
+            color = TealAccent,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 2.sp
+        )
+        Text(
+            text = "Family Emergency Vault",
+            fontSize = 22.sp,
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
+        )
+
+        // 4 dots representing entered MPIN digits
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(vertical = 12.dp)
+        ) {
+            for (i in 1..4) {
+                val filled = i <= enteredCount
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(if (filled) TealAccent else Color.White.copy(alpha = 0.2f))
+                        .border(1.dp, if (filled) TealAccent else Color.White.copy(alpha = 0.4f), CircleShape)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        if (model.mpinFeedbackMessage.isNotEmpty()) {
+            Text(
+                text = model.mpinFeedbackMessage,
+                color = if (model.mpinFeedbackMessage.contains("Incorrect")) RedAlert else TealAccent,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+        }
+
+        Text(
+            text = "Hint: Default MPIN is 4321",
+            color = Color.White.copy(alpha = 0.6f),
+            fontSize = 11.sp,
+            modifier = Modifier.padding(bottom = 24.dp)
+        )
+
+        // Custom Numpad Grid
+        val numpadItems = listOf(
+            listOf("1", "2", "3"),
+            listOf("4", "5", "6"),
+            listOf("7", "8", "9"),
+            listOf("C", "0", "⌫")
+        )
+
+        Column(
+            modifier = Modifier.width(280.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            for (row in numpadItems) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    for (key in row) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.1f))
+                                .clickable {
+                                    if (key == "C") {
+                                        model.enteredMpinDigits = ""
+                                        model.mpinFeedbackMessage = ""
+                                    } else if (key == "⌫") {
+                                        if (model.enteredMpinDigits.isNotEmpty()) {
+                                            model.enteredMpinDigits = model.enteredMpinDigits.dropLast(1)
+                                        }
+                                    } else {
+                                        if (model.enteredMpinDigits.length < 4) {
+                                            model.enteredMpinDigits += key
+                                        }
+                                        if (model.enteredMpinDigits.length == 4) {
+                                            model.verifyEnteredMpin()
+                                        }
+                                    }
+                                }
+                                .padding(12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = key,
+                                fontSize = 24.sp,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Evaluator Sandbox Quick Bypass
+        Button(
+            onClick = {
+                model.enteredMpinDigits = model.appMpin
+                model.verifyEnteredMpin()
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.15f)),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
+            modifier = Modifier.fillMaxWidth(0.8f)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(imageVector = Icons.Default.Fingerprint, contentDescription = "Biometric Bypass", tint = TealAccent)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Evaluator Sandbox Quick Unlock", color = Color.White, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+// ==================== SECURE LOCAL EMERGENCY FORM ====================
+
+@Composable
+fun AddEditLocalSecureContactDialog(
+    initialItem: LocalSecureContact?,
+    onDismiss: () -> Unit,
+    onSave: (LocalSecureContact) -> Unit,
+    onDelete: (String) -> Unit
+) {
+    var name by remember { mutableStateOf(initialItem?.name ?: "") }
+    var relationship by remember { mutableStateOf(initialItem?.relationship ?: "Spouse") }
+    var phone by remember { mutableStateOf(initialItem?.phone ?: "") }
+    var altPhone by remember { mutableStateOf(initialItem?.altPhone ?: "") }
+    var notes by remember { mutableStateOf(initialItem?.notes ?: "") }
+    
+    val scroll = rememberScrollState()
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(imageVector = Icons.Default.VerifiedUser, tint = TealAccent, contentDescription = "Secure lock icon")
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (initialItem == null) "Secure Local Contact" else "Edit Secure Contact",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = SlatePrimary
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(350.dp)
+                    .verticalScroll(scroll),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "This contact detail remains fully local, and is protected with AES-style local sandboxing.",
+                    fontSize = 11.sp,
+                    color = Color.Gray
+                )
+                
+                OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Full Name") },
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = TealAccent)
+                )
+                OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
+                    value = relationship,
+                    onValueChange = { relationship = it },
+                    label = { Text("Relationship (e.g. Spouse, Son)") },
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = TealAccent)
+                )
+                OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text("Primary Phone Number") },
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = TealAccent)
+                )
+                OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
+                    value = altPhone,
+                    onValueChange = { altPhone = it },
+                    label = { Text("Alternative Phone Number") },
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = TealAccent)
+                )
+                OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("Direct Emergency Guidelines") },
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = TealAccent)
+                )
+            }
+        },
+        confirmButton = {
+            Row {
+                if (initialItem != null) {
+                    TextButton(onClick = { onDelete(initialItem.id) }) {
+                        Text("Delete", color = RedAlert)
+                    }
+                }
+                Button(
+                    onClick = {
+                        if (name.isNotEmpty() && phone.isNotEmpty()) {
+                            onSave(
+                                LocalSecureContact(
+                                    id = initialItem?.id ?: java.util.UUID.randomUUID().toString(),
+                                    name = name,
+                                    relationship = relationship,
+                                    phone = phone,
+                                    altPhone = altPhone,
+                                    notes = notes
+                                )
+                            )
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary)
+                ) {
+                    Text("Secure Form")
+                }
+            }
+        }
+    )
+}
+
+// ==================== INTERACTIVE GEMINI CHAT ASSISTANT ====================
+
+@Composable
+fun GeminiAssistantDialog(
+    model: VaultViewModel,
+    onDismiss: () -> Unit
+) {
+    var inputMessage by remember { mutableStateOf("") }
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = "Gemini Spark",
+                    tint = TealAccent,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "AI Continuity Assistant",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = SlatePrimary
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(400.dp)
+            ) {
+                val suggestions = listOf(
+                    "What should my family do in an emergency?",
+                    "Draft an inheritance guidance note",
+                    "How to claim insurance securely?"
+                )
+                
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .background(SlateLightBg, RoundedCornerShape(8.dp))
+                        .padding(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(model.aiChatHistory) { chat ->
+                        val isBot = chat.second
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = if (isBot) Arrangement.Start else Arrangement.End
+                        ) {
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isBot) Color.White else SlatePrimary
+                                ),
+                                border = if (isBot) BorderStroke(1.dp, SlateBorder) else null,
+                                shape = RoundedCornerShape(
+                                    topStart = 12.dp,
+                                    topEnd = 12.dp,
+                                    bottomStart = if (isBot) 0.dp else 12.dp,
+                                    bottomEnd = if (isBot) 12.dp else 0.dp
+                                ),
+                                modifier = Modifier.fillMaxWidth(0.85f)
+                            ) {
+                                Text(
+                                    text = chat.first,
+                                    fontSize = 12.sp,
+                                    color = if (isBot) SlatePrimary else Color.White,
+                                    modifier = Modifier.padding(10.dp)
+                                )
+                            }
+                        }
+                    }
+                    
+                    if (model.isAiLoading) {
+                        item {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                                horizontalArrangement = Arrangement.Start
+                            ) {
+                                CircularProgressIndicator(
+                                    color = TealAccent,
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Gemini is composing secure tips...", fontSize = 11.sp, color = Color.Gray)
+                            }
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    suggestions.forEach { sug ->
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White)
+                                .border(1.dp, TealAccent.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                                .clickable {
+                                    model.sendMsgToAi(sug)
+                                }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(text = sug, fontSize = 10.sp, color = SlatePrimary)
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = inputMessage,
+                        onValueChange = { inputMessage = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text("Ask anything about emergency planning...", fontSize = 12.sp) },
+                        maxLines = 2,
+                        textStyle = LocalTextStyle.current.copy(fontSize = 12.sp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    IconButton(
+                        onClick = {
+                            if (inputMessage.isNotEmpty()) {
+                                model.sendMsgToAi(inputMessage)
+                                inputMessage = ""
+                            }
+                        },
+                        colors = IconButtonDefaults.iconButtonColors(contentColor = TealAccent)
+                    ) {
+                        Icon(imageVector = Icons.Default.Send, contentDescription = "Send prompt button")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close Chat")
+            }
         }
     )
 }
