@@ -52,6 +52,85 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
     var biometricVerified by mutableStateOf(false)
     var passwordInput by mutableStateOf("")
 
+    // SharedPreferences for detailed user profile
+    private val userPrefs = application.getSharedPreferences("vault_user_prefs", android.content.Context.MODE_PRIVATE)
+
+    var isAccountCreated by mutableStateOf(userPrefs.getBoolean("account_created", false))
+        private set
+
+    var registeredFullName by mutableStateOf(userPrefs.getString("user_fullname", "Rahul Sharma") ?: "Rahul Sharma")
+    var registeredEmail by mutableStateOf(userPrefs.getString("user_email", "rahul@gmail.com") ?: "rahul@gmail.com")
+    var registeredPhone by mutableStateOf(userPrefs.getString("user_phone", "+91 98765 43210") ?: "+91 98765 43210")
+    var registeredPassword by mutableStateOf(userPrefs.getString("user_password", "admin") ?: "admin")
+    var registeredNomineeName by mutableStateOf(userPrefs.getString("user_nominee_name", "Priya Sharma") ?: "Priya Sharma")
+    var registeredNomineeRelation by mutableStateOf(userPrefs.getString("user_nominee_relation", "Spouse") ?: "Spouse")
+    var registeredSecurityQuest by mutableStateOf(userPrefs.getString("user_security_question", "What was your first school name?") ?: "What was your first school name?")
+    var registeredSecurityAns by mutableStateOf(userPrefs.getString("user_security_answer", "Greenwood") ?: "Greenwood")
+    var registeredDigitalCertificateId by mutableStateOf(userPrefs.getString("user_cert_id", "CERT-SANDBOX-88992") ?: "CERT-SANDBOX-88992")
+
+    fun registerUserAccount(
+        fullName: String,
+        email: String,
+        phone: String,
+        password: String,
+        mpin: String,
+        nomineeName: String,
+        nomineeRelation: String,
+        securityQuestion: String,
+        securityAnswer: String
+    ) {
+        val certId = "FEV-CERT-" + java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date()) + "-" + java.util.UUID.randomUUID().toString().take(6).uppercase()
+        userPrefs.edit()
+            .putBoolean("account_created", true)
+            .putString("user_fullname", fullName)
+            .putString("user_email", email)
+            .putString("user_phone", phone)
+            .putString("user_password", password)
+            .putString("user_nominee_name", nomineeName)
+            .putString("user_nominee_relation", nomineeRelation)
+            .putString("user_security_question", securityQuestion)
+            .putString("user_security_answer", securityAnswer)
+            .putString("user_cert_id", certId)
+            .apply()
+
+        // Sync to state variables
+        isAccountCreated = true
+        registeredFullName = fullName
+        registeredEmail = email
+        registeredPhone = phone
+        registeredPassword = password
+        registeredNomineeName = nomineeName
+        registeredNomineeRelation = nomineeRelation
+        registeredSecurityQuest = securityQuestion
+        registeredSecurityAns = securityAnswer
+        registeredDigitalCertificateId = certId
+
+        // Also update the master MPIN preference and in-memory variable
+        updateMasterMpin(mpin)
+
+        // Login automatically on signup
+        isLoggedIn = true
+        isAppMpinLocked = false
+
+        viewModelScope.launch {
+            repository.logAction("Account Created", "Secure banking-grade emergency vault account successfully provisioned. Cert ID: $certId", "OWNER")
+        }
+    }
+
+    fun initQuickDemoBypass() {
+        registerUserAccount(
+            fullName = "Rahul Sharma",
+            email = "rahul@gmail.com",
+            phone = "+91 98765 43210",
+            password = "admin",
+            mpin = "4321",
+            nomineeName = "Priya Sharma",
+            nomineeRelation = "Spouse",
+            securityQuestion = "What was your first school name?",
+            securityAnswer = "Greenwood"
+        )
+    }
+
     // Global Search and Filter States
     var searchQuery by mutableStateOf("")
     var selectedCategoryFilter by mutableStateOf("ALL")
@@ -385,13 +464,15 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // Login workflow
-    fun login(password: String) {
-        if (password == "admin123" || password == "admin" || password.isEmpty()) {
+    fun login(password: String): Boolean {
+        if (password == registeredPassword || password == "admin" || password == "admin123") {
             showMfaChallenge = true
             viewModelScope.launch {
                 repository.logAction("Authentication Started", "Owner entered password, waiting for simulated OTP.", currentRole.name)
             }
+            return true
         }
+        return false
     }
 
     fun verifyOtp(otp: String) {

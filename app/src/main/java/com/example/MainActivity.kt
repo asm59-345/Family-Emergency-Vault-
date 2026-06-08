@@ -101,6 +101,8 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
 
     if (!model.isTermsAccepted) {
         com.example.ui.AppTermsConsentScreen(model = model)
+    } else if (!model.isAccountCreated) {
+        com.example.ui.SignupScreen(model = model)
     } else if (model.isAppMpinLocked) {
         AppMpinLockScreen(model = model)
     } else {
@@ -215,7 +217,7 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
                 .background(SlateLightBg)
         ) {
             if (!model.isLoggedIn) {
-                LoginScreen(model = model)
+                com.example.ui.LoginScreen(model = model)
             } else {
                 when (model.selectedTabItem) {
                     "DASHBOARD" -> DashboardScreen(
@@ -456,7 +458,7 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
 
 // ==================== AUTHENTICATION SCREEN ====================
 @Composable
-fun LoginScreen(model: VaultViewModel) {
+fun LegacyLoginScreenBypass(model: VaultViewModel) {
     var password by remember { mutableStateOf("") }
     var otpCode by remember { mutableStateOf("") }
     var selectedDemoRole by remember { mutableStateOf(UserRole.OWNER) }
@@ -2100,6 +2102,136 @@ fun SettingsScreen(
 
         // System Schematics, Flows, and Legal Acceptance Compliance Block
         com.example.ui.ArchitectureAndSchemaHub(model = model)
+
+        // ------------------ BANK-STYLE SECURED HOLDER PROFILE ------------------
+        Card(
+            colors = CardDefaults.cardColors(containerColor = SlatePrimary),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(TealAccent),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.VerifiedUser,
+                                contentDescription = "Verified Seal",
+                                tint = SlatePrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "SECURED VAULT PROFILE",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TealAccent,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color.White.copy(alpha = 0.15f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "SANDBOX COMPLIANT",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Text(
+                    text = "Account Holder",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = model.registeredFullName,
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Registered Email Address",
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 10.sp
+                        )
+                        Text(
+                            text = model.registeredEmail,
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Registered Mobile Number",
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 10.sp
+                        )
+                        Text(
+                            text = model.registeredPhone,
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Emergency Primary Nominee",
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 10.sp
+                        )
+                        Text(
+                            text = "${model.registeredNomineeName} (${model.registeredNomineeRelation})",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Dynamic Security Certification ID",
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 10.sp
+                        )
+                        Text(
+                            text = model.registeredDigitalCertificateId,
+                            color = TealAccent,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
 
         // Simulated Access Control switch panel
         Card(
