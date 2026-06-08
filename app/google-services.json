@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "123456789012",
-    "project_id": "family-emergency-vault-fev",
-    "storage_bucket": "family-emergency-vault-fev.appspot.com"
+    "project_number": "1048649839951",
+    "project_id": "family-emergency-vault",
+    "storage_bucket": "family-emergency-vault.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:123456789012:android:0123456789abcdef012345",
+        "mobilesdk_app_id": "1:1048649839951:android:0fdd3216b2d7dc7123013a",
         "android_client_info": {
           "package_name": "com.aistudio.familyemergencyvault.kndprs"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDummyKeyPlaceholderForBuildToPass"
+          "current_key": "AIzaSyAd6oyRkOgND7487DyKsJ5VpnZ5g9hEL3Q"
         }
       ],
       "services": {
