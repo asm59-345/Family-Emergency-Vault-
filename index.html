@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Family Emergency Vault - Android App</title>
+  <meta name="description" content="Secure, offline-first family continuity and financial emergency vault application built for Android with Jetpack Compose & Material 3.">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-teal-500 selection:text-white">
+
+  <!-- Navigation -->
+  <header class="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-teal-500/20 text-white font-bold text-lg">
+          🛡️
+        </div>
+        <div>
+          <h1 class="font-bold text-base tracking-tight text-white leading-tight">Family Emergency Vault</h1>
+          <p class="text-[11px] text-teal-400 font-medium uppercase tracking-wider">Android Release v1.0</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="./app-debug.apk" download="app-debug.apk" class="inline-flex items-center gap-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold px-4 py-2 rounded-lg text-sm transition-all shadow-md shadow-teal-500/25">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+          Download APK
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="flex-1">
+    <section class="relative py-20 px-6 overflow-hidden">
+      <!-- Glow background -->
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-teal-500/15 blur-[120px] rounded-full pointer-events-none"></div>
+
+      <div class="max-w-4xl mx-auto text-center relative z-10">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-950/80 border border-teal-800 text-teal-300 text-xs font-medium mb-6">
+          <span class="w-2 h-2 rounded-full bg-teal-400 animate-pulse"></span>
+          Ready for Android Deployment
+        </div>
+
+        <h2 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white mb-6 leading-tight">
+          Secure, Offline Family <br/>
+          <span class="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 via-emerald-300 to-cyan-400">
+            Emergency & Continuity Vault
+          </span>
+        </h2>
+
+        <p class="text-slate-300 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed font-light">
+          A production Android application engineered with Jetpack Compose, Material 3, and Room local persistence to safeguard bank records, insurance, contacts, and emergency checklists.
+        </p>
+
+        <!-- CTA Buttons -->
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+          <a href="./app-debug.apk" download="app-debug.apk" class="w-full sm:w-auto inline-flex items-center justify-center gap-3 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-slate-950 font-bold px-8 py-4 rounded-xl text-base transition-all shadow-xl shadow-teal-500/25">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            Download Debug APK (.apk)
+          </a>
+          <a href="#how-to-install" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-slate-200 font-medium px-6 py-4 rounded-xl text-base transition-all">
+            Installation Instructions
+          </a>
+        </div>
+
+        <!-- Meta specs -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-3xl mx-auto pt-6 border-t border-slate-800/80 text-left">
+          <div class="p-4 rounded-lg bg-slate-900/50 border border-slate-800">
+            <div class="text-xs text-slate-400 mb-1">Architecture</div>
+            <div class="font-semibold text-sm text-slate-100">Clean MVVM + StateFlow</div>
+          </div>
+          <div class="p-4 rounded-lg bg-slate-900/50 border border-slate-800">
+            <div class="text-xs text-slate-400 mb-1">UI Framework</div>
+            <div class="font-semibold text-sm text-slate-100">Jetpack Compose M3</div>
+          </div>
+          <div class="p-4 rounded-lg bg-slate-900/50 border border-slate-800">
+            <div class="text-xs text-slate-400 mb-1">Storage</div>
+            <div class="font-semibold text-sm text-slate-100">Room SQLite (Local Only)</div>
+          </div>
+          <div class="p-4 rounded-lg bg-slate-900/50 border border-slate-800">
+            <div class="text-xs text-slate-400 mb-1">Target SDK</div>
+            <div class="font-semibold text-sm text-slate-100">Android 14/15 (SDK 36)</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- App Highlights -->
+    <section class="py-16 px-6 bg-slate-900/30 border-y border-slate-800">
+      <div class="max-w-5xl mx-auto">
+        <h3 class="text-2xl sm:text-3xl font-bold text-center text-white mb-12">Core Capabilities</h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 transition-all">
+            <div class="w-12 h-12 rounded-xl bg-teal-500/10 text-teal-400 flex items-center justify-center text-xl mb-4">
+              💼
+            </div>
+            <h4 class="text-lg font-bold text-white mb-2">Financial Asset Registry</h4>
+            <p class="text-slate-400 text-sm leading-relaxed">
+              Consolidate bank accounts, demat folios, insurance policies, safe lockers, and liabilities with field-level masking and nominee status.
+            </p>
+          </div>
+
+          <div class="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 transition-all">
+            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xl mb-4">
+              ⏱️
+            </div>
+            <h4 class="text-lg font-bold text-white mb-2">Emergency Playbooks</h4>
+            <p class="text-slate-400 text-sm leading-relaxed">
+              Step-by-step action plans split into First 24 Hours, First 7 Days, and First 30 Days so family members know exactly who to call and what to file.
+            </p>
+          </div>
+
+          <div class="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 transition-all">
+            <div class="w-12 h-12 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-xl mb-4">
+              🔒
+            </div>
+            <h4 class="text-lg font-bold text-white mb-2">Zero Cloud Exposure</h4>
+            <p class="text-slate-400 text-sm leading-relaxed">
+              All records are stored strictly on the local device inside an isolated Room SQLite database. No third-party analytics or external telemetry leaks.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Installation steps -->
+    <section id="how-to-install" class="py-16 px-6">
+      <div class="max-w-3xl mx-auto">
+        <h3 class="text-2xl sm:text-3xl font-bold text-center text-white mb-10">How to Install on Android</h3>
+
+        <div class="space-y-4">
+          <div class="flex items-start gap-4 p-5 rounded-xl bg-slate-900/80 border border-slate-800">
+            <div class="w-8 h-8 rounded-full bg-teal-500 text-slate-950 font-bold flex items-center justify-center shrink-0 text-sm">
+              1
+            </div>
+            <div>
+              <h4 class="font-semibold text-white text-base">Download the APK file</h4>
+              <p class="text-slate-400 text-sm mt-1">
+                Tap the <a href="./app-debug.apk" class="text-teal-400 underline font-medium">Download APK</a> button on your Android device's browser.
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-4 p-5 rounded-xl bg-slate-900/80 border border-slate-800">
+            <div class="w-8 h-8 rounded-full bg-teal-500 text-slate-950 font-bold flex items-center justify-center shrink-0 text-sm">
+              2
+            </div>
+            <div>
+              <h4 class="font-semibold text-white text-base">Allow "Install Unknown Apps"</h4>
+              <p class="text-slate-400 text-sm mt-1">
+                When prompted by Android or Chrome, toggle "Allow from this source" in Settings so the package installer can proceed.
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-4 p-5 rounded-xl bg-slate-900/80 border border-slate-800">
+            <div class="w-8 h-8 rounded-full bg-teal-500 text-slate-950 font-bold flex items-center justify-center shrink-0 text-sm">
+              3
+            </div>
+            <div>
+              <h4 class="font-semibold text-white text-base">Open and Run</h4>
+              <p class="text-slate-400 text-sm mt-1">
+                Tap the notification or find <code>app-debug.apk</code> in your Downloads folder to complete setup.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800 py-8 px-6 text-center text-slate-500 text-xs">
+    <p>© 2026 Family Emergency Vault. Built with Kotlin, Jetpack Compose, and Material 3.</p>
+  </footer>
+
+</body>
+</html>
