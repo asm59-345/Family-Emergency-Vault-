@@ -59,7 +59,7 @@ COPY . .
 
 # Since this workspace doesn't use the standard gradle wrapper checked-in,
 # we download and cache Gradle within the Docker image to make builds self-contained.
-ENV GRADLE_VERSION=8.9
+ENV GRADLE_VERSION=8.6
 RUN wget -q https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -O /tmp/gradle.zip && \
     unzip -q /tmp/gradle.zip -d /opt && \
     rm -f /tmp/gradle.zip
