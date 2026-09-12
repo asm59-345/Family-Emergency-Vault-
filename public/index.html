@@ -119,6 +119,15 @@
           <span class="hidden md:inline">iOS</span>
         </button>
 
+        <!-- App Guide Trigger -->
+        <button @click="activeTab = 'guide'"
+                class="px-2.5 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1"
+                :class="activeTab === 'guide' ? 'bg-teal-600 text-white border-teal-600' : (isDarkMode ? 'bg-slate-800 border-slate-700 text-teal-300 hover:bg-slate-700' : 'bg-slate-100 border-slate-200 text-teal-700 hover:bg-slate-200')"
+                title="What is Emergency Vault & Setup Guide">
+          <span>💡</span>
+          <span class="hidden md:inline" x-text="t('App Guide', 'ऐप गाइड')"></span>
+        </button>
+
         <!-- Vercel Deploy Guide Modal Trigger -->
         <button @click="showVercelModal = true"
                 class="px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition flex items-center gap-1"
@@ -214,6 +223,14 @@
              :class="isDarkMode ? 'text-slate-300' : 'text-slate-600'"
              x-text="t('During unforeseen emergencies, help family members locate bank accounts, insurance policies, safe lockers, and vital records without delay.', 'अचानक किसी जरूरत या इमरजेंसी के समय परिवार को बैंक खाते, बीमा, लॉकर और कागजात ढूंढने में परेशानी न हो — इसलिए यहाँ सब कुछ एक जगह व्यवस्थित है।')">
           </p>
+
+          <div class="mt-3 flex items-center gap-2">
+            <button @click="activeTab = 'guide'" 
+                    class="inline-flex items-center gap-1 text-xs font-bold text-teal-600 dark:text-teal-400 hover:underline">
+              <span>💡</span>
+              <span x-text="t('What is Emergency Vault & How to Setup in 4 Steps →', 'इमरजेंसी वॉल्ट क्या है और 4 आसान स्टेप्स में सेटअप कैसे करें →')"></span>
+            </button>
+          </div>
         </div>
 
         <!-- 3 Quick Stat Badges -->
@@ -734,6 +751,187 @@
 
     </div>
 
+    <!-- ============================================== -->
+    <!-- TAB 5: WHAT IS VAULT & SETUP GUIDE (ABOUT APP) -->
+    <!-- ============================================== -->
+    <div x-show="activeTab === 'guide'" class="space-y-6">
+
+      <!-- Hero Visual Promo / Showcase Advertisement Banner Card -->
+      <div class="relative overflow-hidden rounded-3xl border shadow-xl"
+           :class="isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center p-6 sm:p-8">
+          <div class="lg:col-span-7 space-y-4">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
+                🛡️ Offline Continuity Ledger
+              </span>
+              <span class="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                📱 Native Android & iOS Companion
+              </span>
+            </div>
+            
+            <h2 class="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight"
+                :class="isDarkMode ? 'text-white' : 'text-slate-900'"
+                x-text="t('Why Family Emergency Vault is Built for Mobile — Not a Cloud Website', 'फैमिली इमरजेंसी वॉल्ट क्यों बना है मोबाइल के लिए — न कि किसी क्लाउड वेबसाइट पर')">
+            </h2>
+
+            <p class="text-xs sm:text-sm leading-relaxed"
+               :class="isDarkMode ? 'text-slate-300' : 'text-slate-600'"
+               x-text="t('When unexpected crisis strikes (hospital ICU admission, accident, or sudden demise), cloud servers, forgotten passwords, or missing SMS OTPs leave families helpless. Over ₹50,000+ Crores of insurance and bank deposits lie unclaimed in India alone because families never knew accounts existed. Family Emergency Vault keeps a military-grade, 100% offline blueprint directly on your mobile device.', 'अचानक किसी आपात स्थिति (अस्पताल ICU, दुर्घटना, या अनपेक्षित निधन) के समय क्लाउड सर्वर, भूले हुए पासवर्ड या गायब SMS OTP के कारण परिवार बेबस हो जाता है। भारत में ₹50,000+ करोड़ से अधिक की बैंक जमा और बीमा राशि लावारिस पड़ी है क्योंकि परिवारों को खातों की जानकारी नहीं होती। यह ऐप सीधे आपके मोबाइल फोन में 100% ऑफलाइन सुरक्षित लेजर रखता है।')">
+            </p>
+
+            <!-- Quick Action Links -->
+            <div class="flex flex-wrap items-center gap-3 pt-2">
+              <a href="./app-debug.apk" download="FamilyEmergencyVault-v1.0.apk"
+                 class="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-black text-xs sm:text-sm shadow-lg shadow-teal-600/30 transition flex items-center gap-2">
+                <span>📲 Download Android APK (22M)</span>
+              </a>
+              <button @click="showIosModal = true"
+                      class="px-4 py-2.5 rounded-xl border text-xs sm:text-sm font-bold transition flex items-center gap-2"
+                      :class="isDarkMode ? 'bg-slate-800 border-slate-700 text-white hover:bg-slate-700' : 'bg-slate-100 border-slate-300 text-slate-900 hover:bg-slate-200'">
+                <span>🍏 iOS Safari Guide</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="lg:col-span-5 flex flex-col gap-3">
+            <div class="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-md">
+              <img src="./hero-banner.jpg" alt="Family Emergency Vault 3D Shield" class="w-full h-44 sm:h-52 object-cover">
+            </div>
+            <div class="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-md">
+              <img src="./promo-banner.jpg" alt="Family Emergency Vault Mobile Showcase" class="w-full h-40 object-cover">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grid of Detailed Explanations -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Card 1: What is Emergency Vault & What does it do? -->
+        <div class="p-6 rounded-2xl border space-y-4"
+             :class="isDarkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900 shadow-sm'">
+          <div class="flex items-center gap-2 text-teal-600 dark:text-teal-400 font-extrabold text-sm uppercase">
+            <span>🛡️</span>
+            <span x-text="t('Core Purpose & Capabilities', 'मुख्य उद्देश्य और सुविधाएं')"></span>
+          </div>
+          <h3 class="text-xl font-black" x-text="t('What is Emergency Vault & What Does It Do?', 'इमरजेंसी वॉल्ट क्या है और यह क्या करता है?')"></h3>
+          
+          <ul class="space-y-3 text-xs sm:text-sm" :class="isDarkMode ? 'text-slate-300' : 'text-slate-600'">
+            <li class="flex items-start gap-2.5">
+              <span class="text-teal-500 font-bold text-base">✓</span>
+              <div>
+                <strong class="text-slate-900 dark:text-white" x-text="t('Single Master Ledger of Accounts:', 'सभी खातों का मास्टर लेजर:')"></strong>
+                <span x-text="t(' Consolidates Savings, Fixed Deposits, Life Insurance (LIC/HDFC), Mediclaim Health policies, Demat stocks, and PPF into one organized place.', ' बचत खाते, FD, जीवन बीमा (LIC/HDFC), हेल्थ मेडिक्लेम, डीमैट शेयर और PPF को एक जगह जोड़ता है।')"></span>
+              </div>
+            </li>
+            <li class="flex items-start gap-2.5">
+              <span class="text-teal-500 font-bold text-base">✓</span>
+              <div>
+                <strong class="text-slate-900 dark:text-white" x-text="t('Physical Paper Location Mapping:', 'मूल कागजात की जगह की मैपिंग:')"></strong>
+                <span x-text="t(' Families often know a policy exists but cannot find the papers. Vault maps the exact physical cabinet, shelf, or locker unit.', ' अक्सर परिवारों को पता होता है कि पॉलिसी है, लेकिन कागजात नहीं मिलते। यह अलमारी, फाइल और लॉकर नंबर सटीक बताता है।')"></span>
+              </div>
+            </li>
+            <li class="flex items-start gap-2.5">
+              <span class="text-teal-500 font-bold text-base">✓</span>
+              <div>
+                <strong class="text-slate-900 dark:text-white" x-text="t('Nominee Verification Status:', 'नॉमिनी वेरिफिकेशन ट्रैकर:')"></strong>
+                <span x-text="t(' Identifies unlinked accounts (DA-1 forms pending) before it is too late, avoiding lengthy legal succession court trials.', ' बिना नॉमिनी वाले खातों को समय रहते पहचानता है, ताकि भविष्य में अदालती उत्तराधिकार मुकदमों से बचा जा सके।')"></span>
+              </div>
+            </li>
+            <li class="flex items-start gap-2.5">
+              <span class="text-teal-500 font-bold text-base">✓</span>
+              <div>
+                <strong class="text-slate-900 dark:text-white" x-text="t('24h / 7d / 30d Action Playbook:', '24 घंटे / 7 दिन / 30 दिन की चेकलिस्ट:')"></strong>
+                <span x-text="t(' Clear roadmap of critical tasks (arranging 15-20 original death certificates, freezing credit cards to prevent fraud, insurance claim initiation).', ' संकट के समय क्या कदम उठाना है (मृत्यु प्रमाण पत्र की 15-20 कॉपियां, फ्रॉड रोकने के लिए कार्ड ब्लॉक, क्लेम फॉर्म)।')"></span>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Card 2: 4-Step Setup Guide -->
+        <div class="p-6 rounded-2xl border space-y-4"
+             :class="isDarkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900 shadow-sm'">
+          <div class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-extrabold text-sm uppercase">
+            <span>🚀</span>
+            <span x-text="t('Quick 4-Step Setup', '4 आसान चरणों में शुरुआत')"></span>
+          </div>
+          <h3 class="text-xl font-black" x-text="t('How to Setup the Vault for Your Family', 'अपने परिवार के लिए वॉल्ट कैसे सेटअप करें?')"></h3>
+
+          <div class="space-y-3 text-xs sm:text-sm">
+            <div class="p-3 rounded-xl border flex items-start gap-3"
+                 :class="isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'">
+              <div class="w-6 h-6 rounded-full bg-teal-600 text-white font-bold text-xs flex items-center justify-center shrink-0">1</div>
+              <div>
+                <div class="font-extrabold text-slate-900 dark:text-white" x-text="t('Step 1: Add Accounts & Policies', 'कदम 1: खाते और पॉलिसियां जोड़ें')"></div>
+                <div class="text-xs text-slate-500 dark:text-slate-400" x-text="t('Click (+ Add Account/Asset) to record your bank savings, FDs, life/health policies, and locker details.', '(+ नया खाता जोड़ें) पर क्लिक करके अपने बैंक, बीमा, शेयर और लॉकर दर्ज करें।')"></div>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-xl border flex items-start gap-3"
+                 :class="isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'">
+              <div class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center shrink-0">2</div>
+              <div>
+                <div class="font-extrabold text-slate-900 dark:text-white" x-text="t('Step 2: Assign Nominees & Physical Spot', 'कदम 2: नॉमिनी व कागजात की जगह लिखें')"></div>
+                <div class="text-xs text-slate-500 dark:text-slate-400" x-text="t('Specify your nominated spouse/child and write down the exact bedroom wardrobe drawer or locker key location.', 'नॉमिनी का नाम चुनें और घर की किस अलमारी या दराज में मूल कागजात हैं, वह लिखें।')"></div>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-xl border flex items-start gap-3"
+                 :class="isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'">
+              <div class="w-6 h-6 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0">3</div>
+              <div>
+                <div class="font-extrabold text-slate-900 dark:text-white" x-text="t('Step 3: Setup Advisors & Contacts', 'कदम 3: डॉक्टर, CA व वकील के नंबर जोड़ें')"></div>
+                <div class="text-xs text-slate-500 dark:text-slate-400" x-text="t('Add your trusted family doctor, accountant, and lawyer so family can connect in 1-tap via the SOS bar.', 'फैमिली डॉक्टर और CA के नंबर दर्ज करें ताकि इमरजेंसी में 1-टैप में कॉल किया जा सके।')"></div>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-xl border flex items-start gap-3"
+                 :class="isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'">
+              <div class="w-6 h-6 rounded-full bg-amber-600 text-white font-bold text-xs flex items-center justify-center shrink-0">4</div>
+              <div>
+                <div class="font-extrabold text-slate-900 dark:text-white" x-text="t('Step 4: Lock with MPIN & Export Backup', 'कदम 4: MPIN लगाएं और बैकअप सुरक्षित रखें')"></div>
+                <div class="text-xs text-slate-500 dark:text-slate-400" x-text="t('Enable 4-digit Master MPIN, export a JSON backup to Google Drive or trusted USB, and install APK on home phones.', '4-अंकों का MPIN सेट करें, JSON बैकअप लें और घर के दूसरे फोन में APK डाउनलोड करके रखें।')"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- About the App & Developer Ashmit Gautam Card -->
+      <div class="p-6 rounded-2xl border text-center space-y-4"
+           :class="isDarkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900 shadow-sm'">
+        <div class="w-16 h-16 mx-auto rounded-2xl bg-teal-600/10 border border-teal-500/20 text-teal-600 dark:text-teal-400 flex items-center justify-center text-3xl">
+          🛡️
+        </div>
+        <div>
+          <h3 class="text-xl font-black">Family Emergency Vault</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Version 1.0.0 • Offline-First Native Architecture</p>
+        </div>
+
+        <div class="max-w-2xl mx-auto p-4 rounded-xl border space-y-2 text-xs leading-relaxed"
+             :class="isDarkMode ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'">
+          <p>
+            This application is engineered specifically as an <strong>offline-first resilience platform</strong>. In catastrophic circumstances, banking apps with cloud servers fail because they require user fingerprints, facial recognition, or active SIM cards with SMS OTPs.
+          </p>
+          <p>
+            By storing data locally on your device with cryptographic masking and offline JSON exports, Family Emergency Vault bridges the vital communication gap between a family provider and their dependents.
+          </p>
+        </div>
+
+        <div class="pt-2">
+          <div class="text-sm font-extrabold">
+            Written & Developed by <span class="text-teal-600 dark:text-teal-400 underline decoration-teal-500 font-black">Ashmit Gautam</span>
+          </div>
+          <div class="text-[11px] text-slate-400 mt-1">
+            Android Jetpack Compose • SQLite Room Database • Progressive Web App for iOS & Vercel
+          </div>
+        </div>
+      </div>
+
+    </div>
+
   </main>
 
   <!-- Add / Edit Asset Modal Dialog -->
@@ -1128,6 +1326,37 @@
     </div>
   </div>
 
+  <!-- Global Application Footer with Creator Credit -->
+  <footer class="max-w-7xl mx-auto px-4 sm:px-6 py-8 border-t text-center space-y-3"
+          :class="isDarkMode ? 'border-slate-800 text-slate-400' : 'border-slate-200 text-slate-600'">
+    <div class="flex flex-wrap items-center justify-center gap-3 text-xs font-semibold">
+      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
+        <span>📱</span>
+        <span>Android APK (22M) & iOS PWA</span>
+      </span>
+      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+        <span>🔒</span>
+        <span>100% Offline & On-Device Storage</span>
+      </span>
+      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+        <span>▲</span>
+        <span>Vercel Deploy Ready</span>
+      </span>
+    </div>
+
+    <div class="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
+      Designed & Written by <span class="text-teal-600 dark:text-teal-400 underline decoration-teal-400 font-extrabold">Ashmit Gautam</span>
+    </div>
+
+    <p class="text-[11px] text-slate-500 dark:text-slate-400 max-w-xl mx-auto leading-relaxed">
+      Family Emergency Vault • Offline-First Continuity & Asset Succession Platform. Keeping your family protected with secure asset organization, nominee tracking, and emergency action playbooks.
+    </p>
+
+    <div class="text-[10px] text-slate-400">
+      © 2026 Family Emergency Vault • Written by Ashmit Gautam • All Rights Reserved
+    </div>
+  </footer>
+
   <!-- Application Logic -->
   <script>
     function vaultApp() {
@@ -1170,7 +1399,8 @@
             { id: 'vault', name: this.t('Assets & Accounts', 'खाते व संपत्ति (Assets)'), icon: '🔐', badge: this.vaultItems ? this.vaultItems.length.toString() : '0' },
             { id: 'checklist', name: this.t('Emergency Checklist', 'इमरजेंसी चेकलिस्ट (Playbook)'), icon: '📋', badge: '' },
             { id: 'contacts', name: this.t('Family & Advisors', 'परिवार व डॉक्टर्स (Contacts)'), icon: '📞', badge: '' },
-            { id: 'download', name: this.t('Download & Vercel Sync', 'APK डाउनलोड व बैकअप'), icon: '📲', badge: '' }
+            { id: 'download', name: this.t('Download & Vercel Sync', 'APK डाउनलोड व बैकअप'), icon: '📲', badge: '' },
+            { id: 'guide', name: this.t('What is Vault & Guide', 'वॉल्ट गाइड व परिचय (About)'), icon: '💡', badge: 'New' }
           ];
         },
 

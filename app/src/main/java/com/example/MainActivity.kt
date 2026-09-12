@@ -3209,6 +3209,183 @@ fun SettingsScreen(
             }
         }
 
+        // ==================== WHAT IS EMERGENCY VAULT & SETUP GUIDE ====================
+        var showAppGuide by remember { mutableStateOf(true) }
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, SlateBorder),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showAppGuide = !showAppGuide },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "💡", fontSize = 16.sp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Column {
+                            Text(
+                                text = if (model.isHindiMode) "इमरजेंसी वॉल्ट क्या है और कैसे सेटअप करें?" else "What is Emergency Vault & How to Setup?",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = SlatePrimary
+                            )
+                            Text(
+                                text = if (model.isHindiMode) "अनपेक्षित आपातकाल में परिवार की सुरक्षा गाइड" else "Complete guide for unexpected family emergencies",
+                                fontSize = 10.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+                    Icon(
+                        imageVector = if (showAppGuide) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = "Toggle Guide",
+                        tint = SlatePrimary
+                    )
+                }
+
+                if (showAppGuide) {
+                    Divider(color = SlateBorder.copy(alpha = 0.5f))
+
+                    // Section 1: What is Emergency Vault?
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = if (model.isHindiMode) "📌 यह क्या है और क्यों जरूरी है? (What is it?)" else "📌 What is Family Emergency Vault?",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            color = TealAccent
+                        )
+                        Text(
+                            text = if (model.isHindiMode)
+                                "यह एक 100% ऑफलाइन, सैन्य-ग्रेड एन्क्रिप्टेड डिजिटल व भौतिक लेजर है। किसी अनपेक्षित दुर्घटना, गंभीर बीमारी या मृत्यु के समय अक्सर परिवार को यह नहीं पता होता कि बैंक खाते, बीमा पॉलिसियां, लॉकर की चाबियां और संपत्ति के कागजात कहां हैं। यह ऐप उस संकट में परिवार का विश्वसनीय साथी बनता है।"
+                            else
+                                "Family Emergency Vault is a 100% offline, military-grade encrypted emergency continuity ledger. In the event of critical hospitalization, unforeseen incapacitation, or sudden demise, families struggle to locate bank accounts, term life policies, physical locker keys, and real estate deeds. This app solves that chaos.",
+                            fontSize = 10.sp,
+                            color = Color.DarkGray,
+                            lineHeight = 14.sp
+                        )
+                    }
+
+                    // Section 2: Why Mobile App vs Website?
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = if (model.isHindiMode) "📱 वेबसाइट के बजाय मोबाइल ऐप (Android / iOS) क्यों?" else "📱 Why an Android / iOS App, Not a Website?",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            color = SlatePrimary
+                        )
+                        Text(
+                            text = if (model.isHindiMode)
+                                "इमरजेंसी के समय अस्पताल या किसी जगह इंटरनेट और सर्वर काम न भी करें, तो भी यह नेटिव ऐप फोन के अंदर पूरी तरह ऑफलाइन काम करता है। कोई पासवर्ड या क्लाउड लीक का डर नहीं — सारा डेटा आपके फोन में ही सुरक्षित रहता है।"
+                            else
+                                "During emergency hospital visits or remote situations, internet connectivity is often poor or absent. This native mobile app runs 100% locally from your device storage with zero cloud dependence, zero server outage risk, and zero data leakage.",
+                            fontSize = 10.sp,
+                            color = Color.DarkGray,
+                            lineHeight = 14.sp
+                        )
+                    }
+
+                    // Section 3: 4-Step Setup Guide
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = if (model.isHindiMode) "🚀 4 आसान चरणों में वॉल्ट सेटअप करें (Setup Steps):" else "🚀 Step-by-Step Setup Guide (4 Easy Steps):",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            color = SlatePrimary
+                        )
+
+                        val steps = if (model.isHindiMode) listOf(
+                            "1. खाते व बीमा जोड़ें" to "अपने सभी बचत खाते, FD, टर्म इंश्योरेंस, हेल्थ मेडिक्लेम और डीमैट रिकॉर्ड जोड़ें।",
+                            "2. नॉमिनी व कागजात की जगह लिखें" to "हर खाते में सत्यापित नॉमिनी का नाम और घर में मूल कागजात किस अलमारी/दराज में हैं, दर्ज करें।",
+                            "3. संपर्क व चेकलिस्ट तैयार करें" to "फैमिली डॉक्टर, वकील, CA के नंबर जोड़ें और 24h / 7d / 30d एक्शन प्लान की जांच करें।",
+                            "4. 4-अंकों का MPIN सेट करें और बैकअप लें" to "मास्टर MPIN एक्टिवेट करें और एन्क्रिप्टेड JSON बैकअप को अपने जीवनसाथी/नॉमिनी के साथ सुरक्षित रखें।"
+                        ) else listOf(
+                            "1. Record All Financial Assets" to "Log your savings accounts, FDs, life/health policies, demat accounts, and safe locker units.",
+                            "2. Set Nominees & Physical Locations" to "Mark verified nominee registration status and record the exact physical drawer/cabinet of original paper files.",
+                            "3. Add Advisors & Review Checklist" to "Store numbers for family doctor, trusted CA, and lawyer; verify the 24h, 7d, and 30d emergency action playbook.",
+                            "4. Lock with MPIN & Export Encrypted Backup" to "Enable 4-digit master MPIN security and export an offline JSON backup for your primary nominee."
+                        )
+
+                        steps.forEachIndexed { idx, (title, desc) ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(SlateLightBg, RoundedCornerShape(6.dp))
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .clip(CircleShape)
+                                        .background(TealAccent),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(text = "${idx + 1}", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = SlatePrimary)
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(text = title, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = SlatePrimary)
+                                    Text(text = desc, fontSize = 9.sp, color = Color.Gray, lineHeight = 12.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ==================== CREATOR ATTRIBUTION & APP FOOTER ====================
+        Card(
+            colors = CardDefaults.cardColors(containerColor = SlatePrimary),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Shield,
+                        contentDescription = "Shield",
+                        tint = TealAccent,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Family Emergency Vault v1.0",
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Text(
+                    text = if (model.isHindiMode)
+                        "अशमित गौतम (Ashmit Gautam) द्वारा विशेष रूप से तैयार किया गया"
+                    else
+                        "Designed & Developed by Ashmit Gautam",
+                    color = TealAccent,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Text(
+                    text = "100% Offline • SQLite Room • Zero Cloud Leakage • Military-Grade Encryption",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 8.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+
         Button(
             onClick = { model.logout() },
             colors = ButtonDefaults.buttonColors(containerColor = RedAlert),
