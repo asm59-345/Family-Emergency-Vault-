@@ -51,14 +51,21 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MyApplicationTheme {
-                MainAppSurface(model)
+            val currentFontTheme = model.selectedFontTheme
+            MyApplicationTheme(fontTheme = currentFontTheme) {
+                ProvideTextStyle(
+                    value = androidx.compose.ui.text.TextStyle(fontFamily = currentFontTheme.bodyFamily)
+                ) {
+                    MainAppSurface(model)
+                }
             }
         }
     }
 
     override fun dispatchTouchEvent(ev: android.view.MotionEvent?): Boolean {
-        model.updateUserActivity()
+        if (ev?.action == android.view.MotionEvent.ACTION_DOWN) {
+            model.updateUserActivity()
+        }
         return super.dispatchTouchEvent(ev)
     }
 }
@@ -119,9 +126,10 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
                 title = {
                     Column {
                         Text(
-                            text = "Family Emergency Vault",
+                            text = if (model.isHindiMode) "पारिवारिक आपातकालीन वॉल्ट" else "Family Emergency Vault",
                             fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = model.selectedFontTheme.headingFamily
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -141,6 +149,33 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
                     }
                 },
                 actions = {
+                    // Language Switcher (EN / हिंदी)
+                    Box(
+                        modifier = Modifier
+                            .padding(end = 6.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.White.copy(alpha = 0.2f))
+                            .clickable { model.toggleLanguage() }
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Language,
+                                contentDescription = "Language",
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (model.isHindiMode) "हिंदी" else "English",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
                     // Role Switcher Badge
                     Box(
                         modifier = Modifier
@@ -974,6 +1009,94 @@ fun DashboardScreen(
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // --- SECTION: 1-TAP EMERGENCY SOS DIRECTORY CARD ---
+        val context = LocalContext.current
+        val docContact = contacts.find { it.category.contains("Doctor", ignoreCase = true) }
+        val lawyerContact = contacts.find { it.category.contains("Lawyer", ignoreCase = true) }
+
+        Card(
+            colors = CardDefaults.cardColors(containerColor = if (model.isHindiMode) Color(0xFFFEF2F2) else Color(0xFFFFF1F2)),
+            border = BorderStroke(1.dp, Color(0xFFFECDD3)),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+        ) {
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "🚨", fontSize = 16.sp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (model.isHindiMode) "आपातकालीन त्वरित कॉल (1-Tap SOS)" else "Quick Emergency SOS Call",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = Color(0xFF9F1239)
+                        )
+                    }
+                    Text(
+                        text = if (model.isHindiMode) "सीधा कॉल करें" else "Direct Dial",
+                        fontSize = 10.sp,
+                        color = Color(0xFFBE123C),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // National Helpline 112
+                    Button(
+                        onClick = {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:112"))
+                            context.startActivity(intent)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE11D48)),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
+                    ) {
+                        Text("📞 112 National", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    // Family Doctor
+                    val docPhone = docContact?.phone ?: "+91 98111 22233"
+                    Button(
+                        onClick = {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:$docPhone"))
+                            context.startActivity(intent)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
+                    ) {
+                        Text("👨‍⚕️ " + (if (model.isHindiMode) "डॉक्टर" else "Doctor"), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    // Lawyer / Advisor
+                    val lawyerPhone = lawyerContact?.phone ?: "+91 98100 98100"
+                    Button(
+                        onClick = {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:$lawyerPhone"))
+                            context.startActivity(intent)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = TealAccent),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
+                    ) {
+                        Text("⚖️ " + (if (model.isHindiMode) "वकील" else "Lawyer"), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
         }
 
         // --- SECTION: "WHAT TO DO FIRST" CONTINUITY ACTIONS ---
@@ -2084,6 +2207,78 @@ fun SettingsScreen(
     onRequestEmergency: () -> Unit
 ) {
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
+
+    // Restore Backup Dialog State
+    var showRestoreDialog by remember { mutableStateOf(false) }
+    var restoreJsonInput by remember { mutableStateOf("") }
+    var restoreStatusMessage by remember { mutableStateOf<String?>(null) }
+
+    if (showRestoreDialog) {
+        AlertDialog(
+            onDismissRequest = { showRestoreDialog = false },
+            title = {
+                Text(
+                    text = if (model.isHindiMode) "बैकअप से पुनर्स्थापित करें (Restore Vault)" else "Restore Vault from Backup",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = if (model.isHindiMode)
+                            "अपना पहले से एक्सपोर्ट किया गया JSON बैकअप नीचे पेस्ट करें:"
+                        else
+                            "Paste your previously exported JSON backup below:",
+                        fontSize = 12.sp,
+                        color = Color.DarkGray
+                    )
+                    OutlinedTextField(
+                        value = restoreJsonInput,
+                        onValueChange = { restoreJsonInput = it },
+                        placeholder = { Text("{\"app\": \"Family Emergency Vault\", ...}") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp),
+                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                    )
+                    if (restoreStatusMessage != null) {
+                        Text(
+                            text = restoreStatusMessage ?: "",
+                            fontSize = 11.sp,
+                            color = if (restoreStatusMessage?.startsWith("Success") == true) GreenSuccess else RedAlert
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (restoreJsonInput.isNotBlank()) {
+                            model.importVaultFromJson(restoreJsonInput) { success ->
+                                if (success) {
+                                    restoreStatusMessage = if (model.isHindiMode) "सफलतापूर्वक रीस्टोर किया गया!" else "Successfully restored!"
+                                    Toast.makeText(context, "Vault data restored!", Toast.LENGTH_SHORT).show()
+                                    showRestoreDialog = false
+                                } else {
+                                    restoreStatusMessage = if (model.isHindiMode) "अमान्य बैकअप JSON" else "Invalid backup JSON format."
+                                }
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = TealAccent)
+                ) {
+                    Text(if (model.isHindiMode) "रीस्टोर करें" else "Restore", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRestoreDialog = false }) {
+                    Text(if (model.isHindiMode) "रद्द करें" else "Cancel")
+                }
+            }
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -2092,16 +2287,320 @@ fun SettingsScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text(
-            text = "EVALUATION WORKBENCH BAR",
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            color = CreamGold,
-            letterSpacing = 1.sp
-        )
+        // ------------------ APP PREFERENCES & TIMEOUT ------------------
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, SlateBorder),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = if (model.isHindiMode) "⚙️ ऐप प्राथमिकताएं (Preferences)" else "⚙️ App Preferences & Privacy",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = SlatePrimary
+                )
 
-        // System Schematics, Flows, and Legal Acceptance Compliance Block
-        com.example.ui.ArchitectureAndSchemaHub(model = model)
+                // Language Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = if (model.isHindiMode) "भाषा (Language)" else "App Language",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = SlatePrimary
+                        )
+                        Text(
+                            text = if (model.isHindiMode) "हिंदी सक्रिय है" else "English currently active",
+                            fontSize = 10.sp,
+                            color = Color.Gray
+                        )
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedButton(
+                            onClick = { if (model.isHindiMode) model.toggleLanguage() },
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = if (!model.isHindiMode) SlatePrimary else Color.Transparent
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Text("English", color = if (!model.isHindiMode) Color.White else SlatePrimary, fontSize = 11.sp)
+                        }
+
+                        OutlinedButton(
+                            onClick = { if (!model.isHindiMode) model.toggleLanguage() },
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = if (model.isHindiMode) SlatePrimary else Color.Transparent
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Text("हिंदी", color = if (model.isHindiMode) Color.White else SlatePrimary, fontSize = 11.sp)
+                        }
+                    }
+                }
+
+                Divider(color = SlateBorder.copy(alpha = 0.5f))
+
+                // Auto-Lock Inactivity Selector
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = if (model.isHindiMode) "निष्क्रियता लॉक समय (Auto-Lock)" else "Inactivity Auto-Lock",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = SlatePrimary
+                        )
+                        Text(
+                            text = if (model.autoLockTimeoutMinutes == 0)
+                                (if (model.isHindiMode) "अक्षम" else "Disabled")
+                            else
+                                "${model.autoLockTimeoutMinutes} min",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TealAccent
+                        )
+                    }
+                    Text(
+                        text = if (model.isHindiMode)
+                            "बिना उपयोग के फोन रहने पर ऐप अपने आप MPIN से लॉक हो जाएगी।"
+                        else
+                            "App automatically locks with MPIN after chosen inactive duration.",
+                        fontSize = 10.sp,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val timeouts = listOf(Pair(5, "5 min"), Pair(15, "15 min"), Pair(30, "30 min"), Pair(0, "Off"))
+                        timeouts.forEach { (minutes, label) ->
+                            val isSelected = model.autoLockTimeoutMinutes == minutes
+                            OutlinedButton(
+                                onClick = { model.setAutoLockTimeout(minutes) },
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = if (isSelected) TealAccent else Color.Transparent
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) Color.White else SlatePrimary,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Divider(color = SlateBorder.copy(alpha = 0.5f))
+
+                // Typography & Font Theme Selector
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = if (model.isHindiMode) "फॉन्ट थीम (Typography Theme)" else "Font & Typography Theme",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = SlatePrimary
+                            )
+                            Text(
+                                text = if (model.isHindiMode) "सक्रिय: ${model.selectedFontTheme.titleHi}" else "Active: ${model.selectedFontTheme.titleEn}",
+                                fontSize = 10.sp,
+                                color = Color.Gray
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(TealAccent.copy(alpha = 0.12f))
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = model.selectedFontTheme.chipLabel,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TealAccent
+                            )
+                        }
+                    }
+
+                    // Interactive Font Theme Cards
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        model.availableFontThemes.chunked(2).forEach { rowThemes ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                rowThemes.forEach { fontTheme ->
+                                    val isSelected = model.selectedFontTheme == fontTheme
+                                    Card(
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (isSelected) SlatePrimary.copy(alpha = 0.07f) else SlateLightBg
+                                        ),
+                                        border = BorderStroke(
+                                            width = if (isSelected) 1.5.dp else 1.dp,
+                                            color = if (isSelected) TealAccent else SlateBorder
+                                        ),
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable { model.setFontTheme(fontTheme) }
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(8.dp),
+                                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = fontTheme.chipLabel,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontFamily = fontTheme.headingFamily,
+                                                    color = if (isSelected) TealAccent else SlatePrimary
+                                                )
+                                                if (isSelected) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.CheckCircle,
+                                                        contentDescription = "Selected",
+                                                        tint = TealAccent,
+                                                        modifier = Modifier.size(13.dp)
+                                                    )
+                                                }
+                                            }
+                                            Text(
+                                                text = if (model.isHindiMode) fontTheme.titleHi else fontTheme.titleEn,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontFamily = fontTheme.headingFamily,
+                                                color = SlatePrimary
+                                            )
+                                            Text(
+                                                text = if (model.isHindiMode) fontTheme.descriptionHi else fontTheme.descriptionEn,
+                                                fontSize = 9.sp,
+                                                color = Color.Gray,
+                                                lineHeight = 12.sp,
+                                                maxLines = 2,
+                                                fontFamily = fontTheme.bodyFamily
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ------------------ ENCRYPTED BACKUP & RESTORE ------------------
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, SlateBorder),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (model.isHindiMode) "💾 एन्क्रिप्टेड बैकअप और रीस्टोर" else "💾 Encrypted Backup & Restore",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = SlatePrimary
+                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFFDCFCE7))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = "Offline JSON",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF166534)
+                        )
+                    }
+                }
+
+                Text(
+                    text = if (model.isHindiMode)
+                        "अपने आपातकालीन डेटा का सुरक्षित JSON बैकअप बनाएं और Google Drive, WhatsApp या ईमेल के माध्यम से सुरक्षित रखें।"
+                    else
+                        "Export a full encrypted JSON backup to save on Google Drive or send securely to your trusted family members.",
+                    fontSize = 11.sp,
+                    color = Color.Gray
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            val json = model.exportVaultToJson()
+                            val sendIntent = android.content.Intent().apply {
+                                action = android.content.Intent.ACTION_SEND
+                                putExtra(android.content.Intent.EXTRA_TEXT, json)
+                                putExtra(android.content.Intent.EXTRA_SUBJECT, "Family Emergency Vault Backup")
+                                type = "text/plain"
+                            }
+                            val shareIntent = android.content.Intent.createChooser(sendIntent, "Export Vault Backup")
+                            context.startActivity(shareIntent)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(imageVector = Icons.Default.Share, contentDescription = "Export", tint = Color.White, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(if (model.isHindiMode) "एक्सपोर्ट बैकअप" else "Export JSON", color = Color.White, fontSize = 11.sp)
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            restoreJsonInput = ""
+                            restoreStatusMessage = null
+                            showRestoreDialog = true
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(imageVector = Icons.Default.Download, contentDescription = "Restore", modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(if (model.isHindiMode) "रीस्टोर करें" else "Restore JSON", fontSize = 11.sp)
+                    }
+                }
+            }
+        }
 
         // ------------------ BANK-STYLE SECURED HOLDER PROFILE ------------------
         Card(
@@ -2330,6 +2829,140 @@ fun SettingsScreen(
             }
         }
 
+        // Database & Persistence Health Section
+        val vaultItemsList by model.vaultItems.collectAsStateWithLifecycle()
+        val familyList by model.familyDependents.collectAsStateWithLifecycle()
+        val contactList by model.importantContacts.collectAsStateWithLifecycle()
+        val checklistItems by model.emergencyActionItems.collectAsStateWithLifecycle()
+
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, SlateBorder),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "🗄️ Database & Storage Engine",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = SlatePrimary
+                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(TealAccent.copy(alpha = 0.15f))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = "Room SQLite v1 • Active",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TealAccent
+                        )
+                    }
+                }
+
+                Text(
+                    text = "High-speed encrypted local SQLite database storing all offline emergency documents, nominee mapping, and family records.",
+                    fontSize = 11.sp,
+                    color = Color.Gray
+                )
+
+                // Live Record Counts
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(SlateLightBg, RoundedCornerShape(8.dp))
+                            .padding(8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(text = "${vaultItemsList.size}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = SlatePrimary)
+                            Text(text = "Assets", fontSize = 10.sp, color = Color.Gray)
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(SlateLightBg, RoundedCornerShape(8.dp))
+                            .padding(8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(text = "${familyList.size}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = SlatePrimary)
+                            Text(text = "Members", fontSize = 10.sp, color = Color.Gray)
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(SlateLightBg, RoundedCornerShape(8.dp))
+                            .padding(8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(text = "${contactList.size}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = SlatePrimary)
+                            Text(text = "Contacts", fontSize = 10.sp, color = Color.Gray)
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(SlateLightBg, RoundedCornerShape(8.dp))
+                            .padding(8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(text = "${checklistItems.size}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = SlatePrimary)
+                            Text(text = "Tasks", fontSize = 10.sp, color = Color.Gray)
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            model.verifyAndRepairDatabase()
+                            Toast.makeText(context, "Database verified & synced!", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.CheckCircle, contentDescription = "Verify", modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Verify Integrity", fontSize = 11.sp)
+                    }
+
+                    Button(
+                        onClick = {
+                            model.resetDatabaseToDefaults()
+                            Toast.makeText(context, "Database restored with emergency seed records!", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.Refresh, contentDescription = "Reset", tint = Color.White, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Reset Defaults", color = Color.White, fontSize = 11.sp)
+                    }
+                }
+            }
+        }
+
         // Logs
         Card(
             colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -2533,6 +3166,45 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Simulate Inactivity Auto-Lock (5m)", color = Color.White, fontSize = 12.sp)
+                }
+            }
+        }
+
+        // Optional Technical Architecture & Schema Hub (Collapsible)
+        var showDevArchitecture by remember { mutableStateOf(false) }
+        Card(
+            colors = CardDefaults.cardColors(containerColor = SlateLightBg),
+            border = BorderStroke(1.dp, SlateBorder),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { showDevArchitecture = !showDevArchitecture }
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "🛠️", fontSize = 14.sp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (model.isHindiMode) "डेवलपर आर्किटेक्चर और सैंडबॉक्स (वैकल्पिक)" else "Developer Architecture & Sandbox Hub",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = SlatePrimary
+                        )
+                    }
+                    Icon(
+                        imageVector = if (showDevArchitecture) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = "Expand",
+                        tint = SlatePrimary
+                    )
+                }
+                if (showDevArchitecture) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    com.example.ui.ArchitectureAndSchemaHub(model = model)
                 }
             }
         }

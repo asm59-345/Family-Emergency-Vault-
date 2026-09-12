@@ -47,4 +47,17 @@ class Repository(private val db: AppDatabase) {
     suspend fun logAction(action: String, details: String, role: String) {
         db.auditLogDao().insert(AuditLog(action = action, details = details, userRole = role))
     }
+
+    // 8. Database Health & Maintenance
+    suspend fun ensureDatabaseSeeded() {
+        AppDatabase.ensureSeeded(db)
+    }
+
+    suspend fun resetDatabaseToDefaults() {
+        AppDatabase.resetToDefaults(db)
+    }
+
+    suspend fun getVaultItemsCount(): Int {
+        return db.vaultItemDao().getCount()
+    }
 }

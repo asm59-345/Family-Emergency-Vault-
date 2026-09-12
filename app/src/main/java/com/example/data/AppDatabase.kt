@@ -42,27 +42,45 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "family_continuity_vault_db"
                 )
-                .addCallback(DatabaseSeederCallback(scope))
+                .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
+
+                // Proactively verify & seed if empty on a background thread
+                scope.launch(Dispatchers.IO) {
+                    ensureSeeded(instance)
+                }
+
                 instance
             }
         }
-    }
 
-    private class DatabaseSeederCallback(
-        private val scope: CoroutineScope
-    ) : RoomDatabase.Callback() {
-        override fun onCreate(db: SupportSQLiteDatabase) {
-            super.onCreate(db)
-            INSTANCE?.let { database ->
-                scope.launch(Dispatchers.IO) {
-                    seedData(database)
+        suspend fun ensureSeeded(db: AppDatabase) {
+            try {
+                val count = db.vaultItemDao().getCount()
+                if (count == 0) {
+                    seedData(db)
                 }
+            } catch (e: Exception) {
+                android.util.Log.e("AppDatabase", "Error ensuring database is seeded", e)
             }
         }
 
-        private suspend fun seedData(db: AppDatabase) {
+        suspend fun resetToDefaults(db: AppDatabase) {
+            try {
+                db.vaultItemDao().deleteAll()
+                db.familyDependentDao().deleteAll()
+                db.importantContactDao().deleteAll()
+                db.emergencyActionItemDao().deleteAll()
+                db.claimRecordDao().deleteAll()
+                db.emergencyAccessRequestDao().deleteAll()
+                seedData(db)
+            } catch (e: Exception) {
+                android.util.Log.e("AppDatabase", "Error resetting database to defaults", e)
+            }
+        }
+
+        suspend fun seedData(db: AppDatabase) {
             // 1. Seed Family Members
             val dependents = listOf(
                 FamilyDependent(

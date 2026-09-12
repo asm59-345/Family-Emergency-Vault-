@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.*
+import com.example.ui.theme.VaultFontTheme
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
@@ -54,6 +55,53 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
 
     // SharedPreferences for detailed user profile
     private val userPrefs = application.getSharedPreferences("vault_user_prefs", android.content.Context.MODE_PRIVATE)
+
+    // Language Preference (Hindi / English)
+    var isHindiMode by mutableStateOf(userPrefs.getBoolean("pref_hindi_mode", false))
+        private set
+
+    fun toggleLanguage() {
+        isHindiMode = !isHindiMode
+        userPrefs.edit().putBoolean("pref_hindi_mode", isHindiMode).apply()
+    }
+
+    // Auto-Lock Inactivity Threshold Preference (in minutes, default 15)
+    var autoLockTimeoutMinutes by mutableStateOf(userPrefs.getInt("pref_autolock_min", 15))
+        private set
+
+    fun setAutoLockTimeout(minutes: Int) {
+        autoLockTimeoutMinutes = minutes
+        userPrefs.edit().putInt("pref_autolock_min", minutes).apply()
+    }
+
+    // Font Typography Theme Preference (Default: EXECUTIVE)
+    val availableFontThemes = VaultFontTheme.values().toList()
+    var selectedFontTheme by mutableStateOf(
+        VaultFontTheme.values().find {
+            it.id == userPrefs.getString("pref_font_theme", VaultFontTheme.EXECUTIVE.id)
+        } ?: VaultFontTheme.EXECUTIVE
+    )
+        private set
+
+    fun setFontTheme(theme: VaultFontTheme) {
+        selectedFontTheme = theme
+        userPrefs.edit().putString("pref_font_theme", theme.id).apply()
+    }
+
+    // Missing Nominee Detection
+    fun getMissingNomineeCount(): Int {
+        return vaultItems.value.count {
+            (it.category == "BANK" || it.category == "INVESTMENT" || it.category == "INSURANCE" || it.category == "LOCKER" || it.category == "PROPERTY") &&
+            (it.nomineeName.isBlank() || !it.nomineeVerified)
+        }
+    }
+
+    fun getMissingNomineeItems(): List<VaultItem> {
+        return vaultItems.value.filter {
+            (it.category == "BANK" || it.category == "INVESTMENT" || it.category == "INSURANCE" || it.category == "LOCKER" || it.category == "PROPERTY") &&
+            (it.nomineeName.isBlank() || !it.nomineeVerified)
+        }
+    }
 
     var isAccountCreated by mutableStateOf(userPrefs.getBoolean("account_created", false))
         private set
@@ -191,14 +239,17 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
         private set
 
     // --- INACTIVITY AUTO-LOCK SYSTEM ---
-    var lastUserActivityTime by mutableStateOf(System.currentTimeMillis())
-        private set
+    @Volatile
+    var lastUserActivityTime: Long = System.currentTimeMillis()
     var autoLockRemainingSeconds by mutableStateOf(300L) // Count down from 300 seconds (5 minutes)
         private set
 
     fun updateUserActivity() {
         if (!isAppMpinLocked && isLoggedIn) {
-            lastUserActivityTime = System.currentTimeMillis()
+            val now = System.currentTimeMillis()
+            if (now - lastUserActivityTime > 1500L) {
+                lastUserActivityTime = now
+            }
         }
     }
 
@@ -329,14 +380,15 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.Main) {
             while (true) {
                 kotlinx.coroutines.delay(1000)
-                if (isLoggedIn && !isAppMpinLocked && mpinPrefs.getBoolean("mpin_active_enabled", true)) {
+                if (isLoggedIn && !isAppMpinLocked && mpinPrefs.getBoolean("mpin_active_enabled", true) && autoLockTimeoutMinutes > 0) {
                     val idleTimeMs = System.currentTimeMillis() - lastUserActivityTime
-                    val remainingMs = (5 * 60 * 1000) - idleTimeMs
+                    val totalMs = autoLockTimeoutMinutes * 60 * 1000L
+                    val remainingMs = totalMs - idleTimeMs
                     if (remainingMs <= 0) {
                         isAppMpinLocked = true
                         enteredMpinDigits = ""
-                        mpinFeedbackMessage = "Session locked due to 5 minutes of inactivity."
-                        repository.logAction("Auto-Locked", "System entered secure deep dormancy due to 5-minute inactivity threshold.", currentRole.name)
+                        mpinFeedbackMessage = "Session locked due to $autoLockTimeoutMinutes minutes of inactivity."
+                        repository.logAction("Auto-Locked", "System entered secure deep dormancy due to inactivity threshold.", currentRole.name)
                     } else {
                         autoLockRemainingSeconds = remainingMs / 1000
                     }
@@ -442,8 +494,9 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     init {
-        // Trigger a check to audit log setup
-        viewModelScope.launch {
+        // Trigger verification and proactive seeding in case the database was newly created or unseeded
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.ensureDatabaseSeeded()
             repository.logAction("App Initialised", "Vault application loaded with seed database.", currentRole.name)
         }
         loadLocalSecureContacts()
@@ -814,6 +867,156 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
                 details = "Successfully processed file and matched keys: $mappedFieldTitles. Loaded 3 records.",
                 role = currentRole.name
             )
+        }
+    }
+
+    fun resetDatabaseToDefaults() {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.resetDatabaseToDefaults()
+            repository.logAction("Database Reset", "All records successfully restored to factory emergency defaults.", currentRole.name)
+        }
+    }
+
+    fun verifyAndRepairDatabase() {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.ensureDatabaseSeeded()
+            repository.logAction("Database Verified", "Checked database integrity and populated missing core items.", currentRole.name)
+        }
+    }
+
+    fun exportVaultToJson(): String {
+        val root = JSONObject()
+        root.put("app", "Family Emergency Vault")
+        root.put("version", 1)
+        root.put("exportedAt", System.currentTimeMillis())
+
+        val itemsArray = JSONArray()
+        vaultItems.value.forEach { item ->
+            val obj = JSONObject().apply {
+                put("category", item.category)
+                put("title", item.title)
+                put("ownerName", item.ownerName)
+                put("institution", item.institution)
+                put("numberOrId", item.numberOrId)
+                put("nomineeName", item.nomineeName)
+                put("nomineeRelation", item.nomineeRelation)
+                put("nomineeVerified", item.nomineeVerified)
+                put("physicalLocation", item.physicalLocation)
+                put("digitalLocation", item.digitalLocation)
+                put("status", item.status)
+                put("remarks", item.remarks)
+                put("detailsString", item.detailsString)
+            }
+            itemsArray.put(obj)
+        }
+        root.put("vaultItems", itemsArray)
+
+        val depsArray = JSONArray()
+        familyDependents.value.forEach { dep ->
+            val obj = JSONObject().apply {
+                put("fullName", dep.fullName)
+                put("relation", dep.relation)
+                put("dob", dep.dob)
+                put("bloodGroup", dep.bloodGroup)
+                put("mobile", dep.mobile)
+                put("email", dep.email)
+                put("address", dep.address)
+                put("dependentStatus", dep.dependentStatus)
+                put("guardianDetails", dep.guardianDetails)
+                put("notes", dep.notes)
+            }
+            depsArray.put(obj)
+        }
+        root.put("familyDependents", depsArray)
+
+        val contactsArray = JSONArray()
+        importantContacts.value.forEach { c ->
+            val obj = JSONObject().apply {
+                put("contactName", c.contactName)
+                put("category", c.category)
+                put("phone", c.phone)
+                put("email", c.email)
+                put("address", c.address)
+                put("priority", c.priority)
+                put("remarks", c.remarks)
+            }
+            contactsArray.put(obj)
+        }
+        root.put("importantContacts", contactsArray)
+
+        return root.toString(2)
+    }
+
+    fun importVaultFromJson(jsonString: String, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val root = JSONObject(jsonString)
+                if (root.has("vaultItems")) {
+                    val array = root.getJSONArray("vaultItems")
+                    for (i in 0 until array.length()) {
+                        val obj = array.getJSONObject(i)
+                        val item = VaultItem(
+                            category = obj.optString("category", "BANK"),
+                            title = obj.optString("title", "Imported Item"),
+                            ownerName = obj.optString("ownerName", "Self"),
+                            institution = obj.optString("institution", ""),
+                            numberOrId = obj.optString("numberOrId", ""),
+                            nomineeName = obj.optString("nomineeName", ""),
+                            nomineeRelation = obj.optString("nomineeRelation", ""),
+                            nomineeVerified = obj.optBoolean("nomineeVerified", false),
+                            physicalLocation = obj.optString("physicalLocation", ""),
+                            digitalLocation = obj.optString("digitalLocation", ""),
+                            status = obj.optString("status", "Active"),
+                            remarks = obj.optString("remarks", ""),
+                            detailsString = obj.optString("detailsString", "")
+                        )
+                        repository.insertVaultItem(item)
+                    }
+                }
+
+                if (root.has("familyDependents")) {
+                    val array = root.getJSONArray("familyDependents")
+                    for (i in 0 until array.length()) {
+                        val obj = array.getJSONObject(i)
+                        val dep = FamilyDependent(
+                            fullName = obj.optString("fullName", ""),
+                            relation = obj.optString("relation", ""),
+                            dob = obj.optString("dob", ""),
+                            bloodGroup = obj.optString("bloodGroup", ""),
+                            mobile = obj.optString("mobile", ""),
+                            email = obj.optString("email", ""),
+                            address = obj.optString("address", ""),
+                            dependentStatus = obj.optString("dependentStatus", "Dependent"),
+                            guardianDetails = obj.optString("guardianDetails", ""),
+                            notes = obj.optString("notes", "")
+                        )
+                        repository.insertFamilyDependent(dep)
+                    }
+                }
+
+                if (root.has("importantContacts")) {
+                    val array = root.getJSONArray("importantContacts")
+                    for (i in 0 until array.length()) {
+                        val obj = array.getJSONObject(i)
+                        val c = ImportantContact(
+                            contactName = obj.optString("contactName", ""),
+                            category = obj.optString("category", ""),
+                            phone = obj.optString("phone", ""),
+                            email = obj.optString("email", ""),
+                            address = obj.optString("address", ""),
+                            priority = obj.optString("priority", "Priority 1"),
+                            remarks = obj.optString("remarks", "")
+                        )
+                        repository.insertImportantContact(c)
+                    }
+                }
+
+                repository.logAction("Vault Restored", "Successfully restored vault from JSON backup.", currentRole.name)
+                launch(Dispatchers.Main) { onComplete(true) }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                launch(Dispatchers.Main) { onComplete(false) }
+            }
         }
     }
 }

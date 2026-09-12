@@ -113,6 +113,80 @@ To compile the APK and run the application locally on an Android device:
 
 ---
 
+## 🌐 Web Companion & Vercel Deployment
+
+This project includes both the **Native Android App (Kotlin + Compose)** and a **Progressive Web App (PWA) companion dashboard**. It can be deployed to Vercel in 1 click or viewed on any desktop or mobile device.
+
+### 🚀 Deploying to Vercel
+
+The project comes with a preconfigured `vercel.json` that handles clean URLs, PWA manifests, and serves `app-debug.apk` directly with proper `Content-Type: application/vnd.android.package-archive` download headers.
+
+#### Method 1: Git Push + Vercel Dashboard (Recommended)
+1. Push your repository to GitHub.
+2. Go to [vercel.com/new](https://vercel.com/new) and select your repository.
+3. Keep the **Framework Preset** as **Other** and Root Directory as `./`.
+4. Click **Deploy**. Your app will be live globally in ~15 seconds!
+
+#### Method 2: Vercel CLI
+```bash
+npm i -g vercel
+vercel login
+vercel --prod
+```
+
+---
+
+## 📱 Mobile Download & Cross-Platform Access
+
+### 🤖 Android Native App (Direct APK Download)
+- **Direct Download Route**: `https://your-vercel-domain.com/app-debug.apk` or via the top-right button on the web dashboard.
+- **File**: `FamilyEmergencyVault-v1.0.apk` (~22 MB).
+- **Default Master PIN**: `4321` (pre-seeded with sample records).
+- **100% Offline**: SQLite Room Database with hardware-backed AES-128 GCM encryption. No internet connection required.
+
+### 🍎 Apple iOS (iPhone & iPad Safari PWA)
+Run the vault on iOS with zero App Store friction:
+1. Open the Vercel web URL in **Safari** on your iPhone or iPad.
+2. Tap the **Share** button (⎋ square with upward arrow) in the bottom navigation bar.
+3. Scroll down and tap **"Add to Home Screen"** (⊕).
+4. Tap **"Add"** in the top-right corner.
+5. The Family Vault icon will now launch fullscreen directly from your iOS Home Screen with local offline persistence!
+
+---
+
+## 🔤 Font & Typography Themes
+
+Both the Android Native App and Web Companion feature 4 curated typography themes:
+1. **Executive Banking (Default)**: Modern Swiss FinTech Sans-Serif (`Plus Jakarta Sans`). Clean, ultra-legible, and professional.
+2. **Heritage Trust & Legal**: Classic editorial Serif (`Playfair Display`). Dignified, formal, and ideal for wills, trusts, and legal documents.
+3. **High-Tech Cyber Vault**: Monospaced engineering style (`JetBrains Mono`). Maximum data density and cryptographic security feel.
+4. **Humanist Care & Family**: Soft, accessible geometry (`Lexend`). Optimized for high legibility, low stress, and elderly family members.
+
+---
+
+## 🧪 Testing & Project Review
+
+### Android Native App Verification
+Run unit and local JVM tests:
+```bash
+# Compile and build the debug APK
+gradle assembleDebug
+
+# Run JVM Unit Tests
+gradle :app:testDebugUnitTest
+```
+
+### Web Dashboard & Cross-Platform Sync Review
+1. **Interactive SOS Hotbar**: Test 1-tap emergency dial buttons for National Emergency (112), Doctor, Legal Advocate, and Chartered Accountant.
+2. **Dynamic Search & Filtering**: Filter assets by Bank, Insurance, Investments, Lockers, and Property.
+3. **JSON Backup & Cross-Restore**:
+   - Tap **"Export JSON"** to download your complete encrypted snapshot.
+   - Tap **"Import JSON"** to load or sync data between Android and Web instances.
+4. **Light / Dark Mode**: Toggle between daylight mode and nighttime emergency mode with 1 tap.
+5. **Typography Switcher**: Switch between Executive, Heritage, Cyber, and Humanist fonts on the fly.
+
+---
+
 ## 🔐 Security & Peace of Mind
 This application is designed with **privacy as a human right**. It does not transmit your master recovery phrases, bank login passwords, or MPINs to any external server. All assets and information live inside your device's sandbox.
 
