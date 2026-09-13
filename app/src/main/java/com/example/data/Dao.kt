@@ -148,4 +148,10 @@ interface AuditLogDao {
 
     @Query("DELETE FROM audit_logs")
     suspend fun deleteAll()
+
+    @Query("DELETE FROM audit_logs WHERE id NOT IN (SELECT id FROM audit_logs ORDER BY timestamp DESC LIMIT :keepCount)")
+    suspend fun pruneLogs(keepCount: Int = 100): Int
+
+    @Query("DELETE FROM audit_logs WHERE timestamp < :cutoffMillis")
+    suspend fun cleanOlderThan(cutoffMillis: Long): Int
 }

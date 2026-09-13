@@ -205,8 +205,8 @@
   <!-- Main Container -->
   <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
 
-    <!-- User Friendly Welcome Banner -->
-    <div class="rounded-2xl p-5 sm:p-6 border transition-all"
+    <!-- User Friendly Welcome Banner (Shown on inner app tabs) -->
+    <div x-show="activeTab !== 'home'" class="rounded-2xl p-5 sm:p-6 border transition-all"
          :class="isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/90 shadow-sm'">
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -250,6 +250,234 @@
             <div class="text-xs font-semibold" :class="isDarkMode ? 'text-slate-400' : 'text-slate-500'" x-text="t('Playbook Tasks', 'इमरजेंसी चेकलिस्ट')"></div>
             <div class="text-xl font-extrabold text-teal-600 dark:text-teal-400" x-text="`${checklist.filter(c => c.completed).length}/${checklist.length}`"></div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- TAB 0: HOME LANDING PAGE (MATCHES SCREENSHOT) -->
+    <!-- ============================================== -->
+    <div x-show="activeTab === 'home'" class="space-y-12">
+      <!-- Dark Hero Showcase Container -->
+      <div class="relative overflow-hidden rounded-3xl bg-[#060a12] border border-slate-800/90 shadow-2xl p-6 sm:p-12 text-center">
+        <!-- Glow accents -->
+        <div class="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative z-10 max-w-4xl mx-auto space-y-6">
+          <!-- Pill Badge: Ready for Android Deployment -->
+          <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-950/80 border border-emerald-700/80 text-emerald-400 shadow-sm">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>Ready for Android Deployment</span>
+          </div>
+
+          <!-- Hero Headline -->
+          <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-tight sm:leading-none">
+            Secure, Offline Family <br class="hidden sm:inline">
+            <span class="text-teal-400">Emergency & Continuity Vault</span>
+          </h1>
+
+          <div class="text-[11px] sm:text-xs uppercase tracking-widest text-teal-400 font-extrabold">
+            ANDROID RELEASE V1.0
+          </div>
+
+          <!-- Description -->
+          <p class="text-xs sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed">
+            A production Android application engineered with Jetpack Compose, Material 3, and Room local persistence to safeguard bank records, insurance, contacts, and emergency checklists.
+          </p>
+
+          <!-- Action Buttons -->
+          <div class="pt-4 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+            <a href="./app-debug.apk" download="FamilyEmergencyVault-v1.0.apk"
+               class="px-6 py-3.5 rounded-xl bg-teal-400 hover:bg-teal-300 text-slate-950 font-black text-xs sm:text-sm shadow-[0_0_25px_rgba(45,212,191,0.45)] transition flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+              <span>Download Debug APK (.apk)</span>
+            </a>
+
+            <button @click="document.getElementById('android-install-guide')?.scrollIntoView({ behavior: 'smooth' })"
+                    class="px-6 py-3.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm border border-slate-700 transition">
+              <span>Installation Instructions</span>
+            </button>
+
+            <button @click="activeTab = 'vault'"
+                    class="px-6 py-3.5 rounded-xl bg-teal-950/60 hover:bg-teal-900/60 text-teal-300 font-bold text-xs sm:text-sm border border-teal-500/40 transition flex items-center gap-2">
+              <span>⚡ Open Web Ledger →</span>
+            </button>
+          </div>
+
+          <!-- Scan to Download QR Code Card -->
+          <div class="pt-6 max-w-lg mx-auto">
+            <div class="p-4 rounded-2xl bg-slate-900/90 border border-teal-500/30 flex flex-col sm:flex-row items-center gap-4 text-left shadow-xl">
+              <div class="bg-white p-2 rounded-xl shrink-0 shadow border border-teal-400/50">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=https://ais-dev-bru2epfqu3yybajn2lqh2x-786684627999.asia-southeast1.run.app/app-debug.apk" 
+                     alt="Scan to Download APK" 
+                     class="w-24 h-24 rounded" />
+              </div>
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-black text-teal-300">📱 Scan to Install on Android</span>
+                  <span class="text-[9px] bg-teal-900/90 text-teal-200 px-2 py-0.5 rounded-full font-bold">Offline APK</span>
+                </div>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                  Open your phone camera or QR scanner to instantly download <strong class="text-white">FamilyEmergencyVault-v1.0.apk</strong> (25 MB) directly to your Android device.
+                </p>
+                <div class="text-[11px] text-teal-400 font-semibold flex items-center gap-1 pt-1">
+                  <span>📍 Includes Emergency Offline Location Sharing & Biometric Security</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4 Tech Spec Cards Grid -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5 pt-8 text-left max-w-4xl mx-auto">
+            <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800">
+              <div class="text-[11px] text-slate-400 font-medium">Architecture</div>
+              <div class="text-xs sm:text-sm font-black text-white mt-1">Clean MVVM + StateFlow</div>
+            </div>
+            <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800">
+              <div class="text-[11px] text-slate-400 font-medium">UI Framework</div>
+              <div class="text-xs sm:text-sm font-black text-white mt-1">Jetpack Compose M3</div>
+            </div>
+            <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800">
+              <div class="text-[11px] text-slate-400 font-medium">Storage</div>
+              <div class="text-xs sm:text-sm font-black text-white mt-1">Room SQLite (Local Only)</div>
+            </div>
+            <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800">
+              <div class="text-[11px] text-slate-400 font-medium">Target SDK</div>
+              <div class="text-xs sm:text-sm font-black text-white mt-1">Android (API 36)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Core Capabilities Section (Matches Screenshot 1) -->
+      <div class="space-y-6">
+        <h2 class="text-2xl sm:text-3xl font-black text-center"
+            :class="isDarkMode ? 'text-white' : 'text-slate-900'"
+            x-text="t('Core Capabilities', 'मुख्य विशेषताएं (Core Capabilities)')">
+          Core Capabilities
+        </h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
+          <!-- Card 1: Financial Asset Registry -->
+          <div class="p-6 rounded-2xl bg-[#090e17] border border-slate-800/90 shadow-xl space-y-4 text-left">
+            <div class="w-12 h-12 rounded-xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center text-xl">
+              💼
+            </div>
+            <h3 class="text-base font-black text-white">Financial Asset Registry</h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Consolidate bank accounts, demat folios, insurance policies, safe lockers, and liabilities with field-level masking and nominee status.
+            </p>
+          </div>
+
+          <!-- Card 2: Emergency Playbooks -->
+          <div class="p-6 rounded-2xl bg-[#090e17] border border-slate-800/90 shadow-xl space-y-4 text-left">
+            <div class="w-12 h-12 rounded-xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center text-xl">
+              ⏱️
+            </div>
+            <h3 class="text-base font-black text-white">Emergency Playbooks</h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Step-by-step action plans split into First 24 Hours, First 7 Days, and First 30 Days so family members know exactly who to call and what to file.
+            </p>
+          </div>
+
+          <!-- Card 3: Biometric Authentication Layer -->
+          <div class="p-6 rounded-2xl bg-[#090e17] border border-teal-500/30 shadow-xl space-y-4 text-left relative overflow-hidden">
+            <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-teal-500/10 rounded-full blur-xl"></div>
+            <div class="w-12 h-12 rounded-xl bg-teal-950/80 border border-teal-600/60 flex items-center justify-center text-xl text-teal-400">
+              🧬
+            </div>
+            <h3 class="text-base font-black text-white flex items-center gap-2">
+              <span>Biometric Security</span>
+              <span class="text-[10px] bg-teal-900/80 text-teal-300 px-2 py-0.5 rounded-full border border-teal-600/50">Native</span>
+            </h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Android BiometricPrompt with Fingerprint & Face Unlock manager requested on app launch to decrypt sensitive asset and claim records.
+            </p>
+          </div>
+
+          <!-- Card 4: Offline GPS & Direct Contact SOS -->
+          <div class="p-6 rounded-2xl bg-[#090e17] border border-red-500/40 shadow-xl space-y-4 text-left relative overflow-hidden">
+            <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-red-500/10 rounded-full blur-xl"></div>
+            <div class="w-12 h-12 rounded-xl bg-red-950/80 border border-red-600/60 flex items-center justify-center text-xl text-red-400">
+              🚨
+            </div>
+            <h3 class="text-base font-black text-white flex items-center gap-2">
+              <span>Offline Location SOS</span>
+              <span class="text-[10px] bg-red-900/80 text-red-300 px-2 py-0.5 rounded-full border border-red-600/50">GPS</span>
+            </h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Direct offline location sharing: dispatch live GPS satellite coordinates via SMS/WhatsApp with 1-tap direct dialing to family contacts and 112 services.
+            </p>
+          </div>
+
+          <!-- Card 5: Zero Cloud Exposure -->
+          <div class="p-6 rounded-2xl bg-[#090e17] border border-slate-800/90 shadow-xl space-y-4 text-left">
+            <div class="w-12 h-12 rounded-xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center text-xl">
+              🔒
+            </div>
+            <h3 class="text-base font-black text-white">Zero Cloud Exposure</h3>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              All records are stored strictly on the local device inside an isolated Room SQLite database. No third-party analytics or external telemetry leaks.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- How to Install on Android Section (Matches Screenshot 1) -->
+      <div id="android-install-guide" class="space-y-6 pt-4">
+        <h2 class="text-2xl sm:text-3xl font-black text-center"
+            :class="isDarkMode ? 'text-white' : 'text-slate-900'"
+            x-text="t('How to Install on Android', 'एंड्रॉइड पर इंस्टॉल कैसे करें (How to Install)')">
+          How to Install on Android
+        </h2>
+
+        <div class="space-y-3.5 max-w-3xl mx-auto">
+          <!-- Step 1 -->
+          <div class="p-5 rounded-2xl bg-[#090e17] border border-slate-800/90 shadow-lg flex items-start gap-4">
+            <div class="w-8 h-8 rounded-full bg-teal-500 text-slate-950 font-black text-sm flex items-center justify-center shrink-0 mt-0.5">
+              1
+            </div>
+            <div class="space-y-1">
+              <h4 class="font-extrabold text-white text-sm sm:text-base">Download the APK file</h4>
+              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                Tap the <a href="./app-debug.apk" download="FamilyEmergencyVault-v1.0.apk" class="text-teal-400 underline font-bold">Download APK</a> button on your Android device's browser.
+              </p>
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="p-5 rounded-2xl bg-[#090e17] border border-slate-800/90 shadow-lg flex items-start gap-4">
+            <div class="w-8 h-8 rounded-full bg-emerald-500 text-slate-950 font-black text-sm flex items-center justify-center shrink-0 mt-0.5">
+              2
+            </div>
+            <div class="space-y-1">
+              <h4 class="font-extrabold text-white text-sm sm:text-base">Allow installation from browser</h4>
+              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                When prompted by Android, tap <strong>Settings</strong> and enable <em>"Allow from this source"</em> for Chrome or your browser.
+              </p>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="p-5 rounded-2xl bg-[#090e17] border border-slate-800/90 shadow-lg flex items-start gap-4">
+            <div class="w-8 h-8 rounded-full bg-cyan-400 text-slate-950 font-black text-sm flex items-center justify-center shrink-0 mt-0.5">
+              3
+            </div>
+            <div class="space-y-1">
+              <h4 class="font-extrabold text-white text-sm sm:text-base">Open & Setup Master MPIN</h4>
+              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                Tap Install, launch <strong>Family Emergency Vault</strong>, and configure your 4-digit Master MPIN for 100% offline biometric & cryptographic safety.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Jump to Interactive Ledger CTA -->
+        <div class="text-center pt-4">
+          <button @click="activeTab = 'vault'" 
+                  class="px-6 py-3 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-extrabold text-xs sm:text-sm shadow-md transition inline-flex items-center gap-2">
+            <span>🔐 Open Web Assets & Accounts Ledger →</span>
+          </button>
         </div>
       </div>
     </div>
@@ -1363,7 +1591,7 @@
       return {
         isDarkMode: false, // Default to clean, user-friendly Light theme
         lang: localStorage.getItem('fev_lang') || 'hinglish',
-        activeTab: 'vault',
+        activeTab: 'home',
         isMasked: true,
         searchQuery: '',
         selectedCategory: 'ALL',
@@ -1396,6 +1624,7 @@
 
         get currentTabs() {
           return [
+            { id: 'home', name: this.t('Home (Landing)', 'होम पेज (Landing)'), icon: '🏠', badge: '' },
             { id: 'vault', name: this.t('Assets & Accounts', 'खाते व संपत्ति (Assets)'), icon: '🔐', badge: this.vaultItems ? this.vaultItems.length.toString() : '0' },
             { id: 'checklist', name: this.t('Emergency Checklist', 'इमरजेंसी चेकलिस्ट (Playbook)'), icon: '📋', badge: '' },
             { id: 'contacts', name: this.t('Family & Advisors', 'परिवार व डॉक्टर्स (Contacts)'), icon: '📞', badge: '' },

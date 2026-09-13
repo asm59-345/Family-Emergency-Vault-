@@ -1,6 +1,7 @@
 package com.example.data
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
@@ -32,7 +33,13 @@ data class ImportantContact(
     val remarks: String
 )
 
-@Entity(tableName = "vault_items")
+@Entity(
+    tableName = "vault_items",
+    indices = [
+        Index(value = ["category"]),
+        Index(value = ["title"])
+    ]
+)
 data class VaultItem(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val category: String, // "BANK", "INVESTMENT", "INSURANCE", "CARD", "PROPERTY", "LOCKER", "LIABILITY", "DOCUMENT", "TAX", "EMPLOYER", "INCOME", "DEBIT", "DIGITAL"
@@ -88,7 +95,12 @@ data class EmergencyAccessRequest(
     val approvedTime: Long = 0L
 )
 
-@Entity(tableName = "audit_logs")
+@Entity(
+    tableName = "audit_logs",
+    indices = [
+        Index(value = ["timestamp"])
+    ]
+)
 data class AuditLog(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val timestamp: Long = System.currentTimeMillis(),

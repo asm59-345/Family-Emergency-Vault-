@@ -2,9 +2,11 @@ package com.example
 
 import android.os.Bundle
 import android.widget.Toast
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.fragment.app.FragmentActivity
+import com.example.util.BiometricAuthManager
+import com.example.util.BiometricAvailability
 import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -25,8 +27,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -42,14 +46,52 @@ import com.example.ui.VaultViewModel
 import com.example.ui.theme.*
 import kotlinx.coroutines.launch
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     private val model by lazy {
         androidx.lifecycle.ViewModelProvider(this)[VaultViewModel::class.java]
+    }
+
+    fun triggerBiometricPrompt(
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        val availability = BiometricAuthManager.checkBiometricAvailability(this)
+        if (availability.canPrompt) {
+            BiometricAuthManager.promptBiometric(
+                activity = this,
+                title = if (model.isHindiMode) "बायोमेट्रिक प्रमाणीकरण" else "Biometric Vault Authentication",
+                subtitle = if (model.isHindiMode) "फिंगरप्रिंट या फेस अनलॉक से वॉल्ट खोलें" else "Scan fingerprint or face to decrypt sensitive data",
+                description = if (model.isHindiMode) "आपके वित्तीय व आपातकालीन रिकॉर्ड्स डिवाइस पर एन्क्रिप्टेड हैं।" else "Military-grade on-device cryptographic protection for family assets.",
+                negativeButtonText = if (model.isHindiMode) "मास्टर पिन का प्रयोग करें" else "Use Master MPIN",
+                onSuccess = {
+                    model.unlockViaBiometrics("Fingerprint / Face Unlock")
+                    onSuccess()
+                },
+                onError = { code, err ->
+                    if (code != androidx.biometric.BiometricPrompt.ERROR_USER_CANCELED &&
+                        code != androidx.biometric.BiometricPrompt.ERROR_NEGATIVE_BUTTON) {
+                        model.mpinFeedbackMessage = "Biometric: $err"
+                    }
+                    onError(err.toString())
+                },
+                onFailed = {
+                    model.mpinFeedbackMessage = "Biometric not recognized. Please try again or use MPIN."
+                }
+            )
+        } else {
+            model.biometricFeedbackMessage = availability.userTitle
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Automatically launch biometric prompt on app launch if MPIN lock is active
+        if (model.isTermsAccepted && model.isAccountCreated && model.isAppMpinLocked && model.isBiometricEnabled) {
+            triggerBiometricPrompt()
+        }
+
         setContent {
             val currentFontTheme = model.selectedFontTheme
             MyApplicationTheme(fontTheme = currentFontTheme) {
@@ -105,13 +147,28 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
 
     var showAddLocalSecureContactDialog by remember { mutableStateOf(false) }
     var selectedLocalContactForEdit by remember { mutableStateOf<LocalSecureContact?>(null) }
+    var showEmergencySosDialog by remember { mutableStateOf(false) }
 
     if (!model.isTermsAccepted) {
         com.example.ui.AppTermsConsentScreen(model = model)
     } else if (!model.isAccountCreated) {
         com.example.ui.SignupScreen(model = model)
     } else if (model.isAppMpinLocked) {
-        AppMpinLockScreen(model = model)
+        Box(modifier = Modifier.fillMaxSize()) {
+            AppMpinLockScreen(
+                model = model,
+                onTriggerBiometric = { (context as? MainActivity)?.triggerBiometricPrompt() },
+                onTriggerSos = { showEmergencySosDialog = true }
+            )
+            if (showEmergencySosDialog) {
+                com.example.ui.EmergencySosDialog(
+                    model = model,
+                    contacts = contacts,
+                    vaultItems = vaultItems,
+                    onDismiss = { showEmergencySosDialog = false }
+                )
+            }
+        }
     } else {
         Scaffold(
             modifier = Modifier
@@ -149,6 +206,34 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
                     }
                 },
                 actions = {
+                    // Emergency SOS Trigger Button
+                    Box(
+                        modifier = Modifier
+                            .padding(end = 6.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFFDC2626))
+                            .clickable { showEmergencySosDialog = true }
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                            .testTag("btn_topbar_emergency_sos"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = "Emergency SOS",
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "SOS",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+                    }
+
                     // Language Switcher (EN / हिंदी)
                     Box(
                         modifier = Modifier
@@ -169,6 +254,33 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = if (model.isHindiMode) "हिंदी" else "English",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    // Legal, Q&A, Policies & About Hub Icon
+                    Box(
+                        modifier = Modifier
+                            .padding(end = 6.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.White.copy(alpha = 0.2f))
+                            .clickable { model.openLegalAboutHub(0) }
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "Info and Legal",
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (model.isHindiMode) "जानकारी" else "About",
                                 color = Color.White,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
@@ -266,7 +378,8 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
                         onEditVaultItem = { item ->
                             selectedItemForEdit = item
                             showAddVaultItemDialog = true
-                        }
+                        },
+                        onOpenSos = { showEmergencySosDialog = true }
                     )
                     "VAULT" -> VaultScreen(
                         model = model,
@@ -308,7 +421,8 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
                         onEditLocalSecure = { con ->
                             selectedLocalContactForEdit = con
                             showAddLocalSecureContactDialog = true
-                        }
+                        },
+                        onOpenSos = { showEmergencySosDialog = true }
                     )
                     "CHECKLIST" -> ChecklistScreen(
                         model = model,
@@ -484,6 +598,33 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
                 GeminiAssistantDialog(
                     model = model,
                     onDismiss = { model.isAiChatOpen = false }
+                )
+            }
+
+            // 11. Emergency SOS & Offline Location Dialog
+            if (showEmergencySosDialog) {
+                com.example.ui.EmergencySosDialog(
+                    model = model,
+                    contacts = contacts,
+                    vaultItems = vaultItems,
+                    onDismiss = { showEmergencySosDialog = false }
+                )
+            }
+
+            // 12. Local System Observability & Data Locality Dialog
+            if (model.showObservabilityDialog) {
+                com.example.ui.SystemObservabilityDialog(
+                    model = model,
+                    onDismiss = { model.showObservabilityDialog = false }
+                )
+            }
+
+            // 13. Legal, Governance, Q&A, Policies, Security & Creator Hub Dialog
+            if (model.showLegalAboutHub) {
+                com.example.ui.LegalAndAboutHubDialog(
+                    model = model,
+                    initialTab = model.legalAboutInitialTab,
+                    onDismiss = { model.showLegalAboutHub = false }
                 )
             }
         }
@@ -697,7 +838,8 @@ fun DashboardScreen(
     checklists: List<EmergencyActionItem>,
     onRequestAccess: () -> Unit,
     onImportTrigger: () -> Unit,
-    onEditVaultItem: (VaultItem) -> Unit
+    onEditVaultItem: (VaultItem) -> Unit,
+    onOpenSos: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
 
@@ -714,6 +856,62 @@ fun DashboardScreen(
             .verticalScroll(scrollState)
             .padding(16.dp)
     ) {
+        // 🚨 High Priority Emergency SOS & Offline Location Hotbar
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF7F1D1D)),
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.dp, Color(0xFFEF4444)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp)
+                .clickable { onOpenSos() }
+                .testTag("dashboard_sos_card")
+        ) {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFDC2626)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(imageVector = Icons.Default.Warning, contentDescription = "SOS", tint = Color.White, modifier = Modifier.size(22.dp))
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = if (model.isHindiMode) "🚨 आपातकालीन SOS व ऑफ़लाइन लोकेशन" else "🚨 Emergency SOS & Offline Location",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White
+                        )
+                        Text(
+                            text = if (model.isHindiMode) "बिना इंटरनेट के GPS SMS भेजें और सीधे परिवार को कॉल करें" else "1-Tap Call & Dispatch Live GPS via Offline SMS",
+                            fontSize = 11.sp,
+                            color = Color(0xFFFECACA)
+                        )
+                    }
+                }
+                Surface(
+                    color = Color(0xFFDC2626),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = "OPEN SOS",
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                    )
+                }
+            }
+        }
+
         // Welcome Header
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -762,7 +960,64 @@ fun DashboardScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Visual Vault Hero Banner
+        Card(
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.dp, SlateBorder),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 14.dp)
+                .testTag("dashboard_vault_hero_banner")
+        ) {
+            Box {
+                Image(
+                    painter = painterResource(id = R.drawable.img_vault_hero_banner_1789194543546),
+                    contentDescription = "Family Vault Security Banner",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(130.dp),
+                    contentScale = ContentScale.Crop
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(130.dp)
+                        .background(
+                            androidx.compose.ui.graphics.Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, Color(0xCC0F172A))
+                            )
+                        )
+                )
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        color = TealAccent,
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = "OFFLINE VAULT",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Black,
+                            color = SlatePrimary,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (model.isHindiMode) "100% स्थानीय एन्क्रिप्शन • शून्य क्लाउड डेटा" else "Zero-Cloud • AES-256 GCM Encrypted",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            }
+        }
 
         // Security Status Tracker Panel
         Card(
@@ -1099,6 +1354,51 @@ fun DashboardScreen(
             }
         }
 
+        // Legal & Knowledge Quick Bar
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, SlateBorder),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+                .clickable { model.openLegalAboutHub(0) }
+                .testTag("dashboard_legal_quick_card")
+        ) {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(TealAccent.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(imageVector = Icons.Default.Gavel, contentDescription = null, tint = TealAccent, modifier = Modifier.size(18.dp))
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = if (model.isHindiMode) "कानूनी व सुरक्षा केंद्र (T&C, Q&A, नीतियां)" else "Legal, Q&A, Policies & Security Hub",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = SlatePrimary
+                        )
+                        Text(
+                            text = if (model.isHindiMode) "अशमित गौतम द्वारा निर्मित • 100% ऑन-डिवाइस" else "Built by Ashmit Gautam • 100% On-Device",
+                            fontSize = 10.sp,
+                            color = Color.Gray
+                        )
+                    }
+                }
+                Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = SlatePrimary, modifier = Modifier.size(20.dp))
+            }
+        }
+
         // --- SECTION: "WHAT TO DO FIRST" CONTINUITY ACTIONS ---
         Text(
             text = "IMMEDIATE EMERGENCY INSTRUCTIONS",
@@ -1166,13 +1466,153 @@ fun DashboardScreen(
 
         // --- DASHBOARD ACTIONS BOARD ---
         Text(
-            text = "ORGANIZATION SHORTCUTS",
+            text = "ORGANIZATION & AI CONTINUITY",
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
             color = SlatePrimary,
             letterSpacing = 1.sp,
             modifier = Modifier.padding(vertical = 4.dp)
         )
+
+        // Feature Highlight: Offline AI Continuity Assistant Card
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
+            border = BorderStroke(1.dp, Color(0xFF86EFAC)),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+                .clickable { model.isAiChatOpen = true }
+                .testTag("card_open_offline_ai_assistant")
+        ) {
+            Row(
+                modifier = Modifier.padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFDCFCE7)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Psychology,
+                        contentDescription = "Offline AI Bot",
+                        tint = Color(0xFF16A34A),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = if (model.isHindiMode) "ऑफ़लाइन AI कंटीन्यूइटी बॉट" else "Offline AI Continuity Advisor",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = Color(0xFF14532D)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            color = Color(0xFF16A34A),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = "100% OFFLINE",
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        text = if (model.isHindiMode) "बिना इंटरनेट के भी बीमा, बैंक क्लेम, नॉमिनी व वसीयत नियमों पर तुरंत सलाह लें。" else "Zero cloud leak: Ask instant questions on RBI deceased claims, nominee rules, and emergency protocols.",
+                        fontSize = 11.sp,
+                        color = Color(0xFF166534),
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.ArrowForward,
+                    contentDescription = "Open Chat",
+                    tint = Color(0xFF16A34A),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Feature Highlight 2: Data Locality, Observability & Anti-Phishing Shield
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F9FF)),
+            border = BorderStroke(1.dp, Color(0xFFBAE6FD)),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+                .clickable { model.showObservabilityDialog = true }
+                .testTag("card_open_system_observability")
+        ) {
+            Row(
+                modifier = Modifier.padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFE0F2FE)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Security,
+                        contentDescription = "Security Shield",
+                        tint = Color(0xFF0284C7),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = if (model.isHindiMode) "डेटा स्टोरेज व सुरक्षा मॉनिटर" else "Data Locality & System Health",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = Color(0xFF0369A1)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            color = Color(0xFF0284C7),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = "100% PRIVATE",
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        text = if (model.isHindiMode) "फोन में ही सुरक्षित • 0% फ़िशिंग जोखिम • रियल-टाइम स्वास्थ्य व टेलीमेट्री" else "100% On-Device Sandbox • 0% Phishing Risk • Real-time DB Observability & Scalability",
+                        fontSize = 11.sp,
+                        color = Color(0xFF0284C7),
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.ArrowForward,
+                    contentDescription = "Open Monitor",
+                    tint = Color(0xFF0284C7),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1385,6 +1825,47 @@ fun VaultScreen(
                 )
             }
 
+            // Visual Physical Documents & Keys Guide Banner for physical document / locker categories
+            if (currentCategory == "DOCUMENT" || currentCategory == "LOCKER" || currentCategory == "PROPERTY") {
+                Spacer(modifier = Modifier.height(10.dp))
+                Card(
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, SlateBorder),
+                    modifier = Modifier.fillMaxWidth().testTag("vault_docs_banner")
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .background(Color.White)
+                            .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.img_emergency_documents_organizer_1789320102141),
+                            contentDescription = "Physical Document Binder and Safe Keys",
+                            modifier = Modifier
+                                .size(width = 80.dp, height = 52.dp)
+                                .clip(RoundedCornerShape(6.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (model.isHindiMode) "भौतिक दस्तावेज़ और सुरक्षित लॉकर ट्रैकिंग" else "Physical Binders & Safe Coordinates",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = SlatePrimary
+                            )
+                            Text(
+                                text = if (model.isHindiMode) "मूल वसीयत, रजिस्ट्री व लॉकर की चाबी की वास्तविक जगह अवश्य दर्ज करें।" else "Record exact cupboard, bank branch, and locker key locations for your nominees.",
+                                fontSize = 9.sp,
+                                color = Color.Gray,
+                                lineHeight = 12.sp
+                            )
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(12.dp))
 
             // Vault Records list
@@ -1396,12 +1877,15 @@ fun VaultScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.LockOpen,
-                        contentDescription = "Empty Category",
-                        tint = Color.LightGray,
-                        modifier = Modifier.size(54.dp)
+                    Image(
+                        painter = painterResource(id = R.drawable.img_emergency_documents_organizer_1789320102141),
+                        contentDescription = "Empty Records Illustration",
+                        modifier = Modifier
+                            .size(110.dp)
+                            .clip(RoundedCornerShape(12.dp)),
+                        contentScale = ContentScale.Crop
                     )
+                    Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = "No details saved in this folder",
                         fontSize = 14.sp,
@@ -1669,7 +2153,8 @@ fun ContactsScreen(
     onAddContact: () -> Unit,
     onEditContact: (ImportantContact) -> Unit,
     onAddLocalSecure: () -> Unit,
-    onEditLocalSecure: (LocalSecureContact) -> Unit
+    onEditLocalSecure: (LocalSecureContact) -> Unit,
+    onOpenSos: () -> Unit = {}
 ) {
     var selectedSegmentIndex by remember { mutableStateOf(0) } // 0: Family Members, 1: External Contacts, 2: Protected Local
 
@@ -1678,6 +2163,28 @@ fun ContactsScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
+        // Emergency SOS direct trigger button in Contacts Tab
+        Button(
+            onClick = onOpenSos,
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp)
+                .testTag("contacts_sos_bar")
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(imageVector = Icons.Default.Warning, contentDescription = "Emergency SOS", tint = Color.White, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (model.isHindiMode) "🚨 आपातकालीन SOS व ऑफ़लाइन लोकेशन शेयर" else "🚨 Emergency SOS & Offline Location Dispatch",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
+            }
+        }
+
         // Triple Switch tab
         Row(
             modifier = Modifier
@@ -2052,6 +2559,50 @@ fun ChecklistScreen(
             // Continuity Checklists grouped by phases
             val phases = listOf("First 24 Hours", "First 7 Days", "First 30 Days")
             LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                item {
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, SlateBorder),
+                        modifier = Modifier.fillMaxWidth().testTag("checklist_continuity_banner")
+                    ) {
+                        Column {
+                            Image(
+                                painter = painterResource(id = R.drawable.img_family_continuity_shield_1789320119569),
+                                contentDescription = "Family Continuity Playbook",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(130.dp),
+                                contentScale = ContentScale.Crop
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(SlatePrimary)
+                                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = if (model.isHindiMode) "संकट प्रबंधन व परिवार हैंडओवर गाइड" else "Crisis Protocol & Family Handover Guide",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                    Text(
+                                        text = "24H • 7D • 30D",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = TealAccent
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 items(phases) { phase ->
                     val phaseTasks = checklists.filter { it.phase == phase }
                     Card(
@@ -2405,6 +2956,140 @@ fun SettingsScreen(
                                 )
                             }
                         }
+                    }
+                }
+
+                Divider(color = SlateBorder.copy(alpha = 0.5f))
+
+                // Offline AI Continuity Chatbot Privacy & Mode Preference
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (model.isHindiMode) "ऑफ़लाइन AI कंटीन्यूइटी मोड" else "Offline AI Continuity Chatbot",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = SlatePrimary
+                            )
+                            Text(
+                                text = if (model.aiOfflineModeOnly)
+                                    (if (model.isHindiMode) "100% ऑन-डिवाइस • शून्य क्लाउड डेटा लीक" else "100% On-Device • Zero Cloud Transmission")
+                                else
+                                    (if (model.isHindiMode) "हाइब्रिड मोड सक्रिय (क्लाउड + ऑफ़लाइन फॉलबैक)" else "Hybrid Mode Active (Gemini + Offline Fallback)"),
+                                fontSize = 10.sp,
+                                color = if (model.aiOfflineModeOnly) Color(0xFF16A34A) else SlatePrimary,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        Switch(
+                            checked = model.aiOfflineModeOnly,
+                            onCheckedChange = { model.aiOfflineModeOnly = it },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Color(0xFF16A34A),
+                                uncheckedThumbColor = Color.White,
+                                uncheckedTrackColor = SlateBorder
+                            )
+                        )
+                    }
+
+                    Text(
+                        text = if (model.isHindiMode)
+                            "सक्रिय रहने पर, AI चैटबॉट फोन के भीतर ही वसीयत, बैंक क्लेम, और बीमा गाइड का उत्तर देगा। इंटरनेट बंद होने पर भी तुरंत काम करता है।"
+                        else
+                            "When enabled, the AI chatbot processes all queries locally on-device. No financial details or conversation logs ever leave your phone.",
+                        fontSize = 10.sp,
+                        color = Color.Gray,
+                        lineHeight = 13.sp
+                    )
+
+                    Button(
+                        onClick = { model.isAiChatOpen = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = if (model.aiOfflineModeOnly) Color(0xFF059669) else SlatePrimary),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.Psychology, contentDescription = "Open AI", modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (model.isHindiMode) "ऑफ़लाइन AI चैटबॉट खोलें" else "Open Offline AI Continuity Chat",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+
+                Divider(color = SlateBorder.copy(alpha = 0.5f))
+
+                // Data Locality, Scalability & Observability Health Inspector
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (model.isHindiMode) "डेटा स्टोरेज, सुरक्षा और सिस्टम स्वास्थ्य" else "Data Locality, Observability & Scalability",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = SlatePrimary
+                            )
+                            Text(
+                                text = if (model.isHindiMode)
+                                    "100% ऑन-डिवाइस सैंडबॉक्स • 0% फ़िशिंग • SQLite WAL"
+                                else
+                                    "100% On-Device Sandbox • 0% Phishing Risk • SQLite WAL",
+                                fontSize = 10.sp,
+                                color = Color(0xFF0284C7),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        Surface(
+                            color = Color(0xFFE0F2FE),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = "MONITORED",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0369A1),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = if (model.isHindiMode)
+                            "सत्यापित करें कि आपका सारा डेटा बिना किसी बाहरी रिसाव के केवल आपके फोन के सुरक्षित प्राइवेट सैंडबॉक्स में है। लाइव क्वेरी लेटेंसी, मेमोरी, बी-ट्री अखंडता और डीफ़्रेग्मेंटेशन (VACUUM) जांचें।"
+                        else
+                            "Inspect where your data is stored locally, verify zero-phishing sandbox isolation, monitor live query latencies, view memory profile, and execute on-demand database compaction (VACUUM).",
+                        fontSize = 10.sp,
+                        color = Color.Gray,
+                        lineHeight = 13.sp
+                    )
+
+                    Button(
+                        onClick = { model.showObservabilityDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.Speed, contentDescription = "Observability", modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (model.isHindiMode) "सिस्टम स्वास्थ्य और सुरक्षा मॉनिटर खोलें" else "Open Observability & Health Monitor",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
                     }
                 }
 
@@ -3091,6 +3776,118 @@ fun SettingsScreen(
             }
         }
 
+        // Biometric Security Config Card
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, SlateBorder),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth().testTag("biometric_settings_card")
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                val biometricAvail = remember { BiometricAuthManager.checkBiometricAvailability(context) }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Fingerprint,
+                        contentDescription = "Biometric Lock",
+                        tint = TealAccent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (model.isHindiMode) "बायोमेट्रिक प्रमाणीकरण (फिंगरप्रिंट / फेस)" else "🧬 Biometric Unlock (Fingerprint / Face)",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = SlatePrimary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = if (model.isHindiMode)
+                        "ऐप लॉन्च होने पर संवेदनशील वित्तीय व नॉमिनी डेटा डिक्रिप्ट करने के लिए हार्डवेयर बायोमेट्रिक्स अनिवार्य करें।"
+                    else
+                        "Require Android Fingerprint or Facial recognition on application launch to decrypt sensitive asset records.",
+                    fontSize = 11.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (model.isHindiMode) "बायोमेट्रिक लॉक सक्षम करें" else "Enable Biometric Security",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Status: ${biometricAvail.userTitle}",
+                            fontSize = 10.sp,
+                            color = if (biometricAvail.canPrompt) Color(0xFF15803D) else Color(0xFFB45309),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    Switch(
+                        checked = model.isBiometricEnabled,
+                        onCheckedChange = { model.updateBiometricSetting(it) },
+                        colors = SwitchDefaults.colors(checkedThumbColor = TealAccent)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            (context as? MainActivity)?.triggerBiometricPrompt(
+                                onSuccess = {
+                                    Toast.makeText(context, "Biometric verified successfully!", Toast.LENGTH_SHORT).show()
+                                },
+                                onError = { err ->
+                                    Toast.makeText(context, "Biometric result: $err", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, TealAccent)
+                    ) {
+                        Icon(imageVector = Icons.Default.Fingerprint, contentDescription = null, tint = SlatePrimary, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (model.isHindiMode) "बायोमेट्रिक्स जांचें" else "Test Biometrics",
+                            color = SlatePrimary,
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            model.lockVault()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(imageVector = Icons.Default.Lock, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (model.isHindiMode) "अभी लॉक करें" else "Lock Vault Now",
+                            color = Color.White,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            }
+        }
+
         // Session Inactivity Auto-Lock Config
         Card(
             colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -3340,49 +4137,186 @@ fun SettingsScreen(
             }
         }
 
+        // ==================== LEGAL, GOVERNANCE, Q&A & CREATOR HUB ====================
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, SlateBorder),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth().testTag("settings_legal_governance_card")
+        ) {
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "⚖️", fontSize = 16.sp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Column {
+                            Text(
+                                text = if (model.isHindiMode) "कानूनी नीतियां, Q&A और सुरक्षा केंद्र" else "Legal, Governance, Q&A & Policies",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = SlatePrimary
+                            )
+                            Text(
+                                text = if (model.isHindiMode) "T&C • Q&A • नीतियां • सुरक्षा • अशमित गौतम" else "T&C • Q&A • Policies • Security • Ashmit Gautam",
+                                fontSize = 10.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+                    Surface(
+                        color = TealAccent.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = "OFFICIAL",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TealAccent,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+
+                Text(
+                    text = if (model.isHindiMode)
+                        "उपयोग की शर्तें, गोपनीयता नीतियां, अक्सर पूछे जाने वाले प्रश्न (Q&A), सुरक्षा वास्तुकला और निर्माता अशमित गौतम का विवरण पढ़ें।"
+                    else
+                        "Explore complete on-device compliance terms, RBI deceased claims guidelines, Q&A FAQs, security architecture, and architect details.",
+                    fontSize = 11.sp,
+                    color = Color.DarkGray,
+                    lineHeight = 15.sp
+                )
+
+                // Grid of 6 interactive buttons
+                val hubItems = listOf(
+                    Triple("📜 Terms & Conditions (T&C)", 0, if (model.isHindiMode) "नियम व शर्तें (T&C)" else "Terms of Service"),
+                    Triple("❓ Frequently Asked (Q&A)", 1, if (model.isHindiMode) "प्रश्नोत्तरी (Q&A)" else "Questions & Answers"),
+                    Triple("📋 Policies & RBI Mandate", 2, if (model.isHindiMode) "गोपनीयता नीतियां" else "Privacy & Compliance"),
+                    Triple("ℹ️ About Application", 3, if (model.isHindiMode) "एप्लिकेशन परिचय" else "About Application"),
+                    Triple("🛡️ Cryptographic Security", 4, if (model.isHindiMode) "सुरक्षा शील्ड" else "About Security"),
+                    Triple("👨‍💻 Architect: Ashmit Gautam", 5, if (model.isHindiMode) "अशमित गौतम (निर्माता)" else "About Ashmit Gautam")
+                )
+
+                hubItems.chunked(2).forEach { rowItems ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        rowItems.forEach { (label, tabIndex, shortLabel) ->
+                            OutlinedButton(
+                                onClick = { model.openLegalAboutHub(tabIndex) },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, SlateBorder),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = shortLabel,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = SlatePrimary,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Button(
+                    onClick = { model.openLegalAboutHub(0) },
+                    colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(vertical = 8.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.MenuBook, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (model.isHindiMode) "कानूनी व सुरक्षा केंद्र खोलें" else "Open Complete Legal & Governance Hub",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+
         // ==================== CREATOR ATTRIBUTION & APP FOOTER ====================
         Card(
             colors = CardDefaults.cardColors(containerColor = SlatePrimary),
             shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { model.openLegalAboutHub(5) }
+                .testTag("settings_creator_footer_card")
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(14.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Shield,
-                        contentDescription = "Shield",
-                        tint = TealAccent,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Family Emergency Vault v1.0",
-                        color = Color.White,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .border(1.5.dp, TealAccent, CircleShape)
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.img_creator_ashmit_1789235489297),
+                            contentDescription = "Ashmit Gautam",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = "Family Emergency Vault v1.0",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (model.isHindiMode)
+                                "अशमित गौतम (Ashmit Gautam) द्वारा विशेष रूप से तैयार किया गया"
+                            else
+                                "Designed & Developed by Ashmit Gautam",
+                            color = TealAccent,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
                 }
-                Text(
-                    text = if (model.isHindiMode)
-                        "अशमित गौतम (Ashmit Gautam) द्वारा विशेष रूप से तैयार किया गया"
-                    else
-                        "Designed & Developed by Ashmit Gautam",
-                    color = TealAccent,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
+
                 Text(
                     text = "100% Offline • SQLite Room • Zero Cloud Leakage • Military-Grade Encryption",
-                    color = Color.White.copy(alpha = 0.6f),
+                    color = Color.White.copy(alpha = 0.7f),
                     fontSize = 8.sp,
                     textAlign = TextAlign.Center
                 )
+
+                OutlinedButton(
+                    onClick = { model.openLegalAboutHub(5) },
+                    border = BorderStroke(1.dp, TealAccent),
+                    shape = RoundedCornerShape(6.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.Person, contentDescription = null, tint = TealAccent, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (model.isHindiMode) "अशमित गौतम प्रोफाइल व दर्शन देखें" else "View Ashmit Gautam Profile & Vision",
+                        color = TealAccent,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
 
@@ -4149,11 +5083,24 @@ fun EmergencyAccessRequestDialog(
     )
 }
 
-// ==================== MASTER MPIN LOGOUT/LOCK SCREEN ====================
+// ==================== MASTER MPIN & BIOMETRIC LOGOUT/LOCK SCREEN ====================
 
 @Composable
-fun AppMpinLockScreen(model: VaultViewModel) {
+fun AppMpinLockScreen(
+    model: VaultViewModel,
+    onTriggerBiometric: () -> Unit = {},
+    onTriggerSos: () -> Unit = {}
+) {
+    val context = LocalContext.current
     val enteredCount = model.enteredMpinDigits.length
+    val biometricAvailability = remember { BiometricAuthManager.checkBiometricAvailability(context) }
+
+    // Auto-trigger biometric prompt on screen launch if enabled
+    LaunchedEffect(Unit) {
+        if (model.isBiometricEnabled && biometricAvailability.canPrompt) {
+            onTriggerBiometric()
+        }
+    }
     
     Column(
         modifier = Modifier
@@ -4167,28 +5114,108 @@ fun AppMpinLockScreen(model: VaultViewModel) {
             imageVector = Icons.Default.Lock,
             contentDescription = "Encrypted Vault Lock",
             tint = TealAccent,
-            modifier = Modifier.size(64.dp)
+            modifier = Modifier.size(54.dp)
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = "DECRYPTION KEY SECURED",
-            fontSize = 12.sp,
+            fontSize = 11.sp,
             color = TealAccent,
             fontWeight = FontWeight.Bold,
             letterSpacing = 2.sp
         )
         Text(
-            text = "Family Emergency Vault",
-            fontSize = 22.sp,
+            text = if (model.isHindiMode) "पारिवारिक आपातकालीन वॉल्ट" else "Family Emergency Vault",
+            fontSize = 20.sp,
             color = Color.White,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
+            modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
+        )
+
+        // Native Android Biometric Trigger Button
+        if (model.isBiometricEnabled && biometricAvailability.canPrompt) {
+            Button(
+                onClick = onTriggerBiometric,
+                colors = ButtonDefaults.buttonColors(containerColor = TealAccent),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth(0.85f)
+                    .height(48.dp)
+                    .testTag("btn_biometric_auth")
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Fingerprint,
+                        contentDescription = "Fingerprint / Face Sensor",
+                        tint = SlatePrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (model.isHindiMode) "फिंगरप्रिंट / फेस से अनलॉक करें" else "Scan Fingerprint / Face Unlock",
+                        color = SlatePrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF22C55E))
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Android Biometric Sensor Ready",
+                    fontSize = 10.sp,
+                    color = Color.White.copy(alpha = 0.7f)
+                )
+            }
+        } else {
+            Surface(
+                color = Color.White.copy(alpha = 0.08f),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.padding(bottom = 8.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Fingerprint,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.6f),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = biometricAvailability.userTitle,
+                        fontSize = 10.sp,
+                        color = Color.White.copy(alpha = 0.7f)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = if (model.isHindiMode) "या 4-अंकों का मास्टर MPIN डालें" else "Or enter 4-digit Master MPIN",
+            color = Color.White.copy(alpha = 0.75f),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium
         )
 
         // 4 dots representing entered MPIN digits
         Row(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.padding(vertical = 12.dp)
+            modifier = Modifier.padding(vertical = 10.dp)
         ) {
             for (i in 1..4) {
                 val filled = i <= enteredCount
@@ -4202,24 +5229,15 @@ fun AppMpinLockScreen(model: VaultViewModel) {
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-        
         if (model.mpinFeedbackMessage.isNotEmpty()) {
             Text(
                 text = model.mpinFeedbackMessage,
-                color = if (model.mpinFeedbackMessage.contains("Incorrect")) RedAlert else TealAccent,
-                fontSize = 13.sp,
+                color = if (model.mpinFeedbackMessage.contains("Incorrect") || model.mpinFeedbackMessage.contains("Denied")) RedAlert else TealAccent,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 12.dp)
+                modifier = Modifier.padding(bottom = 8.dp)
             )
         }
-
-        Text(
-            text = "Hint: Default MPIN is 4321",
-            color = Color.White.copy(alpha = 0.6f),
-            fontSize = 11.sp,
-            modifier = Modifier.padding(bottom = 24.dp)
-        )
 
         // Custom Numpad Grid
         val numpadItems = listOf(
@@ -4230,8 +5248,8 @@ fun AppMpinLockScreen(model: VaultViewModel) {
         )
 
         Column(
-            modifier = Modifier.width(280.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.width(260.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             for (row in numpadItems) {
                 Row(
@@ -4241,7 +5259,7 @@ fun AppMpinLockScreen(model: VaultViewModel) {
                     for (key in row) {
                         Box(
                             modifier = Modifier
-                                .size(64.dp)
+                                .size(56.dp)
                                 .clip(CircleShape)
                                 .background(Color.White.copy(alpha = 0.1f))
                                 .clickable {
@@ -4261,12 +5279,12 @@ fun AppMpinLockScreen(model: VaultViewModel) {
                                         }
                                     }
                                 }
-                                .padding(12.dp),
+                                .padding(8.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = key,
-                                fontSize = 24.sp,
+                                fontSize = 22.sp,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold
                             )
@@ -4276,7 +5294,29 @@ fun AppMpinLockScreen(model: VaultViewModel) {
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Emergency SOS Direct Access (Usable even on lockscreen)
+        Button(
+            onClick = onTriggerSos,
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+                .fillMaxWidth(0.75f)
+                .padding(bottom = 10.dp)
+                .testTag("btn_lockscreen_emergency_sos")
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(imageVector = Icons.Default.Warning, contentDescription = "SOS", tint = Color.White, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (model.isHindiMode) "🚨 आपातकालीन SOS व लोकेशन" else "🚨 Emergency SOS & Location",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
+            }
+        }
 
         // Evaluator Sandbox Quick Bypass
         Button(
@@ -4286,12 +5326,12 @@ fun AppMpinLockScreen(model: VaultViewModel) {
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.15f)),
             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
-            modifier = Modifier.fillMaxWidth(0.8f)
+            modifier = Modifier.fillMaxWidth(0.75f)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(imageVector = Icons.Default.Fingerprint, contentDescription = "Biometric Bypass", tint = TealAccent)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Evaluator Sandbox Quick Unlock", color = Color.White, fontSize = 12.sp)
+                Icon(imageVector = Icons.Default.Key, contentDescription = "Bypass", tint = TealAccent, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Evaluator Sandbox Quick Unlock", color = Color.White, fontSize = 11.sp)
             }
         }
     }
@@ -4410,7 +5450,7 @@ fun AddEditLocalSecureContactDialog(
     )
 }
 
-// ==================== INTERACTIVE GEMINI CHAT ASSISTANT ====================
+// ==================== INTERACTIVE OFFLINE AI CHAT ASSISTANT ====================
 
 @Composable
 fun GeminiAssistantDialog(
@@ -4418,46 +5458,182 @@ fun GeminiAssistantDialog(
     onDismiss: () -> Unit
 ) {
     var inputMessage by remember { mutableStateOf("") }
+    val isHindi = model.isHindiMode
     
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.AutoAwesome,
-                    contentDescription = "Gemini Spark",
-                    tint = TealAccent,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "AI Continuity Assistant",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = SlatePrimary
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(TealAccent.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = "AI Spark",
+                            tint = TealAccent,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = if (isHindi) "ऑफ़लाइन AI कंटीन्यूइटी सहायक" else "Offline AI Continuity Advisor",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Black,
+                            color = SlatePrimary
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF059669))
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (model.aiOfflineModeOnly) "100% On-Device • Zero Cloud Risk" else "Hybrid AI Active",
+                                fontSize = 10.sp,
+                                color = Color(0xFF059669),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
+                // Privacy Badge & Offline Toggle
+                Surface(
+                    color = if (model.aiOfflineModeOnly) Color(0xFFECFDF5) else SlateLightBg,
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, if (model.aiOfflineModeOnly) Color(0xFF10B981) else Color.LightGray),
+                    modifier = Modifier.clickable {
+                        model.aiOfflineModeOnly = !model.aiOfflineModeOnly
+                    }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (model.aiOfflineModeOnly) Icons.Default.Lock else Icons.Default.Cloud,
+                            contentDescription = "Mode",
+                            modifier = Modifier.size(11.dp),
+                            tint = if (model.aiOfflineModeOnly) Color(0xFF047857) else SlatePrimary
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = if (model.aiOfflineModeOnly) "OFFLINE" else "CLOUD",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Black,
+                            color = if (model.aiOfflineModeOnly) Color(0xFF047857) else SlatePrimary
+                        )
+                    }
+                }
             }
         },
         text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(400.dp)
+                    .height(430.dp)
             ) {
-                val suggestions = listOf(
-                    "What should my family do in an emergency?",
-                    "Draft an inheritance guidance note",
-                    "How to claim insurance securely?"
-                )
+                // Privacy Guarantee Banner
+                Surface(
+                    color = Color(0xFFF0FDF4),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Shield,
+                            contentDescription = "Private",
+                            tint = Color(0xFF16A34A),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (isHindi) "पूर्णतः गोपनीय: आपके परिवार का कोई भी वित्तीय डेटा इंटरनेट पर लीक नहीं होता।" else "Zero Cloud Leak: Runs 100% on device with offline knowledge of Indian succession & claim laws.",
+                            fontSize = 10.sp,
+                            color = Color(0xFF166534),
+                            lineHeight = 13.sp
+                        )
+                    }
+                }
+
+                val suggestions = if (isHindi) {
+                    listOf(
+                        "आपातकाल में क्या करें?",
+                        "बीमा क्लेम कैसे फाइल करें?",
+                        "बैंक खाता क्लेम की प्रक्रिया",
+                        "नॉमिनी और वारिस में अंतर",
+                        "म्यूचुअल फंड ट्रांसमिशन",
+                        "बैंक लॉकर के नियम"
+                    )
+                } else {
+                    listOf(
+                        "What to do in first 24h emergency?",
+                        "How to claim insurance securely?",
+                        "Bank account claim procedure",
+                        "Nominee vs Legal Heir rules",
+                        "Mutual Fund transmission process",
+                        "Safe locker handover rules"
+                    )
+                }
                 
                 LazyColumn(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .background(SlateLightBg, RoundedCornerShape(8.dp))
+                        .background(SlateLightBg, RoundedCornerShape(10.dp))
                         .padding(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    if (model.aiChatHistory.isEmpty()) {
+                        item {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp, horizontal = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Psychology,
+                                    contentDescription = "Brain",
+                                    tint = TealAccent,
+                                    modifier = Modifier.size(36.dp)
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = if (isHindi) "ऑफ़लाइन AI कंटीन्यूइटी सहायक तैयार है" else "Offline AI Continuity Bot Ready",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = SlatePrimary
+                                )
+                                Text(
+                                    text = if (isHindi) "बिना इंटरनेट के भी बीमा क्लेम, बैंक प्रोसेस और वसीयत नियमों पर तुरंत सलाह लें।" else "Ask anything regarding emergency protocols, RBI deceased claims, nominee rules, or tap a quick prompt below.",
+                                    fontSize = 11.sp,
+                                    color = Color.Gray,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
+                        }
+                    }
+
                     items(model.aiChatHistory) { chat ->
                         val isBot = chat.second
                         Row(
@@ -4472,17 +5648,32 @@ fun GeminiAssistantDialog(
                                 shape = RoundedCornerShape(
                                     topStart = 12.dp,
                                     topEnd = 12.dp,
-                                    bottomStart = if (isBot) 0.dp else 12.dp,
-                                    bottomEnd = if (isBot) 12.dp else 0.dp
+                                    bottomStart = if (isBot) 2.dp else 12.dp,
+                                    bottomEnd = if (isBot) 12.dp else 2.dp
                                 ),
-                                modifier = Modifier.fillMaxWidth(0.85f)
+                                modifier = Modifier.fillMaxWidth(if (isBot) 0.92f else 0.85f)
                             ) {
-                                Text(
-                                    text = chat.first,
-                                    fontSize = 12.sp,
-                                    color = if (isBot) SlatePrimary else Color.White,
-                                    modifier = Modifier.padding(10.dp)
-                                )
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    if (isBot) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(bottom = 4.dp)
+                                        ) {
+                                            Text(
+                                                text = if (model.aiOfflineModeOnly) "🔒 OFFLINE AI" else "✨ CONTINUITY BOT",
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Black,
+                                                color = TealAccent
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        text = chat.first,
+                                        fontSize = 12.sp,
+                                        color = if (isBot) SlatePrimary else Color.White,
+                                        lineHeight = 17.sp
+                                    )
+                                }
                             }
                         }
                     }
@@ -4490,23 +5681,31 @@ fun GeminiAssistantDialog(
                     if (model.isAiLoading) {
                         item {
                             Row(
-                                modifier = Modifier.fillMaxWidth().padding(8.dp),
-                                horizontalArrangement = Arrangement.Start
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp),
+                                horizontalArrangement = Arrangement.Start,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 CircularProgressIndicator(
                                     color = TealAccent,
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(16.dp),
                                     strokeWidth = 2.dp
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Gemini is composing secure tips...", fontSize = 11.sp, color = Color.Gray)
+                                Text(
+                                    text = if (isHindi) "ऑफ़लाइन AI विश्लेषण कर रहा है..." else "Offline AI is reasoning on-device...",
+                                    fontSize = 11.sp,
+                                    color = Color.Gray
+                                )
                             }
                         }
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 
+                // Quick Suggestion Chips
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -4519,19 +5718,25 @@ fun GeminiAssistantDialog(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(Color.White)
-                                .border(1.dp, TealAccent.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                                .border(1.dp, TealAccent.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
                                 .clickable {
                                     model.sendMsgToAi(sug)
                                 }
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .padding(horizontal = 9.dp, vertical = 5.dp)
                         ) {
-                            Text(text = sug, fontSize = 10.sp, color = SlatePrimary)
+                            Text(
+                                text = sug,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = SlatePrimary
+                            )
                         }
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 
+                // Input Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -4539,29 +5744,62 @@ fun GeminiAssistantDialog(
                     OutlinedTextField(
                         value = inputMessage,
                         onValueChange = { inputMessage = it },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("Ask anything about emergency planning...", fontSize = 12.sp) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("input_offline_ai_chat"),
+                        placeholder = {
+                            Text(
+                                text = if (isHindi) "ऑफ़लाइन AI से पूछें (बीमा, नॉमिनी, क्लेम)..." else "Ask Offline AI (claims, bank, nominees)...",
+                                fontSize = 11.sp
+                            )
+                        },
                         maxLines = 2,
-                        textStyle = LocalTextStyle.current.copy(fontSize = 12.sp)
+                        textStyle = LocalTextStyle.current.copy(fontSize = 12.sp),
+                        shape = RoundedCornerShape(10.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
                         onClick = {
-                            if (inputMessage.isNotEmpty()) {
+                            if (inputMessage.isNotBlank()) {
                                 model.sendMsgToAi(inputMessage)
                                 inputMessage = ""
                             }
                         },
-                        colors = IconButtonDefaults.iconButtonColors(contentColor = TealAccent)
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(TealAccent)
+                            .testTag("btn_send_offline_ai"),
+                        colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White)
                     ) {
-                        Icon(imageVector = Icons.Default.Send, contentDescription = "Send prompt button")
+                        Icon(imageVector = Icons.Default.Send, contentDescription = "Send prompt button", modifier = Modifier.size(18.dp))
                     }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close Chat")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (model.aiChatHistory.isNotEmpty()) {
+                    TextButton(
+                        onClick = { model.aiChatHistory.clear() }
+                    ) {
+                        Text(if (isHindi) "चैट साफ करें" else "Clear Chat", fontSize = 12.sp, color = Color.Gray)
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(1.dp))
+                }
+
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(if (isHindi) "बंद करें" else "Close", fontSize = 12.sp, color = Color.White)
+                }
             }
         }
     )

@@ -48,7 +48,7 @@ class Repository(private val db: AppDatabase) {
         db.auditLogDao().insert(AuditLog(action = action, details = details, userRole = role))
     }
 
-    // 8. Database Health & Maintenance
+    // 8. Database Health, Observability & Maintenance
     suspend fun ensureDatabaseSeeded() {
         AppDatabase.ensureSeeded(db)
     }
@@ -59,5 +59,37 @@ class Repository(private val db: AppDatabase) {
 
     suspend fun getVaultItemsCount(): Int {
         return db.vaultItemDao().getCount()
+    }
+
+    suspend fun pruneAuditLogs(keepCount: Int = 100): Int {
+        return db.auditLogDao().pruneLogs(keepCount)
+    }
+
+    suspend fun cleanAuditLogsOlderThan(cutoffMillis: Long): Int {
+        return db.auditLogDao().cleanOlderThan(cutoffMillis)
+    }
+
+    suspend fun runVacuum() {
+        AppDatabase.runVacuum(db)
+    }
+
+    suspend fun runWalCheckpoint() {
+        AppDatabase.runWalCheckpoint(db)
+    }
+
+    suspend fun checkIntegrity(): String {
+        return AppDatabase.checkIntegrity(db)
+    }
+
+    suspend fun getTableCounts(): Map<String, Int> {
+        return mapOf(
+            "vault_items" to db.vaultItemDao().getCount(),
+            "family_dependents" to db.familyDependentDao().getCount(),
+            "important_contacts" to db.importantContactDao().getCount(),
+            "emergency_action_items" to db.emergencyActionItemDao().getCount(),
+            "claim_records" to db.claimRecordDao().getCount(),
+            "emergency_requests" to db.emergencyAccessRequestDao().getCount(),
+            "audit_logs" to db.auditLogDao().getCount()
+        )
     }
 }

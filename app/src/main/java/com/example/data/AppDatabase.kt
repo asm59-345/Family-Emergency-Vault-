@@ -42,6 +42,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "family_continuity_vault_db"
                 )
+                .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                 .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
@@ -52,6 +53,36 @@ abstract class AppDatabase : RoomDatabase() {
                 }
 
                 instance
+            }
+        }
+
+        suspend fun runVacuum(db: AppDatabase) {
+            try {
+                db.openHelper.writableDatabase.execSQL("VACUUM")
+            } catch (e: Exception) {
+                android.util.Log.e("AppDatabase", "Error running VACUUM", e)
+            }
+        }
+
+        suspend fun runWalCheckpoint(db: AppDatabase) {
+            try {
+                db.openHelper.writableDatabase.execSQL("PRAGMA wal_checkpoint(FULL)")
+            } catch (e: Exception) {
+                android.util.Log.e("AppDatabase", "Error running wal_checkpoint", e)
+            }
+        }
+
+        suspend fun checkIntegrity(db: AppDatabase): String {
+            return try {
+                val cursor = db.openHelper.writableDatabase.query("PRAGMA integrity_check")
+                var result = "ok"
+                if (cursor.moveToFirst()) {
+                    result = cursor.getString(0) ?: "ok"
+                }
+                cursor.close()
+                result
+            } catch (e: Exception) {
+                "Error: ${e.message}"
             }
         }
 

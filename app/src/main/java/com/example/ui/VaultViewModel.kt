@@ -1,6 +1,7 @@
 package com.example.ui
 
 import android.app.Application
+import android.os.SystemClock
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -9,9 +10,14 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.*
 import com.example.ui.theme.VaultFontTheme
+import com.example.util.DiagnosticLogItem
+import com.example.util.DiagnosticType
+import com.example.util.LocalSystemObservability
+import com.example.util.ObservabilitySnapshot
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -194,13 +200,42 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
     var activeBackRoute by mutableStateOf("DASHBOARD")
     var selectedTabItem by mutableStateOf("DASHBOARD") // DASHBOARD, VAULT, CHECKLIST, CLAIMS, SETTINGS
 
-    // --- MPIN SECURITY ---
+    // --- MPIN & BIOMETRIC SECURITY ---
     private val mpinPrefs = application.getSharedPreferences("vault_mpin_prefs", android.content.Context.MODE_PRIVATE)
     var isAppMpinLocked by mutableStateOf(mpinPrefs.getBoolean("mpin_active_enabled", true)) // defaults to locked
     var appMpin by mutableStateOf(mpinPrefs.getString("master_mpin", "4321") ?: "4321")
         private set
     var enteredMpinDigits by mutableStateOf("")
     var mpinFeedbackMessage by mutableStateOf("")
+
+    // Biometric Preferences & Feedback
+    var isBiometricEnabled by mutableStateOf(mpinPrefs.getBoolean("biometric_enabled", true))
+        private set
+    var biometricFeedbackMessage by mutableStateOf("")
+
+    fun updateBiometricSetting(enabled: Boolean) {
+        isBiometricEnabled = enabled
+        mpinPrefs.edit().putBoolean("biometric_enabled", enabled).apply()
+        viewModelScope.launch {
+            repository.logAction("Biometric Setting", "Biometric unlock preference updated to $enabled", currentRole.name)
+        }
+    }
+
+    fun unlockViaBiometrics(authMethod: String = "Fingerprint / Face Unlock") {
+        isAppMpinLocked = false
+        enteredMpinDigits = ""
+        mpinFeedbackMessage = "Authenticated successfully via $authMethod!"
+        biometricFeedbackMessage = "Unlocked with $authMethod"
+        viewModelScope.launch {
+            repository.logAction("Biometric Unlocked", "Master vault decryption key unlocked via Android Biometric Manager ($authMethod).", currentRole.name)
+        }
+    }
+
+    fun lockVault() {
+        isAppMpinLocked = true
+        enteredMpinDigits = ""
+        mpinFeedbackMessage = "Vault locked for security."
+    }
 
     fun verifyEnteredMpin() {
         if (enteredMpinDigits == appMpin) {
@@ -402,6 +437,7 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
     val aiChatHistory = mutableStateListOf<Pair<String, Boolean>>() // Pair(Message, isBot)
     var currentAiInput by mutableStateOf("")
     var isAiLoading by mutableStateOf(false)
+    var aiOfflineModeOnly by mutableStateOf(true) // Default to 100% Offline AI Chatbot for privacy & zero cloud reliance
 
     fun sendMsgToAi(prompt: String) {
         if (prompt.trim().isEmpty()) return
@@ -410,12 +446,24 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
         isAiLoading = true
 
         val apiKey = com.example.BuildConfig.GEMINI_API_KEY
-        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
+        
+        // If offline mode is enabled (default) or no API key is set, use the built-in Offline AI Continuity Engine
+        if (aiOfflineModeOnly || apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
             viewModelScope.launch {
-                kotlinx.coroutines.delay(1000)
-                aiChatHistory.add(Pair("AI Assistant: Live Gemini connection requires a configured API key in Google AI Studio. Direct answering local bypass:\n\nIn an emergency, your secure handover organizes key checklists such as reaching Spouse (Priya), verifying nominees for BANK/INSURANCE records, and activating the 48-hour delayed dead-man threshold.", true))
+                kotlinx.coroutines.delay(400) // Realistic instant local neural reasoning delay
+                val localAiResponse = com.example.util.OfflineAiContinuityEngine.generateResponse(
+                    userQuery = prompt,
+                    userName = registeredFullName,
+                    nomineeName = registeredNomineeName,
+                    nomineeRelation = registeredNomineeRelation,
+                    nomineePhone = registeredPhone,
+                    contacts = importantContacts.value,
+                    vaultItems = vaultItems.value,
+                    isHindi = isHindiMode
+                )
+                aiChatHistory.add(Pair(localAiResponse.answer, true))
                 isAiLoading = false
-                repository.logAction("AI Workspace Consulted", "Queried AI with placeholder fallback response.", currentRole.name)
+                repository.logAction("Offline AI Consulted", "Queried On-Device Continuity AI engine without cloud exposure.", currentRole.name)
             }
             return
         }
@@ -423,9 +471,9 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val client = OkHttpClient.Builder()
-                    .connectTimeout(60, TimeUnit.SECONDS)
-                    .readTimeout(60, TimeUnit.SECONDS)
-                    .writeTimeout(60, TimeUnit.SECONDS)
+                    .connectTimeout(15, TimeUnit.SECONDS)
+                    .readTimeout(15, TimeUnit.SECONDS)
+                    .writeTimeout(15, TimeUnit.SECONDS)
                     .build()
 
                 val contentsArray = JSONArray()
@@ -465,7 +513,18 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
                         viewModelScope.launch(Dispatchers.Main) {
-                            aiChatHistory.add(Pair("Connection Error (${response.code}). Failed to fetch response.", true))
+                            // Fallback to offline engine seamlessly if cloud fails
+                            val localFallback = com.example.util.OfflineAiContinuityEngine.generateResponse(
+                                userQuery = prompt,
+                                userName = registeredFullName,
+                                nomineeName = registeredNomineeName,
+                                nomineeRelation = registeredNomineeRelation,
+                                nomineePhone = registeredPhone,
+                                contacts = importantContacts.value,
+                                vaultItems = vaultItems.value,
+                                isHindi = isHindiMode
+                            )
+                            aiChatHistory.add(Pair("🔒 [Offline Fallback Engine]:\n\n" + localFallback.answer, true))
                             isAiLoading = false
                         }
                         return@launch
@@ -486,11 +545,119 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } catch (e: Exception) {
                 viewModelScope.launch(Dispatchers.Main) {
-                    aiChatHistory.add(Pair("Connection Exception: ${e.message}", true))
+                    // Seamless offline fallback on network or timeout exceptions
+                    val localFallback = com.example.util.OfflineAiContinuityEngine.generateResponse(
+                        userQuery = prompt,
+                        userName = registeredFullName,
+                        nomineeName = registeredNomineeName,
+                        nomineeRelation = registeredNomineeRelation,
+                        nomineePhone = registeredPhone,
+                        contacts = importantContacts.value,
+                        vaultItems = vaultItems.value,
+                        isHindi = isHindiMode
+                    )
+                    aiChatHistory.add(Pair("🔒 [Offline Engine Activated]:\n\n" + localFallback.answer, true))
                     isAiLoading = false
                 }
             }
         }
+    }
+
+    // --- LOCAL OBSERVABILITY, SCALABILITY, MONITORING & MAINTAINABILITY ---
+    var observabilitySnapshot by mutableStateOf<ObservabilitySnapshot?>(null)
+    var isObservabilityLoading by mutableStateOf(false)
+    var showObservabilityDialog by mutableStateOf(false)
+    var observabilityMaintenanceMessage by mutableStateOf("")
+
+    // --- LEGAL, ABOUT, POLICIES, Q&A & CREATOR SPOTLIGHT ---
+    var showLegalAboutHub by mutableStateOf(false)
+    var legalAboutInitialTab by mutableStateOf(0) // 0: T&C, 1: Q&A, 2: Policies, 3: About App, 4: About Security, 5: About Ashmit Gautam
+
+    fun openLegalAboutHub(initialTab: Int = 0) {
+        legalAboutInitialTab = initialTab
+        showLegalAboutHub = true
+    }
+
+    fun refreshObservabilitySnapshot() {
+        viewModelScope.launch {
+            isObservabilityLoading = true
+            try {
+                observabilitySnapshot = LocalSystemObservability.captureSnapshot(getApplication(), repository)
+            } catch (e: Exception) {
+                android.util.Log.e("VaultViewModel", "Error capturing observability snapshot", e)
+            } finally {
+                isObservabilityLoading = false
+            }
+        }
+    }
+
+    fun runDatabaseVacuum() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val start = SystemClock.elapsedRealtime()
+            repository.runVacuum()
+            val latency = SystemClock.elapsedRealtime() - start
+            LocalSystemObservability.logEvent(
+                DiagnosticType.MAINTENANCE,
+                "DB_VACUUM",
+                "SQLite VACUUM compaction executed. Storage pages defragmented in ${latency}ms.",
+                latency
+            )
+            repository.logAction("Database Compacted", "Executed SQLite VACUUM compaction in ${latency}ms.", currentRole.name)
+            refreshObservabilitySnapshot()
+            withContext(Dispatchers.Main) {
+                observabilityMaintenanceMessage = if (isHindiMode)
+                    "डेटाबेस को सफलतापूर्वक संकुचित (Vacuum) किया गया (${latency}ms)! स्टोरेज अनुकूलित है।"
+                else
+                    "Database vacuumed & compacted in ${latency}ms! Storage pages defragmented."
+            }
+        }
+    }
+
+    fun runWalCheckpoint() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val start = SystemClock.elapsedRealtime()
+            repository.runWalCheckpoint()
+            val latency = SystemClock.elapsedRealtime() - start
+            LocalSystemObservability.logEvent(
+                DiagnosticType.DATABASE,
+                "WAL_CHECKPOINT",
+                "Write-Ahead Log pages flushed to primary SQLite storage in ${latency}ms.",
+                latency
+            )
+            repository.logAction("WAL Checkpoint", "Executed PRAGMA wal_checkpoint(FULL) in ${latency}ms.", currentRole.name)
+            refreshObservabilitySnapshot()
+            withContext(Dispatchers.Main) {
+                observabilityMaintenanceMessage = if (isHindiMode)
+                    "WAL चेकपॉइंट डिस्क पर सुरक्षित रूप से फ्लश हो गया (${latency}ms)।"
+                else
+                    "Write-Ahead Log checkpointed to local disk in ${latency}ms."
+            }
+        }
+    }
+
+    fun pruneHistoricalAuditLogs(keepCount: Int = 50) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val deletedCount = repository.pruneAuditLogs(keepCount)
+            LocalSystemObservability.logEvent(
+                DiagnosticType.MAINTENANCE,
+                "LOG_PRUNE",
+                "Pruned $deletedCount historical audit logs. Retained latest $keepCount entries.",
+                0L
+            )
+            repository.logAction("Audit Logs Pruned", "Retained top $keepCount logs, deleted $deletedCount entries.", currentRole.name)
+            refreshObservabilitySnapshot()
+            withContext(Dispatchers.Main) {
+                observabilityMaintenanceMessage = if (isHindiMode)
+                    "पुराने $deletedCount ऑडिट लॉग्स हटाए गए (नवीनतम $keepCount सुरक्षित रखे गए)।"
+                else
+                    "Pruned $deletedCount older audit logs (retained latest $keepCount)."
+            }
+        }
+    }
+
+    fun getExportableDiagnosticsReport(): String {
+        val snapshot = observabilitySnapshot ?: return "Observability snapshot not initialized. Tap Refresh."
+        return LocalSystemObservability.exportDiagnosticReport(snapshot)
     }
 
     init {
@@ -498,6 +665,7 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.ensureDatabaseSeeded()
             repository.logAction("App Initialised", "Vault application loaded with seed database.", currentRole.name)
+            refreshObservabilitySnapshot()
         }
         loadLocalSecureContacts()
         startInactivityTimer()
