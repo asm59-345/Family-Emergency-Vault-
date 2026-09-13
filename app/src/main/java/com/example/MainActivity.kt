@@ -2764,6 +2764,102 @@ fun SettingsScreen(
     var showRestoreDialog by remember { mutableStateOf(false) }
     var restoreJsonInput by remember { mutableStateOf("") }
     var restoreStatusMessage by remember { mutableStateOf<String?>(null) }
+    var showQrDialog by remember { mutableStateOf(false) }
+
+    if (showQrDialog) {
+        val publicApkUrl = "https://ais-pre-bru2epfqu3yybajn2lqh2x-786684627999.asia-southeast1.run.app/app-debug.apk"
+        val qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=8&data=" + android.net.Uri.encode(publicApkUrl)
+
+        AlertDialog(
+            onDismissRequest = { showQrDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(imageVector = Icons.Default.PhoneAndroid, contentDescription = null, tint = TealAccent, modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (model.isHindiMode) "ऐप डाउनलोड QR कोड" else "Direct APK Download QR",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = if (model.isHindiMode)
+                            "फोन कैमरा या गूगल लेंस से स्कैन करके सीधे APK डाउनलोड करें:"
+                        else
+                            "Scan with any Android camera or Google Lens to download the APK directly:",
+                        fontSize = 12.sp,
+                        color = Color.DarkGray,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(2.dp, TealAccent),
+                        shadowElevation = 4.dp,
+                        modifier = Modifier.size(200.dp)
+                    ) {
+                        coil.compose.AsyncImage(
+                            model = qrUrl,
+                            contentDescription = "Scan to Download APK",
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+
+                    Text(
+                        text = "FamilyEmergencyVault-v1.0.apk (27 MB)\nPackage: com.aistudio.familyemergencyvault",
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                val clip = android.content.ClipData.newPlainText("APK Link", publicApkUrl)
+                                clipboard.setPrimaryClip(clip)
+                                android.widget.Toast.makeText(context, "Download link copied!", android.widget.Toast.LENGTH_SHORT).show()
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(vertical = 4.dp)
+                        ) {
+                            Text("Copy Link", fontSize = 11.sp)
+                        }
+
+                        Button(
+                            onClick = {
+                                val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(publicApkUrl))
+                                context.startActivity(browserIntent)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(vertical = 4.dp)
+                        ) {
+                            Text("Open APK", fontSize = 11.sp, color = Color.White)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showQrDialog = false }) {
+                    Text("Close", fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
 
     if (showRestoreDialog) {
         AlertDialog(
@@ -3282,6 +3378,89 @@ fun SettingsScreen(
                         Icon(imageVector = Icons.Default.Download, contentDescription = "Restore", modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(if (model.isHindiMode) "रीस्टोर करें" else "Restore JSON", fontSize = 11.sp)
+                    }
+                }
+            }
+        }
+
+        // ------------------ SHARE APP APK & INSTALL QR CODE ------------------
+        val publicApkDownloadUrl = "https://ais-pre-bru2epfqu3yybajn2lqh2x-786684627999.asia-southeast1.run.app/app-debug.apk"
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, TealAccent.copy(alpha = 0.6f)),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (model.isHindiMode) "📲 ऐप शेयर करें व QR कोड से इंस्टॉल करें" else "📲 Share App APK & Install QR Code",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = SlatePrimary
+                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(TealAccent.copy(alpha = 0.15f))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = "Direct APK",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TealAccent
+                        )
+                    }
+                }
+
+                Text(
+                    text = if (model.isHindiMode)
+                        "अपने परिजनों (पत्नी, नॉमिनी, माता-पिता) के फोन में ऐप इंस्टॉल कराने के लिए स्क्रीन पर QR कोड दिखाएं या डायरेक्ट डाउनलोड लिंक शेयर करें।"
+                    else
+                        "Install the vault on your family members' phones (spouse, nominee, parents). Display the QR code on your screen or share the direct download link.",
+                    fontSize = 11.sp,
+                    color = Color.Gray
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { showQrDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = TealAccent),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(imageVector = Icons.Default.PhoneAndroid, contentDescription = "QR Code", tint = SlatePrimary, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(if (model.isHindiMode) "QR कोड दिखाएं" else "Show QR Code", color = SlatePrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            val sendIntent = android.content.Intent().apply {
+                                action = android.content.Intent.ACTION_SEND
+                                putExtra(
+                                    android.content.Intent.EXTRA_TEXT,
+                                    "Family Emergency Vault Android App direct download:\n$publicApkDownloadUrl\n\n100% Offline, Zero Cloud Tracking, Bank-grade Family Vault."
+                                )
+                                putExtra(android.content.Intent.EXTRA_SUBJECT, "Family Emergency Vault App Download")
+                                type = "text/plain"
+                            }
+                            context.startActivity(android.content.Intent.createChooser(sendIntent, "Share App Download Link"))
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(imageVector = Icons.Default.Share, contentDescription = "Share", tint = SlatePrimary, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(if (model.isHindiMode) "लिंक शेयर करें" else "Share Link", fontSize = 11.sp)
                     }
                 }
             }
