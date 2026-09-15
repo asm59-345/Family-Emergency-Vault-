@@ -83,6 +83,14 @@
         display: none;
       }
     }
+
+    @keyframes toastShrink {
+      from { width: 100%; }
+      to { width: 0%; }
+    }
+    .animate-toast-shrink {
+      animation: toastShrink 2000ms linear forwards;
+    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col transition-colors duration-200"
@@ -102,7 +110,8 @@
         <div>
           <div class="flex items-center gap-2">
             <span class="font-extrabold text-base sm:text-lg tracking-tight"
-                :class="isDarkMode ? 'text-white' : 'text-slate-900'">
+                :class="isDarkMode ? 'text-white' : 'text-slate-900'"
+                x-text="t('Family Emergency Vault', 'फैमिली इमरजेंसी वॉल्ट')">
               Family Emergency Vault
             </span>
             <span class="hidden sm:inline-block px-2 py-0.5 text-[11px] font-semibold rounded-full bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300"
@@ -164,7 +173,7 @@
         <a href="./app-debug.apk" download="FamilyEmergencyVault-v1.0.apk"
            class="inline-flex items-center gap-1.5 bg-teal-600 hover:bg-teal-500 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs sm:text-sm shadow-md shadow-teal-600/25 transition">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-          <span>APK (v1.0)</span>
+          <span x-text="t('APK (v1.0)', 'APK (v1.0)')">APK (v1.0)</span>
         </a>
       </div>
 
@@ -237,7 +246,7 @@
         <a href="./app-debug.apk" download="FamilyEmergencyVault-v1.0.apk"
            class="px-3 py-1.5 rounded-lg bg-teal-600 text-white font-bold text-xs flex items-center gap-1 shadow-sm">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-          <span>APK (v1.0)</span>
+          <span x-text="t('APK (v1.0)', 'APK (v1.0)')">APK (v1.0)</span>
         </a>
       </div>
     </div>
@@ -247,7 +256,7 @@
       <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-2.5 text-xs">
         <div class="flex items-center gap-2 text-slate-200 font-bold text-[11px] sm:text-xs">
           <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-          <span class="text-rose-400 font-black">1-Tap Direct SOS Dial:</span>
+          <span class="text-rose-400 font-black" x-text="t('1-Tap Direct SOS Dial:', '1-टैप डायरेक्ट SOS कॉल:')"></span>
           <span class="hidden lg:inline text-slate-400 font-normal" x-text="t('Instant emergency calls during medical, legal, or succession crisis', 'मेडिकल, कानूनी या पारिवारिक आपातकाल में तुरंत कॉल करें')"></span>
         </div>
         <div class="flex items-center gap-2 flex-wrap justify-center sm:justify-end w-full md:w-auto">
@@ -330,18 +339,18 @@
         <div class="flex items-center gap-3 shrink-0">
           <div class="p-3 rounded-xl border text-center min-w-[90px]"
                :class="isDarkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-slate-50 border-slate-200'">
-            <div class="text-xs font-semibold" :class="isDarkMode ? 'text-slate-400' : 'text-slate-500'">Cloud Risk</div>
-            <div class="text-lg font-black text-teal-400">ZERO</div>
+            <div class="text-xs font-semibold" :class="isDarkMode ? 'text-slate-400' : 'text-slate-500'" x-text="t('Cloud Risk', 'क्लाउड रिस्क')">Cloud Risk</div>
+            <div class="text-lg font-black text-teal-400" x-text="t('ZERO', 'ज़ीरो (0)')">ZERO</div>
           </div>
           <div class="p-3 rounded-xl border text-center min-w-[100px]"
                :class="isDarkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-slate-50 border-slate-200'">
-            <div class="text-xs font-semibold" :class="isDarkMode ? 'text-slate-400' : 'text-slate-500'">Encryption</div>
+            <div class="text-xs font-semibold" :class="isDarkMode ? 'text-slate-400' : 'text-slate-500'" x-text="t('Encryption', 'एन्क्रिप्शन')">Encryption</div>
             <div class="text-lg font-black text-emerald-400">AES-256</div>
           </div>
           <div class="p-3 rounded-xl border text-center min-w-[90px]"
                :class="isDarkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-slate-50 border-slate-200'">
-            <div class="text-xs font-semibold" :class="isDarkMode ? 'text-slate-400' : 'text-slate-500'">Storage</div>
-            <div class="text-lg font-black text-teal-400">Local Room</div>
+            <div class="text-xs font-semibold" :class="isDarkMode ? 'text-slate-400' : 'text-slate-500'" x-text="t('Storage', 'लोकल स्टोरेज')">Storage</div>
+            <div class="text-lg font-black text-teal-400" x-text="t('Local Room', 'लोकल रूम')">Local Room</div>
           </div>
         </div>
       </div>
@@ -364,13 +373,12 @@
           </div>
 
           <!-- Hero Headline -->
-          <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-tight sm:leading-none">
-            Secure, Offline Family <br class="hidden sm:inline">
-            <span class="text-teal-400">Emergency & Continuity Vault</span>
+          <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-tight sm:leading-none"
+              x-html="t('Secure, Offline Family <br class=\'hidden sm:inline\'><span class=\'text-teal-400\'>Emergency & Continuity Vault</span>', 'सुरक्षित, 100% ऑफलाइन परिवार <br class=\'hidden sm:inline\'><span class=\'text-teal-400\'>इमरजेंसी व उत्तराधिकार लॉकर</span>')">
           </h1>
 
-          <div class="text-[11px] sm:text-xs uppercase tracking-widest text-teal-400 font-extrabold">
-            OFFICIAL ANDROID RELEASE V1.0 • ZERO CLOUD RISK
+          <div class="text-[11px] sm:text-xs uppercase tracking-widest text-teal-400 font-extrabold"
+               x-text="t('OFFICIAL ANDROID RELEASE V1.0 • ZERO CLOUD RISK', 'ऑफिशियल एंड्रॉइड ऐप V1.0 • ज़ीरो क्लाउड रिस्क')">
           </div>
 
           <!-- User-Facing Benefit Description -->
@@ -385,7 +393,7 @@
             <a href="./app-debug.apk" download="FamilyEmergencyVault-v1.0.apk"
                class="px-7 py-3.5 rounded-xl bg-teal-400 hover:bg-teal-300 text-slate-950 font-black text-xs sm:text-sm shadow-[0_0_25px_rgba(45,212,191,0.45)] transition flex items-center gap-2">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-              <span>Download Android App (v1.0)</span>
+              <span x-text="t('Download Android App (v1.0)', 'एंड्रॉइड ऐप डाउनलोड करें (v1.0)')"></span>
             </a>
 
             <!-- Secondary CTA: Launch Web Ledger -->
@@ -420,8 +428,8 @@
               <div class="space-y-2.5 flex-1 w-full">
                 <div class="flex items-center justify-between gap-2 flex-wrap">
                   <div class="flex items-center gap-2">
-                    <span class="text-sm font-black text-teal-300">📱 Easy 3-Step Phone Installation</span>
-                    <span class="text-[9px] bg-teal-900/90 text-teal-200 px-2 py-0.5 rounded-full font-bold border border-teal-500/30">Offline APK</span>
+                    <span class="text-sm font-black text-teal-300" x-text="t('📱 Easy 3-Step Phone Installation', '📱 3 आसान स्टेप्स में फोन में इंस्टॉल करें')"></span>
+                    <span class="text-[9px] bg-teal-900/90 text-teal-200 px-2 py-0.5 rounded-full font-bold border border-teal-500/30" x-text="t('Offline APK', 'ऑफलाइन APK')"></span>
                   </div>
                   <span class="text-[10px] text-slate-400 font-mono">v1.0 • 27 MB</span>
                 </div>
@@ -430,15 +438,15 @@
                 <ol class="space-y-1.5 text-xs text-slate-300 leading-relaxed">
                   <li class="flex items-start gap-2">
                     <span class="w-4 h-4 rounded-full bg-teal-500/20 text-teal-300 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">1</span>
-                    <span><strong>Scan or Download:</strong> Scan the QR code or tap <button @click="downloadApkDirect()" class="text-teal-400 font-bold underline hover:text-teal-300">Direct Download</button> to get the APK.</span>
+                    <span x-html="t('<strong>Scan or Download:</strong> Scan the QR code or tap <button @click=\'downloadApkDirect()\' class=\'text-teal-400 font-bold underline hover:text-teal-300\'>Direct Download</button> to get the APK.', '<strong>स्कैन या डाउनलोड:</strong> QR कोड स्कैन करें या सीधा <button @click=\'downloadApkDirect()\' class=\'text-teal-400 font-bold underline hover:text-teal-300\'>Direct Download</button> दबाएं।')"></span>
                   </li>
                   <li class="flex items-start gap-2">
                     <span class="w-4 h-4 rounded-full bg-teal-500/20 text-teal-300 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">2</span>
-                    <span><strong>Security Prompt:</strong> If your browser shows <em>"File might be harmful"</em>, tap <strong>"Download anyway"</strong>.</span>
+                    <span x-html="t('<strong>Security Prompt:</strong> If your browser shows <em>"File might be harmful"</em>, tap <strong>"Download anyway"</strong>.', '<strong>सिक्योरिटी मैसेज:</strong> अगर ब्राउज़र <em>"File might be harmful"</em> दिखाए, तो <strong>"Download anyway"</strong> दबाएं।')"></span>
                   </li>
                   <li class="flex items-start gap-2">
                     <span class="w-4 h-4 rounded-full bg-teal-500/20 text-teal-300 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">3</span>
-                    <span><strong>Install & Setup:</strong> Tap downloaded file, allow install from browser, and create your 4-digit Master MPIN.</span>
+                    <span x-html="t('<strong>Install & Setup:</strong> Tap downloaded file, allow install from browser, and create your 4-digit Master MPIN.', '<strong>इंस्टॉल और सेटअप:</strong> डाउनलोड फाइल खोलें, ब्राउज़र से इंस्टॉल अलाउ करें और अपना 4-अंकों का मास्टर MPIN बनाएं।')"></span>
                   </li>
                 </ol>
 
@@ -447,17 +455,17 @@
                   <button @click="downloadApkDirect()"
                           class="px-3.5 py-2 rounded-xl bg-teal-400 hover:bg-teal-300 text-slate-950 font-black text-xs shadow-md transition flex items-center gap-1.5">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                    <span>⚡ Direct Download</span>
+                    <span x-text="t('⚡ Direct Download', '⚡ डायरेक्ट डाउनलोड')"></span>
                   </button>
 
                   <button @click="copyApkLink()"
                           class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 border border-teal-500/30 font-bold text-xs transition flex items-center gap-1">
-                    <span x-text="linkCopied ? '✅ Copied!' : '📋 Copy Link'"></span>
+                    <span x-text="linkCopied ? t('✅ Copied!', '✅ लिंक कॉपी हो गया!') : t('📋 Copy Link', '📋 लिंक कॉपी करें')"></span>
                   </button>
 
                   <button @click="showQrModal = true"
                           class="px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 font-medium text-xs transition">
-                    <span>Full Guide</span>
+                    <span x-text="t('Full Guide', 'पूरी गाइड')"></span>
                   </button>
                 </div>
               </div>
@@ -471,10 +479,10 @@
               <div class="w-10 h-10 rounded-xl bg-teal-950/90 border border-teal-600/50 flex items-center justify-center text-xl text-teal-400">
                 🛡️
               </div>
-              <h3 class="text-sm sm:text-base font-black text-white">100% Local & Private</h3>
-              <div class="text-[11px] font-bold text-teal-400 uppercase tracking-wider">No Cloud Tracking</div>
-              <p class="text-xs text-slate-300 leading-relaxed">
-                Bank records, locker passwords, and nominee folios reside solely in your smartphone's encrypted storage. No external server tracking or telemetry leaks.
+              <h3 class="text-sm sm:text-base font-black text-white" x-text="t('100% Local & Private', '100% लोकल व प्राइवेट')">100% Local & Private</h3>
+              <div class="text-[11px] font-bold text-teal-400 uppercase tracking-wider" x-text="t('No Cloud Tracking', 'ज़ीरो क्लाउड ट्रैकिंग')">No Cloud Tracking</div>
+              <p class="text-xs text-slate-300 leading-relaxed"
+                 x-text="t('Bank records, locker passwords, and nominee folios reside solely in your smartphone\'s encrypted storage. No external server tracking or telemetry leaks.', 'बैंक खाते, लॉकर पासवर्ड और नॉमिनी जानकारी केवल आपके फोन में सुरक्षित रहती है। किसी भी बाहरी सर्वर या क्लाउड पर डेटा नहीं जाता।')">
               </p>
             </div>
 
@@ -483,10 +491,10 @@
               <div class="w-10 h-10 rounded-xl bg-emerald-950/90 border border-emerald-600/50 flex items-center justify-center text-xl text-emerald-400">
                 ⚡
               </div>
-              <h3 class="text-sm sm:text-base font-black text-white">Instant Offline Access</h3>
-              <div class="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">Works Without Internet</div>
-              <p class="text-xs text-slate-300 leading-relaxed">
-                Opens instantly during network blackouts, hospital basements, or remote locations without WiFi or mobile data. Complete emergency resilience.
+              <h3 class="text-sm sm:text-base font-black text-white" x-text="t('Instant Offline Access', 'तुरंत ऑफलाइन एक्सेस')">Instant Offline Access</h3>
+              <div class="text-[11px] font-bold text-emerald-400 uppercase tracking-wider" x-text="t('Works Without Internet', 'बिना इंटरनेट चलता है')">Works Without Internet</div>
+              <p class="text-xs text-slate-300 leading-relaxed"
+                 x-text="t('Opens instantly during network blackouts, hospital basements, or remote locations without WiFi or mobile data. Complete emergency resilience.', 'नेटवर्क न होने पर, अस्पताल के बेसमेंट में या इमरजेंसी में बिना वाई-फाई या मोबाइल डेटा के तुरंत खुलता है।')">
               </p>
             </div>
 
@@ -495,10 +503,10 @@
               <div class="w-10 h-10 rounded-xl bg-indigo-950/90 border border-indigo-600/50 flex items-center justify-center text-xl text-indigo-400">
                 🔒
               </div>
-              <h3 class="text-sm sm:text-base font-black text-white">Biometric & Master PIN</h3>
-              <div class="text-[11px] font-bold text-indigo-400 uppercase tracking-wider">Hardware Encrypted</div>
-              <p class="text-xs text-slate-300 leading-relaxed">
-                Protected by Android KeyStore hardware cryptography. Decrypted only via fingerprint, face unlock, or a private 4-digit Master MPIN.
+              <h3 class="text-sm sm:text-base font-black text-white" x-text="t('Biometric & Master PIN', 'बायोमेट्रिक व मास्टर पिन')">Biometric & Master PIN</h3>
+              <div class="text-[11px] font-bold text-indigo-400 uppercase tracking-wider" x-text="t('Hardware Encrypted', 'हार्डवेयर एन्क्रिप्टेड')">Hardware Encrypted</div>
+              <p class="text-xs text-slate-300 leading-relaxed"
+                 x-text="t('Protected by Android KeyStore hardware cryptography. Decrypted only via fingerprint, face unlock, or a private 4-digit Master MPIN.', 'एंड्रॉइड हार्डवेयर कीस्टोर से सुरक्षित। केवल आपके फिंगरप्रिंट, फेस अनलॉक या 4-अंकों के मास्टर पिन से खुलता है।')">
               </p>
             </div>
           </div>
@@ -522,7 +530,7 @@
           </div>
           <a href="./app-debug.apk" download="FamilyEmergencyVault-v1.0.apk"
              class="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-black text-xs shadow-md transition">
-            <span>⚡ Download APK</span>
+            <span x-text="t('⚡ Download APK', '⚡ APK डाउनलोड करें')"></span>
           </a>
         </div>
 
@@ -536,18 +544,20 @@
           <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent flex flex-col justify-end p-5 sm:p-8">
             <div class="max-w-2xl space-y-2">
               <div class="flex flex-wrap gap-2">
-                <span class="px-3 py-1 rounded-full text-[10px] sm:text-xs font-black bg-teal-400 text-slate-950 shadow-md">
+                <span class="px-3 py-1 rounded-full text-[10px] sm:text-xs font-black bg-teal-400 text-slate-950 shadow-md"
+                      x-text="t('100% Offline Vault', '100% ऑफलाइन वॉल्ट')">
                   100% Offline Vault
                 </span>
                 <span class="px-3 py-1 rounded-full text-[10px] sm:text-xs font-black bg-slate-900/90 text-teal-300 border border-teal-500/40">
                   AES-256 GCM Local SQLite
                 </span>
-                <span class="px-3 py-1 rounded-full text-[10px] sm:text-xs font-black bg-slate-900/90 text-emerald-400 border border-emerald-500/40">
+                <span class="px-3 py-1 rounded-full text-[10px] sm:text-xs font-black bg-slate-900/90 text-emerald-400 border border-emerald-500/40"
+                      x-text="t('Zero Cloud Leaks', 'ज़ीरो क्लाउड लीक')">
                   Zero Cloud Leaks
                 </span>
               </div>
-              <p class="text-xs sm:text-sm text-slate-200 font-medium drop-shadow-md">
-                "During sudden medical or fatal emergencies, families often face frozen accounts and missing policies. Family Emergency Vault ensures uninterrupted continuity directly from your Android phone."
+              <p class="text-xs sm:text-sm text-slate-200 font-medium drop-shadow-md"
+                 x-text="t('"During sudden medical or fatal emergencies, families often face frozen accounts and missing policies. Family Emergency Vault ensures uninterrupted continuity directly from your Android phone."', '"आपातकालीन अस्पताल भर्ती या अनहोनी के समय बैंक खाते फ्रीज हो जाते हैं और बीमा पॉलिसियां नहीं मिलतीं। फैमिली इमरजेंसी वॉल्ट आपके फोन से बिना रुकावट तुरंत सहारा देता है।"')">
               </p>
             </div>
           </div>
@@ -585,38 +595,38 @@
             <div class="w-full lg:w-2/5 space-y-4 text-left">
               <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-rose-950/80 text-rose-400 border border-rose-600/40">
                 <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-                <span>Live Offline GPS SOS & Action Playbook</span>
+                <span x-text="t('Live Offline GPS SOS & Action Playbook', 'लाइव ऑफलाइन GPS SOS व एक्शन रोडमैप')"></span>
               </div>
-              <h3 class="text-xl sm:text-2xl font-black text-white">
-                Urgent Action Timeline & 1-Tap SOS Dispatch
+              <h3 class="text-xl sm:text-2xl font-black text-white"
+                  x-text="t('Urgent Action Timeline & 1-Tap SOS Dispatch', 'आपातकालीन एक्शन टाइमलाइन व 1-टैप SOS कॉल')">
               </h3>
-              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                The native Android application gives family members immediate, step-by-step guidance right on the home screen. In severe situations, 1-tap triggers offline satellite GPS coordinates via SMS without relying on mobile internet.
+              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed"
+                 x-text="t('The native Android application gives family members immediate, step-by-step guidance right on the home screen. In severe situations, 1-tap triggers offline satellite GPS coordinates via SMS without relying on mobile internet.', 'यह ऐप होम स्क्रीन पर परिजनों को स्पष्ट और चरणबद्ध निर्देश देता है। गंभीर स्थिति में बिना इंटरनेट केवल 1-टैप से SMS द्वारा लाइव GPS लोकेशन भेजी जा सकती है।')">
               </p>
               
               <ul class="space-y-2.5 text-xs text-slate-300">
                 <li class="flex items-start gap-2">
                   <span class="text-teal-400 font-bold">✓</span>
-                  <span><strong>First 24 Hours:</strong> Hospital admission files, health card claim numbers, doctor contacts.</span>
+                  <span x-html="t('<strong>First 24 Hours:</strong> Hospital admission files, health card claim numbers, doctor contacts.', '<strong>पहले 24 घंटे:</strong> अस्पताल भर्ती फाइलें, हेल्थ कार्ड क्लेम नंबर और डॉक्टर के नंबर।')"></span>
                 </li>
                 <li class="flex items-start gap-2">
                   <span class="text-teal-400 font-bold">✓</span>
-                  <span><strong>First 7 Days:</strong> Death certificate filing, life insurance claims, employer intimations.</span>
+                  <span x-html="t('<strong>First 7 Days:</strong> Death certificate filing, life insurance claims, employer intimations.', '<strong>पहले 7 दिन:</strong> डेथ सर्टिफिकेट अप्लाई करना, जीवन बीमा क्लेम और ऑफिस सूचना।')"></span>
                 </li>
                 <li class="flex items-start gap-2">
                   <span class="text-teal-400 font-bold">✓</span>
-                  <span><strong>First 30 Days:</strong> Bank locker operations, Demat transmissions, legal succession.</span>
+                  <span x-html="t('<strong>First 30 Days:</strong> Bank locker operations, Demat transmissions, legal succession.', '<strong>पहले 30 दिन:</strong> बैंक लॉकर संचालन, डीमैट शेयर ट्रांसफर और कानूनी उत्तराधिकार।')"></span>
                 </li>
               </ul>
 
               <div class="pt-2 flex items-center gap-3">
                 <button @click="showQrModal = true" 
                         class="px-4 py-2.5 rounded-xl bg-teal-500/20 text-teal-300 border border-teal-500/40 text-xs font-bold hover:bg-teal-500/30 transition flex items-center gap-1.5">
-                  <span>📷 Scan QR to Install</span>
+                  <span x-text="t('📷 Scan QR to Install', '📷 QR स्कैन कर इंस्टॉल करें')"></span>
                 </button>
                 <a href="./app-debug.apk" download="FamilyEmergencyVault-v1.0.apk" 
                    class="px-4 py-2.5 rounded-xl bg-slate-800 text-white text-xs font-bold hover:bg-slate-700 transition">
-                  <span>Direct Download (.apk)</span>
+                  <span x-text="t('Direct Download (.apk)', 'डायरेक्ट APK डाउनलोड')"></span>
                 </a>
               </div>
             </div>
@@ -632,21 +642,23 @@
                    alt="Family Protection and Continuity Shield" 
                    class="w-full h-full object-cover hover:scale-105 transition duration-500" />
               <div class="absolute top-4 left-4">
-                <span class="px-3 py-1 rounded-full text-xs font-black bg-emerald-500 text-slate-950 shadow-md">
+                <span class="px-3 py-1 rounded-full text-xs font-black bg-emerald-500 text-slate-950 shadow-md"
+                      x-text="t('Nominee Protection', 'नॉमिनी सुरक्षा')">
                   Nominee Protection
                 </span>
               </div>
             </div>
             <div class="p-6 space-y-2.5 text-left flex-1 flex flex-col justify-between">
               <div>
-                <h3 class="text-lg font-black text-white">Family Continuity & Nominee Protocol</h3>
-                <p class="text-xs text-slate-300 leading-relaxed mt-1">
-                  Connect verified nominees to specific bank folios and safe lockers so surviving family members are never locked out of vital funds or left in the dark during a crisis.
+                <h3 class="text-lg font-black text-white"
+                    x-text="t('Family Continuity & Nominee Protocol', 'पारिवारिक निरंतरता व नॉमिनी सुरक्षा')"></h3>
+                <p class="text-xs text-slate-300 leading-relaxed mt-1"
+                   x-text="t('Connect verified nominees to specific bank folios and safe lockers so surviving family members are never locked out of vital funds or left in the dark during a crisis.', 'हर बैंक खाते और लॉकर के साथ सत्यापित नॉमिनी का नाम दर्ज रखें ताकि संकट के समय परिवार को पैसों या चाबियों के लिए भटकना न पड़े।')">
                 </p>
               </div>
               <div class="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-                <span>🔐 Offline Local Persistence</span>
-                <span class="text-teal-400 font-bold">100% Private</span>
+                <span x-text="t('🔐 Offline Local Persistence', '🔐 ऑफलाइन लोकल स्टोरेज')"></span>
+                <span class="text-teal-400 font-bold" x-text="t('100% Private', '100% प्राइवेट')"></span>
               </div>
             </div>
           </div>
@@ -658,21 +670,23 @@
                    alt="Emergency Bank Folios and Insurance Policies" 
                    class="w-full h-full object-cover hover:scale-105 transition duration-500" />
               <div class="absolute top-4 left-4">
-                <span class="px-3 py-1 rounded-full text-xs font-black bg-cyan-400 text-slate-950 shadow-md">
+                <span class="px-3 py-1 rounded-full text-xs font-black bg-cyan-400 text-slate-950 shadow-md"
+                      x-text="t('Asset Organization', 'संपत्ति व्यवस्था')">
                   Asset Organization
                 </span>
               </div>
             </div>
             <div class="p-6 space-y-2.5 text-left flex-1 flex flex-col justify-between">
               <div>
-                <h3 class="text-lg font-black text-white">Bank Folios, Policies & Safe Lockers</h3>
-                <p class="text-xs text-slate-300 leading-relaxed mt-1">
-                  Keep an organized inventory of life insurance, term plans, mutual fund folios, gold lockers, and property deeds with instant field-level masking and master PIN security.
+                <h3 class="text-lg font-black text-white"
+                    x-text="t('Bank Folios, Policies & Safe Lockers', 'बैंक खाते, पॉलिसियां व सेफ लॉकर')"></h3>
+                <p class="text-xs text-slate-300 leading-relaxed mt-1"
+                   x-text="t('Keep an organized inventory of life insurance, term plans, mutual fund folios, gold lockers, and property deeds with instant field-level masking and master PIN security.', 'लाइफ इंश्योरेंस, टर्म प्लान, म्यूचुअल फंड, गोल्ड लॉकर और मकान की रजिस्ट्री का पूरा ब्यौरा सुरक्षित और मास्क करके रखें।')">
                 </p>
               </div>
               <div class="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
                 <span>📁 Android Room SQLite</span>
-                <span class="text-cyan-400 font-bold">Structured Records</span>
+                <span class="text-cyan-400 font-bold" x-text="t('Structured Records', 'व्यवस्थित रिकॉर्ड्स')"></span>
               </div>
             </div>
           </div>
@@ -689,16 +703,16 @@
             <div class="lg:col-span-2 space-y-3 text-left">
               <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-teal-950 text-teal-300 border border-teal-700/50">
                 <span>🛡️</span>
-                <span>Hardware Biometrics & Cryptographic Isolation</span>
+                <span x-text="t('Hardware Biometrics & Cryptographic Isolation', 'हार्डवेयर बायोमेट्रिक्स व क्रिप्टोग्राफिक सुरक्षा')"></span>
               </div>
-              <h3 class="text-xl sm:text-2xl font-black text-white">
-                Why Your Private Data Belongs in the Android App (Not on This Website)
+              <h3 class="text-xl sm:text-2xl font-black text-white"
+                  x-text="t('Why Your Private Data Belongs in the Android App (Not on This Website)', 'आपका गोपनीय डेटा वेबसाइट पर नहीं, बल्कि एंड्रॉइड ऐप में होना चाहिए')">
               </h3>
-              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                Personal financial assets, emergency checklists, and family contacts are deeply confidential. Storing this sensitive information on websites or cloud databases exposes your family to data breaches, phishing, and third-party trackers.
+              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed"
+                 x-text="t('Personal financial assets, emergency checklists, and family contacts are deeply confidential. Storing this sensitive information on websites or cloud databases exposes your family to data breaches, phishing, and third-party trackers.', 'वित्तीय संपत्तियां, इमरजेंसी चेकलिस्ट और पारिवारिक फोन नंबर अत्यंत गोपनीय होते हैं। इन्हें वेबसाइट या क्लाउड पर डालने से डेटा लीक, हैकिंग और साइबर फ्रॉड का खतरा रहता है।')">
               </p>
-              <p class="text-xs sm:text-sm text-teal-300 font-medium">
-                🔒 That's why <strong>Family Emergency Vault</strong> is deliberately built as a 100% offline Android application: all records are encrypted using Android KeyStore hardware and stored locally in your phone's private Room SQLite database.
+              <p class="text-xs sm:text-sm text-teal-300 font-medium"
+                 x-html="t('🔒 That\'s why <strong>Family Emergency Vault</strong> is deliberately built as a 100% offline Android application: all records are encrypted using Android KeyStore hardware and stored locally in your phone\'s private Room SQLite database.', '🔒 इसीलिए <strong>फैमिली इमरजेंसी वॉल्ट</strong> को 100% ऑफलाइन एंड्रॉइड ऐप बनाया गया है: सारा डेटा फोन की हार्डवेयर चिप से एन्क्रिप्ट होकर फोन के अंदर ही सुरक्षित रहता है।')">
               </p>
             </div>
           </div>
@@ -719,9 +733,9 @@
             <div class="w-12 h-12 rounded-xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center text-xl">
               💼
             </div>
-            <h3 class="text-base font-black text-white">Financial Asset Registry</h3>
-            <p class="text-xs text-slate-300 leading-relaxed">
-              Consolidate bank accounts, demat folios, insurance policies, safe lockers, and liabilities with field-level masking and nominee status.
+            <h3 class="text-base font-black text-white" x-text="t('Financial Asset Registry', 'वित्तीय संपत्ति लेजर')"></h3>
+            <p class="text-xs text-slate-300 leading-relaxed"
+               x-text="t('Consolidate bank accounts, demat folios, insurance policies, safe lockers, and liabilities with field-level masking and nominee status.', 'बैंक खाते, डीमैट शेयर, बीमा पॉलिसियां, बैंक लॉकर और कर्ज की जानकारी को नॉमिनी स्टेटस और मास्किंग के साथ रखें।')">
             </p>
           </div>
 
@@ -730,9 +744,9 @@
             <div class="w-12 h-12 rounded-xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center text-xl">
               ⏱️
             </div>
-            <h3 class="text-base font-black text-white">Emergency Playbooks</h3>
-            <p class="text-xs text-slate-300 leading-relaxed">
-              Step-by-step action plans split into First 24 Hours, First 7 Days, and First 30 Days so family members know exactly who to call and what to file.
+            <h3 class="text-base font-black text-white" x-text="t('Emergency Playbooks', 'आपातकालीन चेकलिस्ट')"></h3>
+            <p class="text-xs text-slate-300 leading-relaxed"
+               x-text="t('Step-by-step action plans split into First 24 Hours, First 7 Days, and First 30 Days so family members know exactly who to call and what to file.', 'पहले 24 घंटे, 7 दिन और 30 दिनों में बांटी गई स्पष्ट कार्ययोजना ताकि परिवार को पता हो कि किससे संपर्क करना है।')">
             </p>
           </div>
 
@@ -743,11 +757,11 @@
               🧬
             </div>
             <h3 class="text-base font-black text-white flex items-center gap-2">
-              <span>Biometric Security</span>
-              <span class="text-[10px] bg-teal-900/80 text-teal-300 px-2 py-0.5 rounded-full border border-teal-600/50">Native</span>
+              <span x-text="t('Biometric Security', 'बायोमेट्रिक सुरक्षा')"></span>
+              <span class="text-[10px] bg-teal-900/80 text-teal-300 px-2 py-0.5 rounded-full border border-teal-600/50" x-text="t('Native', 'नेटिव')">Native</span>
             </h3>
-            <p class="text-xs text-slate-300 leading-relaxed">
-              Android BiometricPrompt with Fingerprint & Face Unlock manager requested on app launch to decrypt sensitive asset and claim records.
+            <p class="text-xs text-slate-300 leading-relaxed"
+               x-text="t('Android BiometricPrompt with Fingerprint & Face Unlock manager requested on app launch to decrypt sensitive asset and claim records.', 'ऐप खोलते ही फिंगरप्रिंट और फेस अनलॉक से डेटा डिक्रिप्ट होता है, जिससे कोई अन्य व्यक्ति इसे न देख सके।')">
             </p>
           </div>
 
@@ -758,11 +772,11 @@
               🚨
             </div>
             <h3 class="text-base font-black text-white flex items-center gap-2">
-              <span>Offline Location SOS</span>
+              <span x-text="t('Offline Location SOS', 'ऑफलाइन लोकेशन SOS')"></span>
               <span class="text-[10px] bg-red-900/80 text-red-300 px-2 py-0.5 rounded-full border border-red-600/50">GPS</span>
             </h3>
-            <p class="text-xs text-slate-300 leading-relaxed">
-              Direct offline location sharing: dispatch live GPS satellite coordinates via SMS/WhatsApp with 1-tap direct dialing to family contacts and 112 services.
+            <p class="text-xs text-slate-300 leading-relaxed"
+               x-text="t('Direct offline location sharing: dispatch live GPS satellite coordinates via SMS/WhatsApp with 1-tap direct dialing to family contacts and 112 services.', 'बिना इंटरनेट लाइव GPS सैटेलाइट लोकेशन SMS द्वारा भेजें और 1-टैप में 112 व पारिवारिक संपर्कों को कॉल करें।')">
             </p>
           </div>
 
@@ -771,9 +785,9 @@
             <div class="w-12 h-12 rounded-xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center text-xl">
               🔒
             </div>
-            <h3 class="text-base font-black text-white">Zero Cloud Exposure</h3>
-            <p class="text-xs text-slate-300 leading-relaxed">
-              All records are stored strictly on the local device inside an isolated Room SQLite database. No third-party analytics or external telemetry leaks.
+            <h3 class="text-base font-black text-white" x-text="t('Zero Cloud Exposure', 'ज़ीरो क्लाउड रिस्क')"></h3>
+            <p class="text-xs text-slate-300 leading-relaxed"
+               x-text="t('All records are stored strictly on the local device inside an isolated Room SQLite database. No third-party analytics or external telemetry leaks.', 'सभी रिकॉर्ड्स केवल आपके डिवाइस के लोकल रूम डेटाबेस में सुरक्षित रहते हैं। कोई थर्ड-पार्टी सर्वर या ट्रैकर नहीं।')">
             </p>
           </div>
         </div>
@@ -785,10 +799,10 @@
       <div class="space-y-6 pt-4 playbook-print-container">
         <!-- Print Header (Visible only when printed) -->
         <div class="print-header">
-          <h1 class="text-2xl font-black text-black">Family Emergency Action Playbook & Critical Checklist</h1>
-          <p class="text-xs text-slate-700 mt-1">Official Family Continuity Protocol • Keep this document in your home fireproof safe with locker keys.</p>
+          <h1 class="text-2xl font-black text-black" x-text="t('Family Emergency Action Playbook & Critical Checklist', 'परिवार आपातकालीन कार्ययोजना व महत्वपूर्ण चेकलिस्ट')">Family Emergency Action Playbook & Critical Checklist</h1>
+          <p class="text-xs text-slate-700 mt-1" x-text="t('Official Family Continuity Protocol • Keep this document in your home fireproof safe with locker keys.', 'आधिकारिक पारिवारिक निरंतरता दस्तावेज • इसे अपने घर के इमरजेंसी फोल्डर में रखें।')">Official Family Continuity Protocol • Keep this document in your home fireproof safe with locker keys.</p>
           <div class="mt-3 p-3 border border-black rounded text-xs space-y-1">
-            <p><strong>🚨 Emergency Direct Contacts:</strong> Police / Medical: 112 • Family Doctor: Dr. Sameer Joshi (+91 98111 22233) • Advocate: Sanjay Krishna (+91 98100 98100) • CA: Alok Mehta (+91 93123 45678)</p>
+            <p><strong x-text="t('🚨 Emergency Direct Contacts:', '🚨 आपातकालीन महत्वपूर्ण संपर्क:')">🚨 Emergency Direct Contacts:</strong> <span x-text="t('Police / Medical: 112 • Family Doctor: Dr. Sameer Joshi (+91 98111 22233) • Advocate: Sanjay Krishna (+91 98100 98100) • CA: Alok Mehta (+91 93123 45678)', 'पुलिस / मेडिकल: 112 • फैमिली डॉक्टर: डॉ. समीर जोशी (+91 98111 22233) • वकील: एडवोकेट संजय कृष्णा (+91 98100 98100) • CA: आलोक मेहता (+91 93123 45678)')">Police / Medical: 112 • Family Doctor: Dr. Sameer Joshi (+91 98111 22233) • Advocate: Sanjay Krishna (+91 98100 98100) • CA: Alok Mehta (+91 93123 45678)</span></p>
           </div>
         </div>
 
@@ -839,7 +853,8 @@
                     : (isDarkMode ? 'bg-[#090e17] border-slate-800 hover:border-slate-700' : 'bg-white border-slate-200 hover:bg-slate-50')">
             <div class="flex items-center justify-between">
               <span class="text-xs font-black px-2 py-0.5 rounded-md"
-                    :class="activePlaybookPhase === 'First 24 Hours' ? 'bg-rose-500 text-white' : 'bg-slate-700 text-slate-300'">
+                    :class="activePlaybookPhase === 'First 24 Hours' ? 'bg-rose-500 text-white' : 'bg-slate-700 text-slate-300'"
+                    x-text="t('STEP 1', 'चरण 1')">
                 STEP 1
               </span>
               <span class="text-xs font-bold font-mono"
@@ -848,7 +863,8 @@
               </span>
             </div>
             <div class="text-sm sm:text-base font-black mt-2"
-                 :class="activePlaybookPhase === 'First 24 Hours' ? 'text-rose-300' : (isDarkMode ? 'text-white' : 'text-slate-900')">
+                 :class="activePlaybookPhase === 'First 24 Hours' ? 'text-rose-300' : (isDarkMode ? 'text-white' : 'text-slate-900')"
+                 x-text="t('⚡ First 24 Hours', '⚡ पहले 24 घंटे')">
               ⚡ First 24 Hours
             </div>
             <p class="text-[11px] text-slate-400 mt-1 line-clamp-1"
@@ -864,7 +880,8 @@
                     : (isDarkMode ? 'bg-[#090e17] border-slate-800 hover:border-slate-700' : 'bg-white border-slate-200 hover:bg-slate-50')">
             <div class="flex items-center justify-between">
               <span class="text-xs font-black px-2 py-0.5 rounded-md"
-                    :class="activePlaybookPhase === 'First 7 Days' ? 'bg-amber-500 text-slate-950' : 'bg-slate-700 text-slate-300'">
+                    :class="activePlaybookPhase === 'First 7 Days' ? 'bg-amber-500 text-slate-950' : 'bg-slate-700 text-slate-300'"
+                    x-text="t('STEP 2', 'चरण 2')">
                 STEP 2
               </span>
               <span class="text-xs font-bold font-mono"
@@ -873,7 +890,8 @@
               </span>
             </div>
             <div class="text-sm sm:text-base font-black mt-2"
-                 :class="activePlaybookPhase === 'First 7 Days' ? 'text-amber-300' : (isDarkMode ? 'text-white' : 'text-slate-900')">
+                 :class="activePlaybookPhase === 'First 7 Days' ? 'text-amber-300' : (isDarkMode ? 'text-white' : 'text-slate-900')"
+                 x-text="t('📅 First 7 Days', '📅 पहले 7 दिन')">
               📅 First 7 Days
             </div>
             <p class="text-[11px] text-slate-400 mt-1 line-clamp-1"
@@ -889,7 +907,8 @@
                     : (isDarkMode ? 'bg-[#090e17] border-slate-800 hover:border-slate-700' : 'bg-white border-slate-200 hover:bg-slate-50')">
             <div class="flex items-center justify-between">
               <span class="text-xs font-black px-2 py-0.5 rounded-md"
-                    :class="activePlaybookPhase === 'First 30 Days' ? 'bg-teal-500 text-slate-950' : 'bg-slate-700 text-slate-300'">
+                    :class="activePlaybookPhase === 'First 30 Days' ? 'bg-teal-500 text-slate-950' : 'bg-slate-700 text-slate-300'"
+                    x-text="t('STEP 3', 'चरण 3')">
                 STEP 3
               </span>
               <span class="text-xs font-bold font-mono"
@@ -898,7 +917,8 @@
               </span>
             </div>
             <div class="text-sm sm:text-base font-black mt-2"
-                 :class="activePlaybookPhase === 'First 30 Days' ? 'text-teal-300' : (isDarkMode ? 'text-white' : 'text-slate-900')">
+                 :class="activePlaybookPhase === 'First 30 Days' ? 'text-teal-300' : (isDarkMode ? 'text-white' : 'text-slate-900')"
+                 x-text="t('🗓️ First 30 Days', '🗓️ पहले 30 दिन')">
               🗓️ First 30 Days
             </div>
             <p class="text-[11px] text-slate-400 mt-1 line-clamp-1"
@@ -926,8 +946,8 @@
 
                 <div class="space-y-1">
                   <div class="flex items-center gap-2 flex-wrap">
-                    <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-teal-400">
-                      Step <span x-text="idx + 1"></span>
+                    <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-teal-400"
+                          x-text="t('Step ' + (idx + 1), 'कदम ' + (idx + 1))">
                     </span>
                     <span class="text-xs font-bold px-2 py-0.5 rounded"
                           :class="task.completed ? 'bg-emerald-950 text-emerald-400' : 'bg-rose-950 text-rose-400'"
@@ -946,7 +966,7 @@
                   </p>
 
                   <div class="text-[11px] font-semibold text-slate-400 pt-1 flex items-center gap-3 flex-wrap">
-                    <span>👤 <strong class="text-teal-400" x-text="getTaskAssigned(task)"></strong></span>
+                    <span>👤 <span x-text="t('Assigned: ', 'जिम्मेदारी: ')"></span><strong class="text-teal-400" x-text="getTaskAssigned(task)"></strong></span>
                   </div>
                 </div>
               </div>
@@ -957,20 +977,20 @@
                   <a href="tel:+919811122233" 
                      class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm">
                     <span>📞</span>
-                    <span>Call Doctor</span>
+                    <span x-text="t('Call Doctor', 'डॉक्टर को कॉल करें')"></span>
                   </a>
                 </template>
                 <template x-if="task.id === 6">
                   <a href="tel:+919110011001" 
                      class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm">
                     <span>📞</span>
-                    <span>Call Zerodha RM</span>
+                    <span x-text="t('Call Zerodha RM', 'जीरोधा RM को कॉल करें')"></span>
                   </a>
                 </template>
                 <button @click="toggleTask(task.id)"
                         class="px-3 py-1.5 rounded-xl border text-xs font-semibold transition"
                         :class="task.completed ? 'border-slate-700 text-slate-400' : 'border-teal-500/40 text-teal-400 hover:bg-teal-500/10'">
-                  <span x-text="task.completed ? 'Mark Pending' : 'Mark Done'"></span>
+                  <span x-text="task.completed ? t('Mark Pending', 'अपूर्ण मार्क करें') : t('Mark Done', 'पूर्ण मार्क करें')"></span>
                 </button>
               </div>
             </div>
@@ -980,14 +1000,14 @@
         <!-- All Phases For Print (Hidden on screen, prints completely on physical paper) -->
         <div class="print-only-phase space-y-6">
           <div class="p-4 border border-black rounded">
-            <h3 class="font-bold text-base mb-2">⚡ Phase 1: First 24 Hours (Immediate Steps)</h3>
+            <h3 class="font-bold text-base mb-2" x-text="t('⚡ Phase 1: First 24 Hours (Immediate Steps)', '⚡ चरण 1: पहले 24 घंटे (अति आवश्यक कार्य)')">⚡ Phase 1: First 24 Hours (Immediate Steps)</h3>
             <ul class="space-y-2 text-xs">
               <template x-for="task in checklist.filter(c => c.phase === 'First 24 Hours')" :key="task.id">
                 <li class="flex items-start gap-2">
                   <span>[ <span x-text="task.completed ? 'X' : ' '"></span> ]</span>
                   <div>
                     <strong x-text="getTaskTitle(task)"></strong> - <span x-text="getTaskDesc(task)"></span>
-                    <div class="text-[10px] text-slate-600">Assigned: <span x-text="getTaskAssigned(task)"></span></div>
+                    <div class="text-[10px] text-slate-600"><span x-text="t('Assigned: ', 'जिम्मेदारी: ')">Assigned: </span><span x-text="getTaskAssigned(task)"></span></div>
                   </div>
                 </li>
               </template>
@@ -995,14 +1015,14 @@
           </div>
 
           <div class="p-4 border border-black rounded">
-            <h3 class="font-bold text-base mb-2">📅 Phase 2: First 7 Days (Critical Documentation)</h3>
+            <h3 class="font-bold text-base mb-2" x-text="t('📅 Phase 2: First 7 Days (Critical Documentation)', '📅 चरण 2: पहले 7 दिन (महत्वपूर्ण कागजात व क्लेम)')">📅 Phase 2: First 7 Days (Critical Documentation)</h3>
             <ul class="space-y-2 text-xs">
               <template x-for="task in checklist.filter(c => c.phase === 'First 7 Days')" :key="task.id">
                 <li class="flex items-start gap-2">
                   <span>[ <span x-text="task.completed ? 'X' : ' '"></span> ]</span>
                   <div>
                     <strong x-text="getTaskTitle(task)"></strong> - <span x-text="getTaskDesc(task)"></span>
-                    <div class="text-[10px] text-slate-600">Assigned: <span x-text="getTaskAssigned(task)"></span></div>
+                    <div class="text-[10px] text-slate-600"><span x-text="t('Assigned: ', 'जिम्मेदारी: ')">Assigned: </span><span x-text="getTaskAssigned(task)"></span></div>
                   </div>
                 </li>
               </template>
@@ -1010,14 +1030,14 @@
           </div>
 
           <div class="p-4 border border-black rounded">
-            <h3 class="font-bold text-base mb-2">🗓️ Phase 3: First 30 Days (Financial Transmission & Estate Settlements)</h3>
+            <h3 class="font-bold text-base mb-2" x-text="t('🗓️ Phase 3: First 30 Days (Financial Transmission & Estate Settlements)', '🗓️ चरण 3: पहले 30 दिन (फाइनेंशियल सेटलमेंट व ट्रांसफर)')">🗓️ Phase 3: First 30 Days (Financial Transmission & Estate Settlements)</h3>
             <ul class="space-y-2 text-xs">
               <template x-for="task in checklist.filter(c => c.phase === 'First 30 Days')" :key="task.id">
                 <li class="flex items-start gap-2">
                   <span>[ <span x-text="task.completed ? 'X' : ' '"></span> ]</span>
                   <div>
                     <strong x-text="getTaskTitle(task)"></strong> - <span x-text="getTaskDesc(task)"></span>
-                    <div class="text-[10px] text-slate-600">Assigned: <span x-text="getTaskAssigned(task)"></span></div>
+                    <div class="text-[10px] text-slate-600"><span x-text="t('Assigned: ', 'जिम्मेदारी: ')">Assigned: </span><span x-text="getTaskAssigned(task)"></span></div>
                   </div>
                 </li>
               </template>
@@ -1041,9 +1061,10 @@
               1
             </div>
             <div class="space-y-1">
-              <h4 class="font-extrabold text-white text-sm sm:text-base">Download the APK file</h4>
-              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                Tap the <a href="./app-debug.apk" download="FamilyEmergencyVault-v1.0.apk" class="text-teal-400 underline font-bold">Download APK</a> button on your Android device's browser.
+              <h4 class="font-extrabold text-white text-sm sm:text-base"
+                  x-text="t('Download the APK file', 'APK फाइल डाउनलोड करें')"></h4>
+              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed"
+                 x-html="t('Tap the <a href=\'./app-debug.apk\' download=\'FamilyEmergencyVault-v1.0.apk\' class=\'text-teal-400 underline font-bold\'>Download APK</a> button on your Android device\'s browser.', 'अपने एंड्रॉइड फोन के ब्राउज़र में <a href=\'./app-debug.apk\' download=\'FamilyEmergencyVault-v1.0.apk\' class=\'text-teal-400 underline font-bold\'>Download APK</a> बटन दबाएं।')">
               </p>
             </div>
           </div>
@@ -1054,9 +1075,10 @@
               2
             </div>
             <div class="space-y-1">
-              <h4 class="font-extrabold text-white text-sm sm:text-base">Allow installation from browser</h4>
-              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                When prompted by Android, tap <strong>Settings</strong> and enable <em>"Allow from this source"</em> for Chrome or your browser.
+              <h4 class="font-extrabold text-white text-sm sm:text-base"
+                  x-text="t('Allow installation from browser', 'ब्राउज़र से इंस्टॉल की अनुमति दें')"></h4>
+              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed"
+                 x-html="t('When prompted by Android, tap <strong>Settings</strong> and enable <em>"Allow from this source"</em> for Chrome or your browser.', 'जब फोन पूछे, तो <strong>Settings</strong> पर टैप करें और Chrome या ब्राउज़र के लिए <em>"Allow from this source"</em> चालू करें।')">
               </p>
             </div>
           </div>
@@ -1067,9 +1089,10 @@
               3
             </div>
             <div class="space-y-1">
-              <h4 class="font-extrabold text-white text-sm sm:text-base">Open & Setup Master MPIN</h4>
-              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                Tap Install, launch <strong>Family Emergency Vault</strong>, and configure your 4-digit Master MPIN for 100% offline biometric & cryptographic safety.
+              <h4 class="font-extrabold text-white text-sm sm:text-base"
+                  x-text="t('Open & Setup Master MPIN', 'ऐप खोलें और मास्टर MPIN बनाएं')"></h4>
+              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed"
+                 x-html="t('Tap Install, launch <strong>Family Emergency Vault</strong>, and configure your 4-digit Master MPIN for 100% offline biometric & cryptographic safety.', 'Install पर टैप करें, <strong>फैमिली इमरजेंसी वॉल्ट</strong> खोलें और सुरक्षा के लिए अपना 4-अंकों का मास्टर MPIN बनाएं।')">
               </p>
             </div>
           </div>
@@ -1079,15 +1102,15 @@
         <div class="text-center pt-4 flex flex-wrap justify-center gap-3">
           <button @click="downloadApkDirect()" 
                   class="px-6 py-3.5 rounded-xl bg-teal-400 hover:bg-teal-300 text-slate-950 font-black text-xs sm:text-sm shadow-[0_0_20px_rgba(45,212,191,0.35)] transition inline-flex items-center gap-2">
-            <span>⚡ Direct Download APK (27 MB)</span>
+            <span x-text="t('⚡ Direct Download APK (27 MB)', '⚡ डायरेक्ट डाउनलोड APK (27 MB)')"></span>
           </button>
           <button @click="showQrModal = true" 
                   class="px-6 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs sm:text-sm border border-slate-700 transition inline-flex items-center gap-2">
-            <span>📷 Scan QR Code</span>
+            <span x-text="t('📷 Scan QR Code', '📷 QR कोड स्कैन करें')"></span>
           </button>
           <button @click="activeTab = 'download'" 
                   class="px-6 py-3.5 rounded-xl bg-teal-950/60 hover:bg-teal-900/60 text-teal-300 font-bold text-xs sm:text-sm border border-teal-500/40 transition inline-flex items-center gap-2">
-            <span>📲 Full Deployment Guide →</span>
+            <span x-text="t('📲 Full Deployment Guide →', '📲 पूरी डिप्लॉयमेंट गाइड →')"></span>
           </button>
         </div>
       </div>
@@ -1105,8 +1128,8 @@
             🛡️
           </div>
           <div>
-            <div class="text-xs sm:text-sm font-bold text-teal-300">
-              100% Client-Side Private Web Ledger
+            <div class="text-xs sm:text-sm font-bold text-teal-300"
+                 x-text="t('100% Client-Side Private Web Ledger', '100% सुरक्षित प्राइवेट वेब लेजर')">
             </div>
             <p class="text-[11px] text-slate-300"
                x-text="t('Data exists solely in your current browser memory & localStorage. Nothing is ever uploaded to any server.', 'यह डेटा केवल आपके ब्राउज़र में सुरक्षित है। कोई भी जानकारी सर्वर पर नहीं भेजी जाती।')">
@@ -1121,7 +1144,7 @@
           </button>
           <button @click="openAddModal()"
                   class="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold shadow transition flex items-center gap-1">
-            <span>+ Add Item</span>
+            <span x-text="t('+ Add Item', '+ नया खाता जोड़ें')"></span>
           </button>
         </div>
       </div>
@@ -1169,27 +1192,46 @@
               </div>
               <span class="text-[10px] px-2 py-0.5 rounded-full font-bold"
                     :class="item.nomineeVerified ? 'bg-emerald-950 text-emerald-400 border border-emerald-700/50' : 'bg-rose-950 text-rose-400 border border-rose-700/50'"
-                    x-text="item.nomineeVerified ? '✓ Nominee Verified' : '⚠️ Nominee Pending'"></span>
+                    x-text="item.nomineeVerified ? t('✓ Nominee Verified', '✓ नॉमिनी सत्यापित') : t('⚠️ Nominee Pending', '⚠️ नॉमिनी बाकी')"></span>
             </div>
 
             <div class="p-3 rounded-xl bg-slate-900/40 border border-slate-800/80 space-y-1.5 text-xs">
               <div class="flex items-center justify-between text-slate-400">
-                <span>Institution:</span>
+                <span x-text="t('Institution:', 'संस्थान / बैंक:')"></span>
                 <strong class="text-white font-semibold" x-text="item.institution"></strong>
               </div>
               <div class="flex items-center justify-between text-slate-400">
-                <span>Folio / Account #:</span>
+                <span x-text="t('Folio / Account #:', 'खाता / फोलियो नंबर:')"></span>
                 <strong class="font-mono text-teal-300" x-text="isMasked ? maskText(item.number) : item.number"></strong>
               </div>
               <div class="flex items-center justify-between text-slate-400">
-                <span>Primary Nominee:</span>
-                <strong class="text-emerald-300" x-text="item.nominee ? item.nominee + ' (' + item.relation + ')' : 'Not Registered'"></strong>
+                <span x-text="t('Primary Nominee:', 'मुख्य नॉमिनी:')"></span>
+                <strong class="text-emerald-300" x-text="item.nominee ? item.nominee + ' (' + item.relation + ')' : t('Not Registered', 'दर्ज नहीं')"></strong>
               </div>
             </div>
 
             <div class="text-[11px] text-slate-400 space-y-1">
-              <div>📍 <strong>Location:</strong> <span x-text="item.physicalLocation || 'Primary Locker'"></span></div>
-              <div class="italic text-slate-500" x-text="getAssetRemarks(item)"></div>
+              <div>📍 <strong x-text="t('Location:', 'कागजात की जगह:')"></strong> <span x-text="item.physicalLocation || t('Primary Locker', 'घर का मुख्य लॉकर')"></span></div>
+              <div class="italic text-slate-500" x-text="getItemRemarks(item)"></div>
+            </div>
+
+            <!-- Card Actions: Edit & Delete -->
+            <div class="pt-2 border-t flex items-center justify-end gap-2"
+                 :class="isDarkMode ? 'border-slate-800' : 'border-slate-100'">
+              <button @click="openEditModal(item)"
+                      class="px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition"
+                      :class="isDarkMode ? 'bg-slate-800 text-teal-300 hover:bg-slate-700' : 'bg-teal-50 text-teal-700 hover:bg-teal-100'"
+                      :title="t('Edit or update this asset', 'रिकॉर्ड बदलें')">
+                <span>✏️</span>
+                <span x-text="t('Edit', 'बदलें')"></span>
+              </button>
+              <button @click="deleteItem(item.id)"
+                      class="px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition"
+                      :class="isDarkMode ? 'bg-slate-800 text-rose-400 hover:bg-slate-700' : 'bg-rose-50 text-rose-700 hover:bg-rose-100'"
+                      :title="t('Delete this asset', 'रिकॉर्ड हटाएं')">
+                <span>🗑️</span>
+                <span x-text="t('Delete', 'हटाएं')"></span>
+              </button>
             </div>
           </div>
         </template>
@@ -1213,7 +1255,8 @@
             </p>
           </div>
           <div class="flex items-center gap-2">
-            <span class="px-3 py-1 rounded-full text-xs font-extrabold bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300">
+            <span class="px-3 py-1 rounded-full text-xs font-extrabold bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300"
+                  x-text="t('v1.0.0 Production', 'v1.0.0 प्रोडक्शन')">
               v1.0.0 Production
             </span>
           </div>
@@ -1230,13 +1273,14 @@
               <div class="w-12 h-12 rounded-2xl bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 flex items-center justify-center text-2xl font-bold">
                 🤖
               </div>
-              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                    x-text="t('Native Android', 'नेटिव एंड्रॉइड')">
                 Native Android
               </span>
             </div>
             
-            <h4 class="text-lg font-black" :class="isDarkMode ? 'text-white' : 'text-slate-900'">
-              Android APK (Native)
+            <h4 class="text-lg font-black" :class="isDarkMode ? 'text-white' : 'text-slate-900'"
+                x-text="t('Android APK (Native)', 'एंड्रॉइड APK (नेटिव ऐप)')">
             </h4>
             <p class="text-xs sm:text-sm mt-1 leading-relaxed" :class="isDarkMode ? 'text-slate-300' : 'text-slate-600'"
                x-text="t('100% Offline app built with Jetpack Compose + Room Database. Zero latency, no internet required.', 'Jetpack Compose + Room Database पर बना 100% ऑफलाइन ऐप। कोई इंटरनेट आवश्यक नहीं।')">
@@ -1262,12 +1306,12 @@
                      class="w-20 h-20 rounded" />
               </div>
               <div class="text-xs space-y-1 text-center sm:text-left">
-                <div class="font-bold text-teal-400">📱 Scan QR on Phone Camera</div>
-                <div class="text-[11px]" :class="isDarkMode ? 'text-slate-300' : 'text-slate-600'">
-                  Point your Android camera here to download APK directly to your phone.
+                <div class="font-bold text-teal-400" x-text="t('📱 Scan QR on Phone Camera', '📱 फोन के कैमरे से QR स्कैन करें')"></div>
+                <div class="text-[11px]" :class="isDarkMode ? 'text-slate-300' : 'text-slate-600'"
+                     x-text="t('Point your Android camera here to download APK directly to your phone.', 'फोन का कैमरा या गूगल लेंस यहाँ रखें और तुरंत APK डाउनलोड करें।')">
                 </div>
-                <button @click="showQrModal = true" class="text-[11px] text-teal-500 font-bold hover:underline">
-                  🔍 Enlarge QR & View Steps
+                <button @click="showQrModal = true" class="text-[11px] text-teal-500 font-bold hover:underline"
+                        x-text="t('🔍 Enlarge QR & View Steps', '🔍 बड़ा QR देखें व स्टेप्स')">
                 </button>
               </div>
             </div>
@@ -1285,19 +1329,19 @@
             <button @click="downloadApkDirect()"
                     class="w-full py-3.5 text-center rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-teal-600/30 transition flex items-center justify-center gap-2">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-              <span>⚡ Direct Download Android APK (27 MB)</span>
+              <span x-text="t('⚡ Direct Download Android APK (27 MB)', '⚡ सीधा डाउनलोड Android APK (27 MB)')"></span>
             </button>
 
             <div class="flex items-center gap-2">
               <button @click="copyApkLink()"
                       class="flex-1 py-2.5 px-3 text-center rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5"
                       :class="isDarkMode ? 'border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700' : 'border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200'">
-                <span x-text="linkCopied ? '✅ Link Copied!' : '📋 Copy Direct Link (WhatsApp)'"></span>
+                <span x-text="linkCopied ? t('✅ Link Copied!', '✅ लिंक कॉपी हो गया!') : t('📋 Copy Direct Link (WhatsApp)', '📋 लिंक कॉपी करें (WhatsApp/SMS)')"></span>
               </button>
               <button @click="showQrModal = true"
                       class="py-2.5 px-3 text-center rounded-xl border text-xs font-bold transition"
-                      :class="isDarkMode ? 'border-teal-800 bg-teal-950/40 text-teal-300' : 'border-teal-300 bg-teal-50 text-teal-700'">
-                📱 Full QR Modal
+                      :class="isDarkMode ? 'border-teal-800 bg-teal-950/40 text-teal-300' : 'border-teal-300 bg-teal-50 text-teal-700'"
+                      x-text="t('📱 Full QR Modal', '📱 पूरा QR कोड')">
               </button>
             </div>
           </div>
@@ -1311,13 +1355,14 @@
               <div class="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 flex items-center justify-center text-2xl font-bold">
                 🍎
               </div>
-              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300"
+                    x-text="t('iOS / Safari PWA', 'iOS / Safari PWA')">
                 iOS / Safari PWA
               </span>
             </div>
             
-            <h4 class="text-lg font-black" :class="isDarkMode ? 'text-white' : 'text-slate-900'">
-              iPhone & iPad (iOS App)
+            <h4 class="text-lg font-black" :class="isDarkMode ? 'text-white' : 'text-slate-900'"
+                x-text="t('iPhone & iPad (iOS App)', 'iPhone व iPad (iOS ऐप)')">
             </h4>
             <p class="text-xs sm:text-sm mt-1 leading-relaxed" :class="isDarkMode ? 'text-slate-300' : 'text-slate-600'"
                x-text="t('Apple Safari PWA technology runs as a standalone fullscreen app on iPhone home screen without App Store.', 'Apple Safari PWA तकनीक से iPhone की होम स्क्रीन पर बिना App Store के फुलस्क्रीन ऐप की तरह चलता है।')">
@@ -1359,13 +1404,14 @@
               <div class="w-12 h-12 rounded-2xl bg-black text-white flex items-center justify-center text-xl font-black">
                 ▲
               </div>
-              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300">
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300"
+                    x-text="t('Vercel Ready', 'Vercel तैयार')">
                 Vercel Ready
               </span>
             </div>
             
-            <h4 class="text-lg font-black" :class="isDarkMode ? 'text-white' : 'text-slate-900'">
-              Vercel Deployment
+            <h4 class="text-lg font-black" :class="isDarkMode ? 'text-white' : 'text-slate-900'"
+                x-text="t('Vercel Deployment', 'Vercel डिप्लॉयमेंट')">
             </h4>
             <p class="text-xs sm:text-sm mt-1 leading-relaxed" :class="isDarkMode ? 'text-slate-300' : 'text-slate-600'"
                x-text="t('vercel.json is pre-configured in this repository. Redeploy to your Vercel account in under 1 minute.', 'इस पूरे प्रोजेक्ट में vercel.json पहले से कॉन्फ़िगर है। आप इसे 1 मिनट में अपने Vercel खाते पर रीडिप्लॉय कर सकते हैं।')">
@@ -1446,10 +1492,12 @@
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center p-6 sm:p-8">
           <div class="lg:col-span-7 space-y-4">
             <div class="flex flex-wrap items-center gap-2">
-              <span class="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
+              <span class="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20"
+                    x-text="t('🛡️ Offline Continuity Ledger', '🛡️ ऑफलाइन निरंतरता लेजर')">
                 🛡️ Offline Continuity Ledger
               </span>
-              <span class="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+              <span class="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                    x-text="t('📱 Native Android & iOS Companion', '📱 नेटिव एंड्रॉइड व iOS साथी')">
                 📱 Native Android & iOS Companion
               </span>
             </div>
@@ -1468,12 +1516,12 @@
             <div class="flex flex-wrap items-center gap-3 pt-2">
               <a href="./app-debug.apk" download="FamilyEmergencyVault-v1.0.apk"
                  class="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-black text-xs sm:text-sm shadow-lg shadow-teal-600/30 transition flex items-center gap-2">
-                <span>📲 Download Android APK (22M)</span>
+                <span x-text="t('📲 Download Android APK (22M)', '📲 एंड्रॉइड APK डाउनलोड (22M)')">📲 Download Android APK (22M)</span>
               </a>
               <button @click="showIosModal = true"
                       class="px-4 py-2.5 rounded-xl border text-xs sm:text-sm font-bold transition flex items-center gap-2"
                       :class="isDarkMode ? 'bg-slate-800 border-slate-700 text-white hover:bg-slate-700' : 'bg-slate-100 border-slate-300 text-slate-900 hover:bg-slate-200'">
-                <span>🍏 iOS Safari Guide</span>
+                <span x-text="t('🍏 iOS Safari Guide', '🍏 iOS सफारी गाइड')">🍏 iOS Safari Guide</span>
               </button>
             </div>
           </div>
@@ -1590,26 +1638,24 @@
           🛡️
         </div>
         <div>
-          <h3 class="text-xl font-black">Family Emergency Vault</h3>
-          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Version 1.0.0 • Offline-First Native Architecture</p>
+          <h3 class="text-xl font-black" x-text="t('Family Emergency Vault', 'फैमिली इमरजेंसी वॉल्ट')">Family Emergency Vault</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1" x-text="t('Version 1.0.0 • Offline-First Native Architecture', 'संस्करण 1.0.0 • ऑफलाइन-फर्स्ट नेटिव आर्किटेक्चर')">Version 1.0.0 • Offline-First Native Architecture</p>
         </div>
 
         <div class="max-w-2xl mx-auto p-4 rounded-xl border space-y-2 text-xs leading-relaxed"
              :class="isDarkMode ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'">
-          <p>
-            This application is engineered specifically as an <strong>offline-first resilience platform</strong>. In catastrophic circumstances, banking apps with cloud servers fail because they require user fingerprints, facial recognition, or active SIM cards with SMS OTPs.
+          <p x-html="t('This application is engineered specifically as an <strong>offline-first resilience platform</strong>. In catastrophic circumstances, banking apps with cloud servers fail because they require user fingerprints, facial recognition, or active SIM cards with SMS OTPs.', 'यह एप्लिकेशन विशेष रूप से <strong>ऑफलाइन-फर्स्ट सुरक्षा प्लेटफॉर्म</strong> के रूप में बनाया गया है। संकट के समय क्लाउड सर्वर पर चलने वाले बैंकिंग ऐप्स काम नहीं करते क्योंकि उनके लिए फिंगरप्रिंट, फेस आईडी या SMS OTP वाले सिम कार्ड की आवश्यकता होती है।')">
           </p>
-          <p>
-            By storing data locally on your device with cryptographic masking and offline JSON exports, Family Emergency Vault bridges the vital communication gap between a family provider and their dependents.
+          <p x-text="t('By storing data locally on your device with cryptographic masking and offline JSON exports, Family Emergency Vault bridges the vital communication gap between a family provider and their dependents.', 'क्रिप्टोग्राफिक मास्किंग और ऑफलाइन JSON बैकअप के जरिए यह ऐप परिवार के मुखिया और उनके आश्रितों के बीच की सबसे बड़ी सूचना कमी को पूरा करता है।')">
           </p>
         </div>
 
         <div class="pt-2">
-          <div class="text-sm font-extrabold">
-            Written & Developed by <span class="text-teal-600 dark:text-teal-400 underline decoration-teal-500 font-black">Ashmit Gautam</span>
+          <div class="text-sm font-extrabold"
+               x-html="t('Written & Developed by <span class=\'text-teal-600 dark:text-teal-400 underline decoration-teal-500 font-black\'>Ashmit Gautam</span>', 'निर्माता व डेवलपर: <span class=\'text-teal-600 dark:text-teal-400 underline decoration-teal-500 font-black\'>अश्मित गौतम</span>')">
           </div>
-          <div class="text-[11px] text-slate-400 mt-1">
-            Android Jetpack Compose • SQLite Room Database • Progressive Web App for iOS & Vercel
+          <div class="text-[11px] text-slate-400 mt-1"
+               x-text="t('Android Jetpack Compose • SQLite Room Database • Progressive Web App for iOS & Vercel', 'एंड्रॉइड जेटपैक कंपोज़ • SQLite रूम डेटाबेस • PWA (iOS व Vercel)')">
           </div>
         </div>
       </div>
@@ -1621,7 +1667,7 @@
   <!-- Footer -->
   <footer class="border-t py-6 px-4 text-center text-xs transition-colors"
           :class="isDarkMode ? 'border-slate-800 bg-slate-900/40 text-slate-500' : 'border-slate-200 bg-white text-slate-500'">
-    <p>© 2026 Family Emergency Vault. Android Native (Kotlin + Compose) & Web Dashboard. PWA & Vercel Ready.</p>
+    <p x-text="t('© 2026 Family Emergency Vault. Android Native (Kotlin + Compose) & Web Dashboard. PWA & Vercel Ready.', '© 2026 फैमिली इमरजेंसी वॉल्ट। एंड्रॉइड नेटिव (Kotlin + Compose) व वेब डैशबोर्ड। PWA व Vercel तैयार।')"></p>
   </footer>
 
   <!-- 1. iPhone / iOS PWA Installation Modal -->
@@ -1693,8 +1739,9 @@
         <div class="flex items-center gap-2">
           <span class="text-2xl">📱</span>
           <div>
-            <h3 class="font-black text-base sm:text-lg text-teal-400">Scan QR or Direct Download APK</h3>
-            <p class="text-[11px] text-slate-400">Family Emergency Vault • Android Release v1.0 (27 MB)</p>
+            <h3 class="font-black text-base sm:text-lg text-teal-400"
+                x-text="t('Scan QR or Direct Download APK', 'QR कोड स्कैन करें या सीधा APK डाउनलोड करें')"></h3>
+            <p class="text-[11px] text-slate-400" x-text="t('Family Emergency Vault • Android Release v1.0 (27 MB)', 'फैमिली इमरजेंसी वॉल्ट • एंड्रॉइड रिलीज़ v1.0 (27 MB)')">Family Emergency Vault • Android Release v1.0 (27 MB)</p>
           </div>
         </div>
         <button @click="showQrModal = false" class="text-slate-400 hover:text-slate-200 text-xl font-bold p-1">✕</button>
@@ -1711,10 +1758,10 @@
 
         <div class="text-center space-y-1">
           <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-950/60 border border-teal-500/40 text-teal-300 text-xs font-bold">
-            <span>📷 Point your phone camera or Google Lens at this QR</span>
+            <span x-text="t('📷 Point your phone camera or Google Lens at this QR', '📷 फोन का कैमरा या Google Lens इस QR पर रखें')"></span>
           </div>
-          <p class="text-[11px] text-slate-400 max-w-xs mx-auto">
-            Direct download will trigger immediately on your Android phone.
+          <p class="text-[11px] text-slate-400 max-w-xs mx-auto"
+             x-text="t('Direct download will trigger immediately on your Android phone.', 'सीधा डाउनलोड आपके एंड्रॉइड फोन में शुरू हो जाएगा।')">
           </p>
         </div>
       </div>
@@ -1724,12 +1771,12 @@
         <button @click="downloadApkDirect()"
                 class="py-3 px-4 rounded-xl bg-teal-400 hover:bg-teal-300 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-teal-400/25 transition flex items-center justify-center gap-2">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-          <span>⚡ Download APK Now</span>
+          <span x-text="t('⚡ Download APK Now', '⚡ अभी APK डाउनलोड करें')"></span>
         </button>
 
         <button @click="copyApkLink()"
                 class="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 border border-teal-500/40 font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2">
-          <span x-text="linkCopied ? '✅ Link Copied!' : '📋 Copy Link (WhatsApp/SMS)'"></span>
+          <span x-text="linkCopied ? t('✅ Link Copied!', '✅ लिंक कॉपी हो गया!') : t('📋 Copy Link (WhatsApp/SMS)', '📋 लिंक कॉपी करें (WhatsApp/SMS)')"></span>
         </button>
       </div>
 
@@ -1737,21 +1784,24 @@
       <div class="p-3 rounded-xl border space-y-2 text-xs"
            :class="isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'">
         <div class="flex items-center justify-between">
-          <span class="font-bold text-slate-400 text-[11px]">Direct Download URL:</span>
+          <span class="font-bold text-slate-400 text-[11px]" x-text="t('Direct Download URL:', 'डायरेक्ट डाउनलोड लिंक:')"></span>
           <div class="flex gap-1 text-[10px]">
             <button @click="qrTargetMode = 'auto'" 
                     class="px-2 py-0.5 rounded font-bold"
-                    :class="qrTargetMode === 'auto' ? 'bg-teal-600 text-white' : 'text-slate-400 hover:text-white'">
+                    :class="qrTargetMode === 'auto' ? 'bg-teal-600 text-white' : 'text-slate-400 hover:text-white'"
+                    x-text="t('Auto', 'ऑटो')">
               Auto
             </button>
             <button @click="qrTargetMode = 'shared'" 
                     class="px-2 py-0.5 rounded font-bold"
-                    :class="qrTargetMode === 'shared' ? 'bg-teal-600 text-white' : 'text-slate-400 hover:text-white'">
+                    :class="qrTargetMode === 'shared' ? 'bg-teal-600 text-white' : 'text-slate-400 hover:text-white'"
+                    x-text="t('Cloud Run Public', 'क्लाउड रन पब्लिक')">
               Cloud Run Public
             </button>
             <button @click="qrTargetMode = 'current'" 
                     class="px-2 py-0.5 rounded font-bold"
-                    :class="qrTargetMode === 'current' ? 'bg-teal-600 text-white' : 'text-slate-400 hover:text-white'">
+                    :class="qrTargetMode === 'current' ? 'bg-teal-600 text-white' : 'text-slate-400 hover:text-white'"
+                    x-text="t('Current Domain', 'वर्तमान डोमेन')">
               Current Domain
             </button>
           </div>
@@ -1763,25 +1813,26 @@
 
       <!-- Android Installation Guide Steps -->
       <div class="space-y-2 text-xs">
-        <div class="font-bold text-teal-400">📋 Android Installation Guide (3 Simple Steps):</div>
+        <div class="font-bold text-teal-400" x-text="t('📋 Android Installation Guide (3 Simple Steps):', '📋 एंड्रॉइड इंस्टॉलेशन गाइड (3 आसान स्टेप्स):')"></div>
         <div class="space-y-1.5 text-slate-300 text-[11px] leading-relaxed">
           <div class="flex items-start gap-2">
             <span class="font-bold text-teal-300">1.</span>
-            <span>Tap <strong>Download anyway</strong> if Chrome or Android displays <em>"File might be harmful"</em> (this is standard for APKs downloaded outside Google Play Store).</span>
+            <span x-html="t('Tap <strong>Download anyway</strong> if Chrome or Android displays <em>"File might be harmful"</em> (this is standard for APKs downloaded outside Google Play Store).', 'क्रोम में <strong>"Download anyway"</strong> दबाएं अगर <em>"File might be harmful"</em> का संदेश दिखे।')"></span>
           </div>
           <div class="flex items-start gap-2">
             <span class="font-bold text-teal-300">2.</span>
-            <span>Once download completes, tap the notification or open <strong>Downloads</strong> folder in your Files app and tap <strong>FamilyEmergencyVault-v1.0.apk</strong>.</span>
+            <span x-html="t('Once download completes, tap the notification or open <strong>Downloads</strong> folder in your Files app and tap <strong>FamilyEmergencyVault-v1.0.apk</strong>.', 'डाउनलोड पूरा होने पर नोटिफिकेशन या <strong>Downloads</strong> फोल्डर में जाकर <strong>FamilyEmergencyVault-v1.0.apk</strong> पर टैप करें।')"></span>
           </div>
           <div class="flex items-start gap-2">
             <span class="font-bold text-teal-300">3.</span>
-            <span>Select <strong>Install</strong> (enable <em>"Allow from this source"</em> if prompted by Chrome or Files). Initial Master MPIN is <strong>4321</strong>.</span>
+            <span x-html="t('Select <strong>Install</strong> (enable <em>"Allow from this source"</em> if prompted by Chrome or Files). Initial Master MPIN is <strong>4321</strong>.', '<strong>Install</strong> चुनें (मांगे जाने पर <em>"Allow from this source"</em> ऑन करें)। ऐप का डिफ़ॉल्ट MPIN <strong>4321</strong> है।')"></span>
           </div>
         </div>
       </div>
 
       <button @click="showQrModal = false" 
-              class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs">
+              class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs"
+              x-text="t('Close', 'बंद करें (Close)')">
         Close
       </button>
     </div>
@@ -1883,6 +1934,153 @@
     </div>
   </div>
 
+  <!-- 4. Add/Edit Asset Modal for Web Ledger -->
+  <div x-show="showAssetModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md" x-cloak>
+    <div class="w-full max-w-lg rounded-2xl border p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto"
+         :class="isDarkMode ? 'bg-slate-900 border-teal-500/40 text-white' : 'bg-white border-slate-200 text-slate-900'">
+      <div class="flex items-center justify-between pb-3 border-b"
+           :class="isDarkMode ? 'border-slate-800' : 'border-slate-100'">
+        <div class="flex items-center gap-2">
+          <span class="text-xl" x-text="isEditMode ? '✏️' : '➕'"></span>
+          <h3 class="font-extrabold text-base"
+              x-text="isEditMode ? t('Update Asset in Web Ledger', 'वेब लेजर रिकॉर्ड बदलें') : t('Add Asset to Web Ledger', 'वेब लेजर में नया खाता/संपत्ति जोड़ें')"></h3>
+        </div>
+        <button @click="showAssetModal = false" class="text-slate-400 hover:text-slate-200 text-xl font-bold p-1">✕</button>
+      </div>
+
+      <form @submit.prevent="saveAsset()" class="space-y-3.5 text-xs">
+        <!-- Category Selector -->
+        <div>
+          <label class="block font-bold mb-1 text-slate-400" x-text="t('Asset Category', 'खाते या संपत्ति का प्रकार')"></label>
+          <select x-model="modalItem.category" 
+                  class="w-full p-2.5 rounded-xl border font-semibold transition"
+                  :class="isDarkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'">
+            <option value="BANK" x-text="t('🏦 Bank Account / FD', '🏦 बैंक खाता / FD')"></option>
+            <option value="INSURANCE" x-text="t('🛡️ Life & Health Insurance', '🛡️ जीवन व स्वास्थ्य बीमा')"></option>
+            <option value="INVESTMENT" x-text="t('📈 Stocks, Mutual Funds & PPF', '📈 शेयर, म्यूचुअल फंड व PPF')"></option>
+            <option value="LOCKER" x-text="t('🔑 Bank Safe Deposit Locker', '🔑 बैंक सेफ लॉकर')"></option>
+            <option value="PROPERTY" x-text="t('🏠 Real Estate & Property Deed', '🏠 मकान / जमीन रजिस्ट्री')"></option>
+            <option value="CARD" x-text="t('💳 Credit & Debit Cards', '💳 क्रेडिट / डेबिट कार्ड')"></option>
+            <option value="LIABILITY" x-text="t('📉 Loans & Liabilities', '📉 लोन व देनदारियां')"></option>
+            <option value="DOCUMENT" x-text="t('📄 Legal Document & Will', '📄 कानूनी दस्तावेज व वसीयत')"></option>
+          </select>
+        </div>
+
+        <!-- Title / Asset Name -->
+        <div>
+          <label class="block font-bold mb-1 text-slate-400" x-text="t('Asset / Account Name *', 'खाता या संपत्ति का नाम *')"></label>
+          <input type="text" x-model="modalItem.title" required
+                 :placeholder="t('e.g. HDFC Salary Account, LIC Term Policy ₹1 Cr', 'उदा. HDFC सैलरी अकाउंट, LIC टर्म पॉलिसी')"
+                 class="w-full p-2.5 rounded-xl border transition"
+                 :class="isDarkMode ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'">
+        </div>
+
+        <!-- Institution & Folio/Account Number -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold mb-1 text-slate-400" x-text="t('Institution / Bank', 'संस्थान / बैंक का नाम')"></label>
+            <input type="text" x-model="modalItem.institution"
+                   :placeholder="t('e.g. HDFC Bank, SBI, Zerodha', 'उदा. HDFC Bank, LIC, SBI')"
+                   class="w-full p-2.5 rounded-xl border transition"
+                   :class="isDarkMode ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'">
+          </div>
+          <div>
+            <label class="block font-bold mb-1 text-slate-400" x-text="t('Account / Policy / Folio #', 'खाता / पॉलिसी / फोलियो नंबर')"></label>
+            <input type="text" x-model="modalItem.number"
+                   :placeholder="t('e.g. 50100045239123', 'उदा. 50100045239123')"
+                   class="w-full p-2.5 rounded-xl border font-mono transition"
+                   :class="isDarkMode ? 'bg-slate-950 border-slate-800 text-teal-300 placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-teal-700 placeholder-slate-400'">
+          </div>
+        </div>
+
+        <!-- Nominee & Relationship -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold mb-1 text-slate-400" x-text="t('Primary Nominee Name', 'मुख्य नॉमिनी का नाम')"></label>
+            <input type="text" x-model="modalItem.nominee"
+                   :placeholder="t('e.g. Priya Sharma', 'उदा. प्रिया शर्मा')"
+                   class="w-full p-2.5 rounded-xl border transition"
+                   :class="isDarkMode ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'">
+          </div>
+          <div>
+            <label class="block font-bold mb-1 text-slate-400" x-text="t('Nominee Relationship', 'नॉमिनी का संबंध')"></label>
+            <input type="text" x-model="modalItem.relation"
+                   :placeholder="t('e.g. Spouse, Son, Father', 'उदा. पत्नी (Spouse), बेटा')"
+                   class="w-full p-2.5 rounded-xl border transition"
+                   :class="isDarkMode ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'">
+          </div>
+        </div>
+
+        <!-- Nominee Verification Checkbox -->
+        <div class="flex items-center gap-2 p-2.5 rounded-xl border"
+             :class="isDarkMode ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'">
+          <input type="checkbox" id="nomineeVerifiedCheck" x-model="modalItem.nomineeVerified" class="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 cursor-pointer">
+          <label for="nomineeVerifiedCheck" class="cursor-pointer select-none font-semibold text-xs"
+                 :class="modalItem.nomineeVerified ? 'text-emerald-400' : 'text-slate-400'"
+                 x-text="t('Nominee is formally verified in bank/insurer records', 'संस्थान/बैंक रिकॉर्ड में नॉमिनी औपचारिक रूप से सत्यापित है')"></label>
+        </div>
+
+        <!-- Document Storage Location -->
+        <div>
+          <label class="block font-bold mb-1 text-slate-400" x-text="t('Physical Document Location', 'कागजात/पासबुक की भौतिक जगह')"></label>
+          <input type="text" x-model="modalItem.physicalLocation"
+                 :placeholder="t('e.g. Master Bedroom Drawer 1, Folder A', 'उदा. मास्टर बेडरूम दराज 1, फोल्डर A')"
+                 class="w-full p-2.5 rounded-xl border transition"
+                 :class="isDarkMode ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'">
+        </div>
+
+        <!-- Remarks / Emergency Notes -->
+        <div>
+          <label class="block font-bold mb-1 text-slate-400" x-text="t('Remarks & Claim Guidance', 'इमरजेंसी निर्देश व टिप्पणियां')"></label>
+          <textarea x-model="modalItem.remarks" rows="2"
+                    :placeholder="t('e.g. Claim requires Form 3707 with death certificate. Net banking active.', 'उदा. क्लेम के लिए फॉर्म 3707 और डेथ सर्टिफिकेट चाहिए।')"
+                    class="w-full p-2.5 rounded-xl border transition"
+                    :class="isDarkMode ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'"></textarea>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center justify-end gap-2.5 pt-2">
+          <button type="button" @click="showAssetModal = false"
+                  class="px-4 py-2.5 rounded-xl border text-xs font-bold transition"
+                  :class="isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'"
+                  x-text="t('Cancel', 'रद्द करें')"></button>
+          <button type="submit"
+                  class="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow-lg shadow-teal-600/30 transition flex items-center gap-1.5">
+            <span>💾</span>
+            <span x-text="isEditMode ? t('Update Asset', 'अपडेट करें') : t('Save to Browser', 'ब्राउज़र में सेव करें')"></span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification (Appears for 2 seconds after adding or updating an asset to confirm data saved to browser) -->
+  <div x-show="toast.show" 
+       x-transition:enter="transition ease-out duration-200"
+       x-transition:enter-start="opacity-0 translate-y-3 sm:translate-y-4 scale-95"
+       x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+       x-transition:leave="transition ease-in duration-150"
+       x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+       x-transition:leave-end="opacity-0 translate-y-3 sm:translate-y-4 scale-95"
+       class="fixed bottom-6 right-4 sm:right-6 z-50 max-w-sm w-[calc(100vw-2rem)] sm:w-96 rounded-2xl p-4 shadow-2xl border flex items-start gap-3 pointer-events-auto bg-slate-900 border-teal-500/60 text-white"
+       x-cloak>
+    <div class="w-9 h-9 rounded-xl bg-teal-500/20 border border-teal-500/40 text-teal-300 flex items-center justify-center shrink-0 text-lg">
+      💾
+    </div>
+    <div class="flex-1 min-w-0 pr-1">
+      <div class="flex items-center justify-between gap-2">
+        <h4 class="text-xs sm:text-sm font-bold text-teal-300 truncate" x-text="toast.message"></h4>
+        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-teal-950 text-teal-400 border border-teal-800 shrink-0">2s</span>
+      </div>
+      <p class="text-[11px] text-slate-300 mt-0.5 leading-tight" x-text="toast.subtext"></p>
+      <!-- Visual 2-second countdown indicator bar -->
+      <div class="w-full bg-slate-800 rounded-full h-1 mt-2.5 overflow-hidden">
+        <div class="bg-gradient-to-r from-teal-400 to-emerald-400 h-1 rounded-full animate-toast-shrink"></div>
+      </div>
+    </div>
+    <button @click="toast.show = false" class="text-slate-400 hover:text-white text-sm font-bold p-1 leading-none" title="Dismiss">✕</button>
+  </div>
+
   <!-- Global Application Footer with Creator Credit and Moved Technical Indicators -->
   <footer class="max-w-7xl mx-auto px-4 sm:px-6 py-10 border-t text-center space-y-5 no-print"
           :class="isDarkMode ? 'border-slate-800 text-slate-400' : 'border-slate-200 text-slate-600'">
@@ -1894,7 +2092,7 @@
               class="px-3 py-1.5 rounded-xl border text-xs font-semibold transition flex items-center gap-1.5"
               :class="isDarkMode ? 'bg-slate-900 border-slate-800 text-teal-300 hover:bg-slate-800' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'"
               title="Change Typography Theme">
-        <span>🔤 Theme:</span>
+        <span x-text="t('🔤 Theme:', '🔤 थीम:')"></span>
         <span x-text="getFontThemeName()"></span>
       </button>
 
@@ -1903,7 +2101,7 @@
               class="px-3 py-1.5 rounded-xl border text-xs font-semibold transition flex items-center gap-1.5"
               :class="isDarkMode ? 'bg-slate-900 border-slate-800 text-indigo-300 hover:bg-slate-800' : 'bg-slate-100 border-slate-200 text-indigo-700 hover:bg-slate-200'"
               title="Deploy on Vercel">
-        <span>▲ Vercel Sync</span>
+        <span x-text="t('▲ Vercel Sync', '▲ Vercel सिंक')"></span>
       </button>
 
       <!-- iPhone / iOS Install Modal Trigger -->
@@ -1911,28 +2109,28 @@
               class="px-3 py-1.5 rounded-xl border text-xs font-semibold transition flex items-center gap-1.5"
               :class="isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'"
               title="How to install on iPhone & iPad">
-        <span>📱 iOS PWA Guide</span>
+        <span x-text="t('📱 iOS PWA Guide', '📱 iPhone / iOS गाइड')"></span>
       </button>
     </div>
 
     <!-- Technical Architecture Badges (Moved from Main Navigation) -->
     <div class="flex flex-wrap items-center justify-center gap-2.5 text-[11px] font-mono text-slate-500">
-      <span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800">Clean MVVM + StateFlow</span>
+      <span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800" x-text="t('Clean MVVM + StateFlow', 'MVVM + StateFlow आर्किटेक्चर')">Clean MVVM + StateFlow</span>
       <span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800">Target SDK API 36</span>
-      <span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800">Room SQLite (Local Only)</span>
+      <span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800" x-text="t('Room SQLite (Local Only)', 'रूम SQLite (केवल लोकल)')">Room SQLite (Local Only)</span>
       <span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800">AES-256 GCM</span>
     </div>
 
-    <div class="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
-      Designed & Written by <span class="text-teal-600 dark:text-teal-400 underline decoration-teal-400 font-extrabold">Ashmit Gautam</span>
+    <div class="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200"
+         x-html="t('Designed & Written by <span class=\'text-teal-600 dark:text-teal-400 underline decoration-teal-400 font-extrabold\'>Ashmit Gautam</span>', 'निर्माता व डेवलपर: <span class=\'text-teal-600 dark:text-teal-400 underline decoration-teal-400 font-extrabold\'>अश्मित गौतम</span>')">
     </div>
 
-    <p class="text-[11px] text-slate-500 dark:text-slate-400 max-w-xl mx-auto leading-relaxed">
-      Family Emergency Vault • Offline-First Continuity & Asset Succession Platform. Keeping your family protected with secure asset organization, nominee tracking, and emergency action playbooks.
+    <p class="text-[11px] text-slate-500 dark:text-slate-400 max-w-xl mx-auto leading-relaxed"
+       x-text="t('Family Emergency Vault • Offline-First Continuity & Asset Succession Platform. Keeping your family protected with secure asset organization, nominee tracking, and emergency action playbooks.', 'फैमिली इमरजेंसी वॉल्ट • 100% ऑफलाइन पारिवारिक निरंतरता व उत्तराधिकार प्लेटफॉर्म। सुरक्षित संपत्ति संगठन, नॉमिनी ट्रैकिंग और आपातकालीन कार्ययोजना के साथ आपके परिवार की सुरक्षा।')">
     </p>
 
-    <div class="text-[10px] text-slate-400">
-      © 2026 Family Emergency Vault • Written by Ashmit Gautam • All Rights Reserved
+    <div class="text-[10px] text-slate-400"
+         x-text="t('© 2026 Family Emergency Vault • Written by Ashmit Gautam • All Rights Reserved', '© 2026 फैमिली इमरजेंसी वॉल्ट • निर्माता: अश्मित गौतम • सर्वाधिकार सुरक्षित')">
     </div>
   </footer>
 
@@ -1975,6 +2173,24 @@
         modalDependent: {},
         showContactModal: false,
         modalContact: {},
+        toast: {
+          show: false,
+          message: '',
+          subtext: '',
+          timer: null
+        },
+
+        showToastNotification(message, subtext = '') {
+          if (this.toast.timer) {
+            clearTimeout(this.toast.timer);
+          }
+          this.toast.message = message;
+          this.toast.subtext = subtext;
+          this.toast.show = true;
+          this.toast.timer = setTimeout(() => {
+            this.toast.show = false;
+          }, 2000); // 2 seconds
+        },
         selectedFontTheme: localStorage.getItem('fev_font_theme') || 'executive',
         availableFontThemes: [
           { id: 'executive', name: 'Executive Banking', tag: 'FINTECH', desc: 'उच्च स्पष्टता, स्विस बैंकिंग स्टाइल Sans-Serif', cssClass: 'font-executive' },
@@ -2397,6 +2613,10 @@
           return dict[item.remarks] || item.remarks;
         },
 
+        getAssetRemarks(item) {
+          return this.getItemRemarks(item);
+        },
+
         toggleTask(id) {
           const task = this.checklist.find(t => t.id === id);
           if (task) {
@@ -2433,14 +2653,24 @@
             alert(this.t('Please enter account or asset name.', 'कृपया खाता या संपत्ति का नाम भरें।'));
             return;
           }
-          if (this.isEditMode) {
+          const isUpdate = this.isEditMode;
+          if (isUpdate) {
             const idx = this.vaultItems.findIndex(i => i.id === this.modalItem.id);
-            if (idx !== -1) this.vaultItems[idx] = this.modalItem;
+            if (idx !== -1) {
+              this.vaultItems[idx] = JSON.parse(JSON.stringify(this.modalItem));
+            }
           } else {
-            this.vaultItems.unshift(this.modalItem);
+            this.vaultItems.unshift(JSON.parse(JSON.stringify(this.modalItem)));
           }
           this.saveAll();
           this.showAssetModal = false;
+
+          // Toast notification that appears for 2 seconds confirming data has been saved to the browser
+          const headline = isUpdate
+            ? this.t('Asset updated in web ledger!', 'खाता/संपत्ति लेजर में अपडेट हुई!')
+            : this.t('New asset added to web ledger!', 'नया खाता वेब लेजर में जुड़ गया!');
+          const browserConfirm = this.t('✓ Data saved to browser storage', '✓ डेटा ब्राउज़र में सुरक्षित सेव हो गया है (localStorage)');
+          this.showToastNotification(headline, browserConfirm);
         },
 
         deleteItem(id) {

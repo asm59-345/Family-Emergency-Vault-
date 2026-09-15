@@ -56,6 +56,7 @@ data class VaultItem(
     val isMasked: Boolean = true,
     val remarks: String = "",
     val detailsString: String = "", // Custom payload e.g. IFSC, UPI ID, Expiry Date, MATURITY, Premium due dates, etc.
+    val attachmentUri: String = "", // Local URI of attached photo or scanned document
     val lastUpdated: Long = System.currentTimeMillis()
 )
 

@@ -131,7 +131,8 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
         nomineeName: String,
         nomineeRelation: String,
         securityQuestion: String,
-        securityAnswer: String
+        securityAnswer: String,
+        enableBiometrics: Boolean = false
     ) {
         val certId = "FEV-CERT-" + java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date()) + "-" + java.util.UUID.randomUUID().toString().take(6).uppercase()
         userPrefs.edit()
@@ -147,6 +148,18 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
             .putString("user_cert_id", certId)
             .apply()
 
+        // Also record terms & conditions acceptance
+        consentPrefs.edit()
+            .putBoolean("terms_accepted", true)
+            .putString("consent_signature", "REG-$certId")
+            .putString("consent_email", email)
+            .putString("consent_name", fullName)
+            .apply()
+        isTermsAccepted = true
+        consentSignature = "REG-$certId"
+        consentEmail = email
+        consentName = fullName
+
         // Sync to state variables
         isAccountCreated = true
         registeredFullName = fullName
@@ -161,6 +174,9 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
 
         // Also update the master MPIN preference and in-memory variable
         updateMasterMpin(mpin)
+
+        // Set Biometric preference as requested by user (default false until registered)
+        updateBiometricSetting(enableBiometrics)
 
         // Login automatically on signup
         isLoggedIn = true
@@ -181,7 +197,8 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
             nomineeName = "Priya Sharma",
             nomineeRelation = "Spouse",
             securityQuestion = "What was your first school name?",
-            securityAnswer = "Greenwood"
+            securityAnswer = "Greenwood",
+            enableBiometrics = false
         )
     }
 
@@ -202,14 +219,14 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
 
     // --- MPIN & BIOMETRIC SECURITY ---
     private val mpinPrefs = application.getSharedPreferences("vault_mpin_prefs", android.content.Context.MODE_PRIVATE)
-    var isAppMpinLocked by mutableStateOf(mpinPrefs.getBoolean("mpin_active_enabled", true)) // defaults to locked
+    var isAppMpinLocked by mutableStateOf(userPrefs.getBoolean("account_created", false) && mpinPrefs.getBoolean("mpin_active_enabled", true))
     var appMpin by mutableStateOf(mpinPrefs.getString("master_mpin", "4321") ?: "4321")
         private set
     var enteredMpinDigits by mutableStateOf("")
     var mpinFeedbackMessage by mutableStateOf("")
 
-    // Biometric Preferences & Feedback
-    var isBiometricEnabled by mutableStateOf(mpinPrefs.getBoolean("biometric_enabled", true))
+    // Biometric Preferences & Feedback (Default: false so it never interrupts or crashes before explicit user enrollment)
+    var isBiometricEnabled by mutableStateOf(mpinPrefs.getBoolean("biometric_enabled", false))
         private set
     var biometricFeedbackMessage by mutableStateOf("")
 

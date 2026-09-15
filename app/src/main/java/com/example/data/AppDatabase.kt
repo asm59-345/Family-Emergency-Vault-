@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,7 +20,7 @@ import kotlinx.coroutines.launch
         EmergencyAccessRequest::class,
         AuditLog::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -35,6 +36,12 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE vault_items ADD COLUMN attachmentUri TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -43,6 +50,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "family_continuity_vault_db"
                 )
                 .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+                .addMigrations(MIGRATION_1_2)
                 .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
@@ -341,6 +349,48 @@ abstract class AppDatabase : RoomDatabase() {
                     detailsString = "Original Loan: ₹9,50,000\nOutstanding Amount: ₹3,40,000\nEMI: ₹18,450\nDue Date: Monthly 5th\nInsurance Linked: Yes (HDFC Ergo Motor Policy)\nCo-borrower: None\nClosure Steps: Upon final payment, obtain NOC from HDFC online portal and file for RTO hypothecation removal."
                 ),
                 // Important Document
+                VaultItem(
+                    category = "DOCUMENT",
+                    title = "Aadhaar Card (UIDAI)",
+                    ownerName = "Rahul Sharma",
+                    institution = "UIDAI (Govt of India)",
+                    numberOrId = "XXXX-XXXX-4819",
+                    nomineeName = "N/A",
+                    nomineeRelation = "N/A",
+                    nomineeVerified = true,
+                    physicalLocation = "Master Bedroom Wardrobe - Red File 1",
+                    digitalLocation = "DigiLocker / UIDAI Portal",
+                    remarks = "Linked to mobile +91 99999 88888. Biometrics locked via mAadhaar app.",
+                    detailsString = "Issuing Authority: Unique Identification Authority of India (UIDAI)\nVID: 9182 3491 0293 8412\nRegistered Mobile: +91 99999 88888\nAddress: Sector 45, Gurgaon, Haryana\nmAadhaar PIN: In physical safe envelope"
+                ),
+                VaultItem(
+                    category = "DOCUMENT",
+                    title = "PAN Card (Income Tax)",
+                    ownerName = "Rahul Sharma",
+                    institution = "Income Tax Department of India",
+                    numberOrId = "ABCPS1234F",
+                    nomineeName = "N/A",
+                    nomineeRelation = "N/A",
+                    nomineeVerified = true,
+                    physicalLocation = "Personal Wallet + Red File 1",
+                    digitalLocation = "e-Filing Portal / DigiLocker",
+                    remarks = "Linked to Aadhaar and HDFC/SBI bank accounts.",
+                    detailsString = "Category: Individual\nAadhaar Linked: Yes (Verified on IT Portal)\nJurisdiction: Ward 22(1), New Delhi\ne-Filing User ID: ABCPS1234F"
+                ),
+                VaultItem(
+                    category = "DOCUMENT",
+                    title = "Indian Passport",
+                    ownerName = "Rahul Sharma",
+                    institution = "Ministry of External Affairs, India",
+                    numberOrId = "Z1094827",
+                    nomineeName = "Priya Sharma (Spouse)",
+                    nomineeRelation = "Spouse",
+                    nomineeVerified = true,
+                    physicalLocation = "SBI Safe Locker (Unit 204) - Gurgaon",
+                    digitalLocation = "GDrive/Personal/Passport_Scan.pdf",
+                    remarks = "Valid till 2031. Kept in bank locker when not traveling.",
+                    detailsString = "Passport Type: Regular (Type P - 36 pages)\nDate of Issue: 2021-05-18\nDate of Expiry: 2031-05-17\nPlace of Issue: Delhi\nEmigration Check: ECNR"
+                ),
                 VaultItem(
                     category = "DOCUMENT",
                     title = "Original Physical Will Draft",

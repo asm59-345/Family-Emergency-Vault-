@@ -2,6 +2,9 @@ package com.example
 
 import android.os.Bundle
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.fragment.app.FragmentActivity
@@ -87,11 +90,6 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Automatically launch biometric prompt on app launch if MPIN lock is active
-        if (model.isTermsAccepted && model.isAccountCreated && model.isAppMpinLocked && model.isBiometricEnabled) {
-            triggerBiometricPrompt()
-        }
-
         setContent {
             val currentFontTheme = model.selectedFontTheme
             MyApplicationTheme(fontTheme = currentFontTheme) {
@@ -148,10 +146,10 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
     var showAddLocalSecureContactDialog by remember { mutableStateOf(false) }
     var selectedLocalContactForEdit by remember { mutableStateOf<LocalSecureContact?>(null) }
     var showEmergencySosDialog by remember { mutableStateOf(false) }
+    var showMedicalEmergencyCardDialog by remember { mutableStateOf(false) }
 
-    if (!model.isTermsAccepted) {
-        com.example.ui.AppTermsConsentScreen(model = model)
-    } else if (!model.isAccountCreated) {
+    // First time user onboarding starts directly with account registration & privacy consent
+    if (!model.isAccountCreated) {
         com.example.ui.SignupScreen(model = model)
     } else if (model.isAppMpinLocked) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -379,7 +377,8 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
                             selectedItemForEdit = item
                             showAddVaultItemDialog = true
                         },
-                        onOpenSos = { showEmergencySosDialog = true }
+                        onOpenSos = { showEmergencySosDialog = true },
+                        onOpenMedicalCard = { showMedicalEmergencyCardDialog = true }
                     )
                     "VAULT" -> VaultScreen(
                         model = model,
@@ -627,6 +626,17 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
                     onDismiss = { model.showLegalAboutHub = false }
                 )
             }
+
+            // 14. Dedicated Family Medical Emergency Card Dialog
+            if (showMedicalEmergencyCardDialog) {
+                com.example.ui.MedicalEmergencyCardDialog(
+                    model = model,
+                    dependents = dependents,
+                    contacts = contacts,
+                    vaultItems = vaultItems,
+                    onDismiss = { showMedicalEmergencyCardDialog = false }
+                )
+            }
         }
     }
 }
@@ -839,7 +849,8 @@ fun DashboardScreen(
     onRequestAccess: () -> Unit,
     onImportTrigger: () -> Unit,
     onEditVaultItem: (VaultItem) -> Unit,
-    onOpenSos: () -> Unit = {}
+    onOpenSos: () -> Unit = {},
+    onOpenMedicalCard: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
 
@@ -863,7 +874,7 @@ fun DashboardScreen(
             border = BorderStroke(1.dp, Color(0xFFEF4444)),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 12.dp)
+                .padding(bottom = 10.dp)
                 .clickable { onOpenSos() }
                 .testTag("dashboard_sos_card")
         ) {
@@ -903,6 +914,67 @@ fun DashboardScreen(
                 ) {
                     Text(
                         text = "OPEN SOS",
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                    )
+                }
+            }
+        }
+
+        // 🩺 High Priority Family Emergency Medical & Health Card Button
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, Color(0xFFFECDD3)),
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp)
+                .clickable { onOpenMedicalCard() }
+                .testTag("dashboard_medical_card_button")
+        ) {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFFEF2F2)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MedicalServices,
+                            contentDescription = "Medical",
+                            tint = Color(0xFFDC2626),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = if (model.isHindiMode) "🩺 आपातकालीन मेडिकल कार्ड (त्वरित स्वास्थ्य संदर्भ)" else "🩺 Family Emergency Medical Card",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = SlatePrimary
+                        )
+                        Text(
+                            text = if (model.isHindiMode) "ब्लड ग्रुप, दवाइयां, डॉक्टर कॉल व कैशलेस TPA कार्ड" else "Blood groups, critical allergies & cashless hospital policy",
+                            fontSize = 11.sp,
+                            color = Color.Gray
+                        )
+                    }
+                }
+                Surface(
+                    color = Color(0xFFDC2626),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = "VIEW",
                         color = Color.White,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Black,
@@ -2137,6 +2209,34 @@ fun VaultItemCard(
                     color = Color.DarkGray,
                     modifier = Modifier.padding(start = 2.dp)
                 )
+            }
+
+            // Attached document preview badge
+            if (item.attachmentUri.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(TealAccent.copy(alpha = 0.1f))
+                        .border(1.dp, TealAccent.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Attachment,
+                        contentDescription = "Document Attached",
+                        tint = TealAccent,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "📎 Document Photo Attached (ID / Policy Proof)",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = SlatePrimary
+                    )
+                }
             }
         }
     }
@@ -4573,6 +4673,15 @@ fun AddEditVaultItemDialog(
     var digitalLocation by remember { mutableStateOf(initialItem?.digitalLocation ?: "") }
     var remarks by remember { mutableStateOf(initialItem?.remarks ?: "") }
     var detailsString by remember { mutableStateOf(initialItem?.detailsString ?: "") }
+    var attachmentUri by remember { mutableStateOf(initialItem?.attachmentUri ?: "") }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            attachmentUri = uri.toString()
+        }
+    }
 
     val scrollState = rememberScrollState()
 
@@ -4693,6 +4802,62 @@ fun AddEditVaultItemDialog(
                     value = remarks,
                     onValueChange = { remarks = it }
                 )
+
+                Divider(color = SlateBorder, modifier = Modifier.padding(vertical = 4.dp))
+
+                Text("Document Attachment / Photo (Aadhaar, PAN, Policy)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = SlatePrimary)
+                if (attachmentUri.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(TealAccent.copy(alpha = 0.1f))
+                            .border(1.dp, TealAccent, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                            Icon(imageVector = Icons.Default.Attachment, contentDescription = "Attached", tint = TealAccent, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Document photo attached",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = SlatePrimary
+                            )
+                        }
+                        Row {
+                            TextButton(
+                                onClick = {
+                                    photoPickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                }
+                            ) {
+                                Text("Change", fontSize = 11.sp, color = TealAccent)
+                            }
+                            IconButton(onClick = { attachmentUri = "" }) {
+                                Icon(imageVector = Icons.Default.Close, contentDescription = "Remove", tint = RedAlert, modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = {
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, TealAccent)
+                    ) {
+                        Icon(imageVector = Icons.Default.AddPhotoAlternate, contentDescription = "Attach Document", tint = TealAccent, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Attach Photo (Card / Certificate / Policy)", fontSize = 11.sp, color = SlatePrimary, fontWeight = FontWeight.SemiBold)
+                    }
+                }
             }
         },
         confirmButton = {
@@ -4718,6 +4883,7 @@ fun AddEditVaultItemDialog(
                                     digitalLocation = digitalLocation,
                                     remarks = remarks,
                                     detailsString = detailsString,
+                                    attachmentUri = attachmentUri,
                                     isMasked = true
                                 )
                             )
@@ -5273,22 +5439,50 @@ fun AppMpinLockScreen(
     val context = LocalContext.current
     val enteredCount = model.enteredMpinDigits.length
     val biometricAvailability = remember { BiometricAuthManager.checkBiometricAvailability(context) }
-
-    // Auto-trigger biometric prompt on screen launch if enabled
-    LaunchedEffect(Unit) {
-        if (model.isBiometricEnabled && biometricAvailability.canPrompt) {
-            onTriggerBiometric()
-        }
-    }
     
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(SlatePrimary)
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        // Top Language Switcher on Lock Screen
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.White.copy(alpha = 0.15f))
+                    .clickable { model.toggleLanguage() }
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .testTag("btn_lockscreen_language_toggle"),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Language,
+                        contentDescription = "Language",
+                        tint = TealAccent,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (model.isHindiMode) "English" else "हिन्दी",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
         Icon(
             imageVector = Icons.Default.Lock,
             contentDescription = "Encrypted Vault Lock",
@@ -5297,7 +5491,7 @@ fun AppMpinLockScreen(
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text(
-            text = "DECRYPTION KEY SECURED",
+            text = if (model.isHindiMode) "सुरक्षित एन्क्रिप्शन सक्रिय" else "DECRYPTION KEY SECURED",
             fontSize = 11.sp,
             color = TealAccent,
             fontWeight = FontWeight.Bold,
@@ -5311,7 +5505,7 @@ fun AppMpinLockScreen(
             modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
         )
 
-        // Native Android Biometric Trigger Button
+        // Native Android Biometric Trigger Button (Only shown if user enabled it and device supports it)
         if (model.isBiometricEnabled && biometricAvailability.canPrompt) {
             Button(
                 onClick = onTriggerBiometric,
@@ -5352,42 +5546,18 @@ fun AppMpinLockScreen(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Android Biometric Sensor Ready",
+                    text = if (model.isHindiMode) "बायोमेट्रिक सेंसर तैयार है" else "Android Biometric Sensor Ready",
                     fontSize = 10.sp,
                     color = Color.White.copy(alpha = 0.7f)
                 )
-            }
-        } else {
-            Surface(
-                color = Color.White.copy(alpha = 0.08f),
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.padding(bottom = 8.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Fingerprint,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.6f),
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = biometricAvailability.userTitle,
-                        fontSize = 10.sp,
-                        color = Color.White.copy(alpha = 0.7f)
-                    )
-                }
             }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
         Text(
-            text = if (model.isHindiMode) "या 4-अंकों का मास्टर MPIN डालें" else "Or enter 4-digit Master MPIN",
+            text = if (model.isHindiMode) "4-अंकों का मास्टर MPIN दर्ज करें" else "Enter 4-digit Master MPIN",
             color = Color.White.copy(alpha = 0.75f),
-            fontSize = 11.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Medium
         )
 

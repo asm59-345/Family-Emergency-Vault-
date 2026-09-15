@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -49,7 +50,46 @@ fun AppTermsConsentScreen(model: VaultViewModel) {
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(12.dp))
+        // Top Bar with Language Switcher
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (model.isHindiMode) "पारिवारिक वॉल्ट" else "Family Vault",
+                color = TealAccent,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.White.copy(alpha = 0.15f))
+                    .clickable { model.toggleLanguage() }
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    .testTag("btn_terms_language_toggle"),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Language,
+                        contentDescription = "Language",
+                        tint = TealAccent,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (model.isHindiMode) "English" else "हिन्दी",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
 
         // Legal Shield Header Icon
         Box(
@@ -71,7 +111,7 @@ fun AppTermsConsentScreen(model: VaultViewModel) {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "DECRYPTION & COMPLIANCE AGREEMENT",
+            text = if (model.isHindiMode) "गोपनीयता एवं अनुपालन अनुबंध" else "DECRYPTION & COMPLIANCE AGREEMENT",
             fontSize = 11.sp,
             color = TealAccent,
             fontWeight = FontWeight.Bold,
@@ -79,7 +119,7 @@ fun AppTermsConsentScreen(model: VaultViewModel) {
         )
 
         Text(
-            text = "Emergency Vault Terms of Service",
+            text = if (model.isHindiMode) "वॉल्ट सेवा की शर्तें" else "Emergency Vault Terms of Service",
             fontSize = 20.sp,
             color = Color.White,
             fontWeight = FontWeight.Bold,
@@ -106,7 +146,10 @@ fun AppTermsConsentScreen(model: VaultViewModel) {
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "End-to-End Sandbox Encryption: Your keys and contact coordinates never touch our remote clouds.",
+                    text = if (model.isHindiMode)
+                        "एंड-टू-एंड सैंडबॉक्स एन्क्रिप्शन: आपकी निजी चाबियां और डेटा केवल आपके फ़ोन पर रहते हैं।"
+                    else
+                        "End-to-End Sandbox Encryption: Your keys and contact coordinates never touch our remote clouds.",
                     fontSize = 10.sp,
                     color = Color.White.copy(alpha = 0.85f),
                     modifier = Modifier.weight(1f)
@@ -202,7 +245,7 @@ fun AppTermsConsentScreen(model: VaultViewModel) {
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
                 Text(
-                    text = "STEP 2: REGISTER DECRYPTION CERTIFICATE",
+                    text = if (model.isHindiMode) "चरण 2: सहमति एवं सत्यापन पंजीकरण" else "STEP 2: REGISTER DECRYPTION CERTIFICATE",
                     fontSize = 10.sp,
                     color = TealAccent,
                     fontWeight = FontWeight.Bold,
@@ -213,7 +256,7 @@ fun AppTermsConsentScreen(model: VaultViewModel) {
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text("Legal Full Name", fontSize = 11.sp) },
+                        label = { Text(if (model.isHindiMode) "पूरा नाम" else "Legal Full Name", fontSize = 11.sp) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
@@ -228,7 +271,7 @@ fun AppTermsConsentScreen(model: VaultViewModel) {
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
-                        label = { Text("Vault Owner Email", fontSize = 11.sp) },
+                        label = { Text(if (model.isHindiMode) "ईमेल आईडी" else "Vault Owner Email", fontSize = 11.sp) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
@@ -254,7 +297,10 @@ fun AppTermsConsentScreen(model: VaultViewModel) {
                         colors = CheckboxDefaults.colors(checkedColor = TealAccent)
                     )
                     Text(
-                        text = "I accept and acknowledge the decryption guidelines, liability clauses, and local offline custody regulations.",
+                        text = if (model.isHindiMode)
+                            "मैं वॉल्ट की सुरक्षा नीतियों, स्थानीय ऑफ़लाइन संरक्षण और सेवा शर्तों को स्वीकार करता हूँ।"
+                        else
+                            "I accept and acknowledge the decryption guidelines, liability clauses, and local offline custody regulations.",
                         fontSize = 11.sp,
                         color = Color.White.copy(alpha = 0.8f),
                         lineHeight = 14.sp,
@@ -277,11 +323,11 @@ fun AppTermsConsentScreen(model: VaultViewModel) {
                 Button(
                     onClick = {
                         if (name.trim().isEmpty() || email.trim().isEmpty()) {
-                            validationError = "Both Name and Email are required for registration stamp."
+                            validationError = if (model.isHindiMode) "नाम और ईमेल दोनों अनिवार्य हैं।" else "Both Name and Email are required for registration stamp."
                         } else if (!email.contains("@")) {
-                            validationError = "Please enter a valid owner email address."
+                            validationError = if (model.isHindiMode) "कृपया एक वैध ईमेल दर्ज करें।" else "Please enter a valid owner email address."
                         } else if (!isChecked) {
-                            validationError = "You must select the acknowledgment check indicator."
+                            validationError = if (model.isHindiMode) "कृपया सहमति चेकबॉक्स चुनें।" else "You must select the acknowledgment check indicator."
                         } else {
                             validationError = ""
                             model.acceptTerms(name.trim(), email.trim())
@@ -297,7 +343,11 @@ fun AppTermsConsentScreen(model: VaultViewModel) {
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Accept Terms & Decrypt Secure Sandbox", color = SlatePrimary, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = if (model.isHindiMode) "शर्तें स्वीकार कर आगे बढ़ें" else "Accept Terms & Decrypt Secure Sandbox",
+                        color = SlatePrimary,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
