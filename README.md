@@ -24,11 +24,13 @@ The system supports simulated logins representing different critical emergency c
 * **Executor (Sanjay)**: Zero-visibility sandboxed route that unlocks a guided step-by-step roadmap *only* upon emergency approval.
 * **Advisor (Alok, CA)**: Read-only compliance portal where sensitive asset tracking numbers are automatically hashed or masked.
 
-### 3. 🏦 Category-Based Resources Vault
+### 3. 🏦 Category-Based Resources Vault & Interactive Web Ledger
 Organize the entire family's assets under a centralized, search-filtered database with fields for nominee status, physical location binders, and digital backup links:
 * **Financial Portfolios**: Banks, Demat Investments, Insurance Covers, and Liabilities.
 * **Estate & Assets**: Registered Property details, Physical Safe Lockers, and Tax returns.
 * **Corporate Details**: Employer HR details, Income streams, and Active subscriptions.
+* **Interactive Client-Side Web Ledger**: Add, edit, or delete asset records on the browser companion with automatic `localStorage` persistence and a synchronized 2-second confirmation toast.
+* **Biometric & Master PIN Local Security**: Pure offline on-device protection with Android BiometricPrompt and 6-digit emergency access PIN for nominees.
 
 ### 4. ⏳ Advanced Emergency Access & Dead-Man Switches
 * **Delayed Request Releases**: Family members or Executors can request vault release through a structured workflow.
@@ -172,18 +174,25 @@ Run unit and local JVM tests:
 # Compile and build the debug APK
 gradle assembleDebug
 
-# Run JVM Unit Tests
+# Run JVM Unit Tests (Robolectric Database & DAO Validation)
 gradle :app:testDebugUnitTest
 ```
+
+The automated test suite verifies:
+* **`read string from context`**: Application identity and resource configuration.
+* **`database initializes and supports attachments`**: Room database setup and schema readiness.
+* **`vault item dao and database operations work seamlessly`**: Vault record insertion, querying, count checks, and data persistence.
+* **`emergency checklist item operations work`**: Emergency action item progress tracking, completion toggling, and executor updates.
 
 ### Web Dashboard & Cross-Platform Sync Review
 1. **Interactive SOS Hotbar**: Test 1-tap emergency dial buttons for National Emergency (112), Doctor, Legal Advocate, and Chartered Accountant.
 2. **Dynamic Search & Filtering**: Filter assets by Bank, Insurance, Investments, Lockers, and Property.
-3. **JSON Backup & Cross-Restore**:
+3. **Web Ledger Asset Management**: Add or edit asset records with instantaneous modal editing and 2-second visual confirmation toasts.
+4. **JSON Backup & Cross-Restore**:
    - Tap **"Export JSON"** to download your complete encrypted snapshot.
    - Tap **"Import JSON"** to load or sync data between Android and Web instances.
-4. **Light / Dark Mode**: Toggle between daylight mode and nighttime emergency mode with 1 tap.
-5. **Typography Switcher**: Switch between Executive, Heritage, Cyber, and Humanist fonts on the fly.
+5. **Light / Dark Mode**: Toggle between daylight mode and nighttime emergency mode with 1 tap.
+6. **Typography Switcher**: Switch between Executive, Heritage, Cyber, and Humanist fonts on the fly.
 
 ---
 
