@@ -18,9 +18,10 @@ import kotlinx.coroutines.launch
         EmergencyActionItem::class,
         ClaimRecord::class,
         EmergencyAccessRequest::class,
-        AuditLog::class
+        AuditLog::class,
+        ServerUserRecord::class
     ],
-    version = 2,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -31,6 +32,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun claimRecordDao(): ClaimRecordDao
     abstract fun emergencyAccessRequestDao(): EmergencyAccessRequestDao
     abstract fun auditLogDao(): AuditLogDao
+    abstract fun serverUserDao(): ServerUserDao
 
     companion object {
         @Volatile
@@ -42,6 +44,43 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE vault_items ADD COLUMN documentPhotoBase64 TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS server_user_records (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        userId TEXT NOT NULL,
+                        email TEXT NOT NULL,
+                        fullName TEXT NOT NULL,
+                        phone TEXT NOT NULL,
+                        passwordHash TEXT NOT NULL,
+                        passwordSalt TEXT NOT NULL,
+                        mpin TEXT NOT NULL,
+                        nomineeName TEXT NOT NULL,
+                        nomineeRelation TEXT NOT NULL,
+                        securityQuestion TEXT NOT NULL,
+                        securityAnswerHash TEXT NOT NULL,
+                        digitalCertificateId TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        lastLoginAt INTEGER NOT NULL,
+                        status TEXT NOT NULL,
+                        role TEXT NOT NULL,
+                        tokenJwt TEXT NOT NULL,
+                        deviceFingerprint TEXT NOT NULL,
+                        isBiometricEnrolled INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_server_user_records_email ON server_user_records(email)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_server_user_records_userId ON server_user_records(userId)")
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -50,7 +89,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "family_continuity_vault_db"
                 )
                 .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_3_4, MIGRATION_4_5)
                 .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
@@ -430,6 +469,10 @@ abstract class AppDatabase : RoomDatabase() {
                     taskName = "Primary Notifications",
                     instructions = "Contact closest family members, Dr. Sameer Joshi (+91 98111 22233) for formal certificate, and immediate employer HR to inform.",
                     completed = false,
+                    status = "In progress",
+                    whoToContact = "• Dr. Sameer Joshi (Family Physician): +91 98111 22233\n• Employer HR Desk: hr@company.com / +91 124 4567890\n• Designated family emergency contacts",
+                    documentsToPrepare = "• Identity cards (Aadhaar, Voter ID) of the individual\n• Hospital admission records & medical file\n• Employer employee badge / corporate ID",
+                    stepByStepGuidance = "1. Contact attending doctor or hospital registrar to obtain formal Medical Certificate of Cause of Death (Form 4/4A).\n2. Dispatch emergency SOS message & location coordinates to immediate relatives.\n3. Inform employer HR department to pause corporate devices and initiate compassionate benefits.",
                     updatedBy = "System"
                 ),
                 EmergencyActionItem(
@@ -437,6 +480,10 @@ abstract class AppDatabase : RoomDatabase() {
                     taskName = "Locate Personal Will",
                     instructions = "Retrieve the envelope from wooden cupboard or access SBI locker 204. Contains funeral/medical instructions.",
                     completed = false,
+                    status = "Pending",
+                    whoToContact = "• Advocate Sanjay Krishna (Legal Counsel): +91 98100 98100\n• Ramesh Sharma (Father / Locker Co-holder): +91 99112 23344\n• SBI Branch Locker Officer: +91 124 2381200",
+                    documentsToPrepare = "• Wooden cupboard safe key / SBI Locker 204 safe key\n• Original registered copy of Will or registered codicil\n• Identity proof of the nominated executor",
+                    stepByStepGuidance = "1. Retrieve safe key from bedroom wooden almirah.\n2. Access Safe Deposit Locker 204 at SBI Golf Course Road branch.\n3. Keep the sealed Will envelope intact without breaking legal seals until legal counsel arrives.",
                     updatedBy = "System"
                 ),
                 EmergencyActionItem(
@@ -444,6 +491,10 @@ abstract class AppDatabase : RoomDatabase() {
                     taskName = "Contact Executor",
                     instructions = "Inform Sanjay Krishna Lawyer (+91 98100 98100). He will initiate Will probate or official readings.",
                     completed = false,
+                    status = "Pending",
+                    whoToContact = "• Sanjay Krishna (Advocate & Designated Executor): +91 98100 98100, Patiala House Courts Chambers\n• Alok Mehta (Family CA): +91 93123 45678",
+                    documentsToPrepare = "• Death confirmation memo / hospital slip\n• Original signed physical Will\n• Asset inventory ledger downloaded from this Vault",
+                    stepByStepGuidance = "1. Schedule meeting with Adv. Sanjay Krishna.\n2. Provide certified copy of death confirmation and Will copy.\n3. Establish legal executor timeline and court probate requirements.",
                     updatedBy = "System"
                 ),
                 // 7 Days
@@ -452,6 +503,10 @@ abstract class AppDatabase : RoomDatabase() {
                     taskName = "Request Death Certificate",
                     instructions = "Obtain 15 physical copies of official Death Certificate from MCG (Municipal Corporate Gurgaon). These are required for all asset claims.",
                     completed = false,
+                    status = "In progress",
+                    whoToContact = "• Municipal Corporation of Gurgaon (MCG) Registrar Desk\n• Local Crematorium / Hospital Civil Registry counter\n• Adv. Sanjay Krishna (for attestation)",
+                    documentsToPrepare = "• Hospital Death Report / Form 4A\n• Cremation / Burial slip\n• Deceased Aadhaar card & Applicant Aadhaar card\n• Application form with fee receipt",
+                    stepByStepGuidance = "1. Submit Form 2 along with hospital memo to the local Registrar of Births & Deaths within 21 days.\n2. Apply for at least 15 to 20 original certified copies with official holographic stamp.\n3. Keep digital scans saved in secure drive and physically laminate 2 copies.",
                     updatedBy = "System"
                 ),
                 EmergencyActionItem(
@@ -459,13 +514,21 @@ abstract class AppDatabase : RoomDatabase() {
                     taskName = "Trigger Health & Term Insurance",
                     instructions = "Inform LIC Helpline & Health TPA immediately. Check claim procedure notes pinned under LIC and Health Cover modules.",
                     completed = false,
+                    status = "Pending",
+                    whoToContact = "• LIC India Claims Assistance Cell: 1800-33-4433 / Local Branch Manager\n• Star Health / HDFC Ergo TPA desk: 1800-425-2255\n• Mahendra Sen (Insurance Advisor): +91 91100 11001",
+                    documentsToPrepare = "• Original insurance policy bond / digital certificate\n• Attested Death Certificate (3 copies)\n• Claim Form A (filled and signed by Nominee)\n• Nominee Cancelled Cheque & Bank passbook\n• Nominee KYC (PAN & Aadhaar)",
+                    stepByStepGuidance = "1. Inform the insurer hotline within 7 days of incident citing policy number.\n2. Download Claim Form 3783 (LIC) or TPA death claim dossier.\n3. Submit claim packet along with doctor's medical history report and death certificate.\n4. Note claim intimation reference number for weekly status tracking.",
                     updatedBy = "System"
                 ),
                 EmergencyActionItem(
                     phase = "First 7 Days",
                     taskName = "Freeze Credit/Debit Cards",
                     instructions = "Log into ICICI & HDFC or call helpdesk to pause or block credit cards to avoid fraudulent auto-debits.",
-                    completed = false,
+                    completed = true,
+                    status = "Completed",
+                    whoToContact = "• HDFC Bank Credit Card Emergency: 1800-266-4332\n• ICICI Bank Card Helpdesk: 1800-1080\n• Card Customer Care Desk",
+                    documentsToPrepare = "• Card last 4 digits (stored in Vault)\n• Registered mobile number for confirmation",
+                    stepByStepGuidance = "1. Call bank emergency line or use mobile banking to immediately freeze cards.\n2. Cancel active recurring standing instructions and auto-debit mandates.\n3. Avoid closing card accounts until all insurance and hospital payouts clear.",
                     updatedBy = "System"
                 ),
                 // 30 Days
@@ -474,6 +537,10 @@ abstract class AppDatabase : RoomDatabase() {
                     taskName = "Bank Account Transmission",
                     instructions = "Apply for Nominee settlement in HDFC and SBI using death cert & nominee Aadhaar/PAN. The joint account in SBI can continue directly with Priya.",
                     completed = false,
+                    status = "Pending",
+                    whoToContact = "• HDFC Bank Branch Manager (DLF Phase 4 Branch)\n• SBI Golf Course Road Branch Service Desk\n• Alok Mehta (CA) for tax clearance guidance",
+                    documentsToPrepare = "• Form DA-2 (Nominee Claim Application)\n• Certified Death Certificate copy\n• Nominee Aadhaar, PAN card, and 2 passport photos\n• Passbook and unused cheque leaves of the deceased",
+                    stepByStepGuidance = "1. For Joint Accounts ('Either or Survivor'), submit death certificate to delete first holder name and continue single operation.\n2. For single savings account with registered nominee, submit Form DA-2. Funds are transferred within 15 working days without succession certificate.\n3. Collect final interest certificate for filing final tax returns.",
                     updatedBy = "System"
                 ),
                 EmergencyActionItem(
@@ -481,6 +548,10 @@ abstract class AppDatabase : RoomDatabase() {
                     taskName = "Mutual Fund and Demat transmission",
                     instructions = "Contact RM Mahendra Sen (+91 91100 11001) to initiate Zerodha CDSL transmission. Priya is nominee, requires Form ISR-1, ISR-2, and client booklet.",
                     completed = false,
+                    status = "Pending",
+                    whoToContact = "• Mahendra Sen (Zerodha RM): +91 91100 11001\n• CDSL Helpline: 1800-22-5533\n• CAMS / KFintech Investor Center",
+                    documentsToPrepare = "• Form ISR-1 (Transmission Request Form)\n• Client Master Report (CMR) of Nominee Demat Account\n• Notarized Death Certificate\n• Nominee self-attested PAN and Aadhaar",
+                    stepByStepGuidance = "1. Open a new Demat account for the nominee if not already having one.\n2. Submit Annexure-A transmission application to Zerodha / DP.\n3. Shares and mutual fund units will be credited directly to Nominee's demat account off-market without capital gains tax event.",
                     updatedBy = "System"
                 )
             )
@@ -523,6 +594,76 @@ abstract class AppDatabase : RoomDatabase() {
                 )
             )
             auditLogs.forEach { db.auditLogDao().insert(it) }
+
+            // 7. Seed Enterprise Server Users for Instant Return Login and Admin Audit
+            if (db.serverUserDao().getCount() == 0) {
+                val seedSalt = "sAlT_sEcUrE_2026_xYz"
+                val digest = java.security.MessageDigest.getInstance("SHA-256")
+                digest.update(seedSalt.toByteArray(java.nio.charset.StandardCharsets.UTF_8))
+                val adminHash = digest.digest("admin".toByteArray(java.nio.charset.StandardCharsets.UTF_8)).joinToString("") { "%02x".format(it) }
+
+                val seedUsers = listOf(
+                    ServerUserRecord(
+                        userId = "usr_fev_8819201",
+                        email = "rahul@gmail.com",
+                        fullName = "Rahul Sharma",
+                        phone = "+91 98765 43210",
+                        passwordHash = adminHash,
+                        passwordSalt = seedSalt,
+                        mpin = "4321",
+                        nomineeName = "Priya Sharma",
+                        nomineeRelation = "Spouse",
+                        securityQuestion = "What was your first school name?",
+                        securityAnswerHash = "greenwood_hash_verified",
+                        digitalCertificateId = "FEV-SRV-2026-CERT-8819",
+                        status = "ACTIVE_VERIFIED",
+                        role = "OWNER",
+                        tokenJwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.seed.rahul.verified",
+                        deviceFingerprint = "Android-Enclave-Pixel8-Sandboxed",
+                        isBiometricEnrolled = true
+                    ),
+                    ServerUserRecord(
+                        userId = "usr_fev_8819202",
+                        email = "priya@gmail.com",
+                        fullName = "Priya Sharma",
+                        phone = "+91 98765 43211",
+                        passwordHash = adminHash,
+                        passwordSalt = seedSalt,
+                        mpin = "1234",
+                        nomineeName = "Rahul Sharma",
+                        nomineeRelation = "Spouse",
+                        securityQuestion = "What is your mother's maiden name?",
+                        securityAnswerHash = "gupta_hash_verified",
+                        digitalCertificateId = "FEV-SRV-2026-CERT-8820",
+                        status = "ACTIVE_VERIFIED",
+                        role = "SPOUSE",
+                        tokenJwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.seed.priya.verified",
+                        deviceFingerprint = "Android-Enclave-Samsung-Sandboxed",
+                        isBiometricEnrolled = true
+                    ),
+                    ServerUserRecord(
+                        userId = "usr_fev_8819203",
+                        email = "admin.auditor@familyvault.io",
+                        fullName = "Ashmit Gautam (System Auditor)",
+                        phone = "+91 98110 02299",
+                        passwordHash = adminHash,
+                        passwordSalt = seedSalt,
+                        mpin = "9900",
+                        nomineeName = "Executive Board",
+                        nomineeRelation = "Organization",
+                        securityQuestion = "What was your childhood nickname?",
+                        securityAnswerHash = "ash_hash_verified",
+                        digitalCertificateId = "FEV-SRV-2026-CERT-9900",
+                        status = "ACTIVE_VERIFIED",
+                        role = "ADMIN",
+                        tokenJwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.seed.admin.auditor",
+                        deviceFingerprint = "Admin-Console-Cluster-Node01",
+                        isBiometricEnrolled = true
+                    )
+                )
+                seedUsers.forEach { db.serverUserDao().insert(it) }
+            }
         }
     }
 }
+

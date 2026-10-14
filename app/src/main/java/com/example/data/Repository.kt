@@ -48,7 +48,17 @@ class Repository(private val db: AppDatabase) {
         db.auditLogDao().insert(AuditLog(action = action, details = details, userRole = role))
     }
 
-    // 8. Database Health, Observability & Maintenance
+    // 8. Server-Side Persisted User Records & Admin Auditing
+    val serverUsers: Flow<List<ServerUserRecord>> = db.serverUserDao().getAllFlow()
+    val serverUserCount: Flow<Int> = db.serverUserDao().getCountFlow()
+    suspend fun getServerUsers(): List<ServerUserRecord> = db.serverUserDao().getAll()
+    suspend fun getServerUserCount(): Int = db.serverUserDao().getCount()
+    suspend fun getServerUserByEmail(email: String): ServerUserRecord? = db.serverUserDao().getByEmail(email)
+    suspend fun insertServerUser(user: ServerUserRecord): Long = db.serverUserDao().insert(user)
+    suspend fun updateServerUser(user: ServerUserRecord) = db.serverUserDao().update(user)
+    suspend fun deleteServerUser(user: ServerUserRecord) = db.serverUserDao().delete(user)
+
+    // 9. Database Health, Observability & Maintenance
     suspend fun ensureDatabaseSeeded() {
         AppDatabase.ensureSeeded(db)
     }
@@ -89,7 +99,8 @@ class Repository(private val db: AppDatabase) {
             "emergency_action_items" to db.emergencyActionItemDao().getCount(),
             "claim_records" to db.claimRecordDao().getCount(),
             "emergency_requests" to db.emergencyAccessRequestDao().getCount(),
-            "audit_logs" to db.auditLogDao().getCount()
+            "audit_logs" to db.auditLogDao().getCount(),
+            "server_user_records" to db.serverUserDao().getCount()
         )
     }
 }

@@ -38,6 +38,7 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
 
     private val database = AppDatabase.getDatabase(application, viewModelScope)
     private val repository = Repository(database)
+    val enterpriseGateway = com.example.util.EnterpriseServerGateway(database)
 
     // Reactive State Flows from Database
     val familyDependents = repository.familyDependents.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
@@ -47,6 +48,19 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
     val claimRecords = repository.claimRecords.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val emergencyAccessRequests = repository.emergencyAccessRequests.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val auditLogs = repository.auditLogs.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val serverUsers = repository.serverUsers.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val serverUserCount = repository.serverUserCount.stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+    val clusterMetrics = enterpriseGateway.clusterMetrics.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    // Admin Audit Dashboard state
+    var showAdminAuditDialog by mutableStateOf(false)
+    fun openAdminAuditDashboard() { showAdminAuditDialog = true }
+    fun closeAdminAuditDashboard() { showAdminAuditDialog = false }
+    fun deleteServerUserRecord(user: ServerUserRecord) {
+        viewModelScope.launch {
+            enterpriseGateway.deleteUserRecord(user)
+        }
+    }
 
     // UI States
     var currentRole by mutableStateOf(UserRole.OWNER)
@@ -110,7 +124,16 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     var isAccountCreated by mutableStateOf(userPrefs.getBoolean("account_created", false))
-        private set
+
+    fun navigateToSignup() {
+        isAccountCreated = false
+    }
+
+    fun navigateToLogin() {
+        isAccountCreated = true
+        isLoggedIn = false
+        showMfaChallenge = false
+    }
 
     var registeredFullName by mutableStateOf(userPrefs.getString("user_fullname", "Rahul Sharma") ?: "Rahul Sharma")
     var registeredEmail by mutableStateOf(userPrefs.getString("user_email", "rahul@gmail.com") ?: "rahul@gmail.com")
@@ -121,6 +144,89 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
     var registeredSecurityQuest by mutableStateOf(userPrefs.getString("user_security_question", "What was your first school name?") ?: "What was your first school name?")
     var registeredSecurityAns by mutableStateOf(userPrefs.getString("user_security_answer", "Greenwood") ?: "Greenwood")
     var registeredDigitalCertificateId by mutableStateOf(userPrefs.getString("user_cert_id", "CERT-SANDBOX-88992") ?: "CERT-SANDBOX-88992")
+
+    fun registerEnterpriseUser(
+        fullName: String,
+        email: String,
+        phone: String,
+        password: String,
+        mpin: String,
+        nomineeName: String,
+        nomineeRelation: String,
+        securityQuestion: String,
+        securityAnswer: String,
+        enableBiometrics: Boolean = false,
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        viewModelScope.launch {
+            val response = enterpriseGateway.registerUserOnServer(
+                fullName = fullName,
+                email = email,
+                phone = phone,
+                password = password,
+                mpin = mpin,
+                nomineeName = nomineeName,
+                nomineeRelation = nomineeRelation,
+                securityQuestion = securityQuestion,
+                securityAnswer = securityAnswer,
+                enableBiometrics = enableBiometrics
+            )
+
+            if (response.success && response.user != null) {
+                val certId = response.user.digitalCertificateId
+                userPrefs.edit()
+                    .putBoolean("account_created", true)
+                    .putString("user_fullname", fullName)
+                    .putString("user_email", email)
+                    .putString("user_phone", phone)
+                    .putString("user_password", password)
+                    .putString("user_nominee_name", nomineeName)
+                    .putString("user_nominee_relation", nomineeRelation)
+                    .putString("user_security_question", securityQuestion)
+                    .putString("user_security_answer", securityAnswer)
+                    .putString("user_cert_id", certId)
+                    .putString("user_jwt_token", response.token)
+                    .apply()
+
+                consentPrefs.edit()
+                    .putBoolean("terms_accepted", true)
+                    .putString("consent_signature", "REG-$certId")
+                    .putString("consent_email", email)
+                    .putString("consent_name", fullName)
+                    .apply()
+                isTermsAccepted = true
+                consentSignature = "REG-$certId"
+                consentEmail = email
+                consentName = fullName
+
+                isAccountCreated = true
+                registeredFullName = fullName
+                registeredEmail = email
+                registeredPhone = phone
+                registeredPassword = password
+                registeredNomineeName = nomineeName
+                registeredNomineeRelation = nomineeRelation
+                registeredSecurityQuest = securityQuestion
+                registeredSecurityAns = securityAnswer
+                registeredDigitalCertificateId = certId
+
+                updateMasterMpin(mpin)
+                updateBiometricSetting(enableBiometrics)
+
+                isLoggedIn = true
+                isAppMpinLocked = false
+
+                repository.logAction(
+                    "Server Account Registered",
+                    "Provisioned enterprise server record for $email. Token verified. Cert ID: $certId. Node: ${response.processedByNode}",
+                    "OWNER"
+                )
+                onResult(true, response.message)
+            } else {
+                onResult(false, response.message)
+            }
+        }
+    }
 
     fun registerUserAccount(
         fullName: String,
@@ -134,56 +240,75 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
         securityAnswer: String,
         enableBiometrics: Boolean = false
     ) {
-        val certId = "FEV-CERT-" + java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date()) + "-" + java.util.UUID.randomUUID().toString().take(6).uppercase()
-        userPrefs.edit()
-            .putBoolean("account_created", true)
-            .putString("user_fullname", fullName)
-            .putString("user_email", email)
-            .putString("user_phone", phone)
-            .putString("user_password", password)
-            .putString("user_nominee_name", nomineeName)
-            .putString("user_nominee_relation", nomineeRelation)
-            .putString("user_security_question", securityQuestion)
-            .putString("user_security_answer", securityAnswer)
-            .putString("user_cert_id", certId)
-            .apply()
+        registerEnterpriseUser(
+            fullName = fullName,
+            email = email,
+            phone = phone,
+            password = password,
+            mpin = mpin,
+            nomineeName = nomineeName,
+            nomineeRelation = nomineeRelation,
+            securityQuestion = securityQuestion,
+            securityAnswer = securityAnswer,
+            enableBiometrics = enableBiometrics
+        )
+    }
 
-        // Also record terms & conditions acceptance
-        consentPrefs.edit()
-            .putBoolean("terms_accepted", true)
-            .putString("consent_signature", "REG-$certId")
-            .putString("consent_email", email)
-            .putString("consent_name", fullName)
-            .apply()
-        isTermsAccepted = true
-        consentSignature = "REG-$certId"
-        consentEmail = email
-        consentName = fullName
-
-        // Sync to state variables
-        isAccountCreated = true
-        registeredFullName = fullName
-        registeredEmail = email
-        registeredPhone = phone
-        registeredPassword = password
-        registeredNomineeName = nomineeName
-        registeredNomineeRelation = nomineeRelation
-        registeredSecurityQuest = securityQuestion
-        registeredSecurityAns = securityAnswer
-        registeredDigitalCertificateId = certId
-
-        // Also update the master MPIN preference and in-memory variable
-        updateMasterMpin(mpin)
-
-        // Set Biometric preference as requested by user (default false until registered)
-        updateBiometricSetting(enableBiometrics)
-
-        // Login automatically on signup
-        isLoggedIn = true
-        isAppMpinLocked = false
-
+    fun loginWithServerCredentials(
+        email: String,
+        password: String,
+        onResult: (Boolean, String) -> Unit
+    ) {
         viewModelScope.launch {
-            repository.logAction("Account Created", "Secure banking-grade emergency vault account successfully provisioned. Cert ID: $certId", "OWNER")
+            val response = enterpriseGateway.authenticateReturnLogin(email, password)
+            if (response.success && response.user != null) {
+                val user = response.user
+                // Seamlessly restore complete user profile and data from server database!
+                userPrefs.edit()
+                    .putBoolean("account_created", true)
+                    .putString("user_fullname", user.fullName)
+                    .putString("user_email", user.email)
+                    .putString("user_phone", user.phone)
+                    .putString("user_password", password)
+                    .putString("user_nominee_name", user.nomineeName)
+                    .putString("user_nominee_relation", user.nomineeRelation)
+                    .putString("user_security_question", user.securityQuestion)
+                    .putString("user_cert_id", user.digitalCertificateId)
+                    .putString("user_jwt_token", response.token)
+                    .apply()
+
+                isAccountCreated = true
+                registeredFullName = user.fullName
+                registeredEmail = user.email
+                registeredPhone = user.phone
+                registeredPassword = password
+                registeredNomineeName = user.nomineeName
+                registeredNomineeRelation = user.nomineeRelation
+                registeredSecurityQuest = user.securityQuestion
+                registeredDigitalCertificateId = user.digitalCertificateId
+
+                updateMasterMpin(user.mpin)
+                updateBiometricSetting(user.isBiometricEnrolled)
+
+                isLoggedIn = true
+                isAppMpinLocked = false
+                showMfaChallenge = false
+
+                currentRole = when (user.role.uppercase()) {
+                    "ADMIN" -> UserRole.OWNER
+                    "SPOUSE" -> UserRole.SPOUSE
+                    else -> UserRole.OWNER
+                }
+
+                repository.logAction(
+                    "Server Login Verified",
+                    "Restored complete profile for ${user.email} from server records. Latency: ${response.latencyMs}ms",
+                    user.role
+                )
+                onResult(true, response.message)
+            } else {
+                onResult(false, response.message)
+            }
         }
     }
 
@@ -972,10 +1097,31 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
     // Checklist complete toggle
     fun toggleChecklistTask(item: EmergencyActionItem) {
         viewModelScope.launch {
-            val updated = item.copy(completed = !item.completed, updatedBy = currentRole.label, lastUpdated = System.currentTimeMillis())
+            val newCompleted = !item.completed
+            val newStatus = if (newCompleted) "Completed" else "Pending"
+            val updated = item.copy(
+                completed = newCompleted,
+                status = newStatus,
+                updatedBy = currentRole.label,
+                lastUpdated = System.currentTimeMillis()
+            )
             repository.updateEmergencyActionItem(updated)
-            val action = if (updated.completed) "Completed" else "Incomplete"
-            repository.logAction("Checklist State Changed", "Marked action '${item.taskName}' as $action.", currentRole.name)
+            repository.logAction("Checklist State Changed", "Marked action '${item.taskName}' as $newStatus.", currentRole.name)
+        }
+    }
+
+    // Update Checklist Task Status & Details
+    fun updateChecklistTaskStatus(item: EmergencyActionItem, newStatus: String) {
+        viewModelScope.launch {
+            val isDone = newStatus.equals("Completed", ignoreCase = true)
+            val updated = item.copy(
+                status = newStatus,
+                completed = isDone,
+                updatedBy = currentRole.label,
+                lastUpdated = System.currentTimeMillis()
+            )
+            repository.updateEmergencyActionItem(updated)
+            repository.logAction("Checklist Status Changed", "Set action '${item.taskName}' status to $newStatus.", currentRole.name)
         }
     }
 

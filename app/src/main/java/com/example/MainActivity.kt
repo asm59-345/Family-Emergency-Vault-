@@ -1,15 +1,23 @@
 package com.example
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.content.ContextCompat
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.fragment.app.FragmentActivity
 import com.example.util.BiometricAuthManager
 import com.example.util.BiometricAvailability
+import com.example.util.ImageUtils
 import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -175,32 +183,24 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = SlatePrimary,
+                    containerColor = if (VaultTheme.isDark) Color(0xFF0F172A) else SlatePrimary,
                     titleContentColor = Color.White
                 ),
                 title = {
-                    Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Vault Shield",
+                            tint = TealAccent,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (model.isHindiMode) "पारिवारिक आपातकालीन वॉल्ट" else "Family Emergency Vault",
-                            fontSize = 18.sp,
+                            text = if (model.isHindiMode) "आपातकालीन वॉल्ट" else "Family Vault",
+                            fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = model.selectedFontTheme.headingFamily
                         )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.VerifiedUser,
-                                contentDescription = "Security Active",
-                                tint = TealAccent,
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Military-grade end-to-end security active",
-                                fontSize = 10.sp,
-                                color = Color.White.copy(alpha = 0.7f),
-                                fontWeight = FontWeight.Normal
-                            )
-                        }
                     }
                 },
                 actions = {
@@ -318,7 +318,7 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
         bottomBar = {
             if (model.isLoggedIn) {
                 NavigationBar(
-                    containerColor = Color.White,
+                    containerColor = VaultTheme.cardBg,
                     tonalElevation = 8.dp,
                     modifier = Modifier.navigationBarsPadding()
                 ) {
@@ -329,6 +329,8 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
                         Triple("CHECKLIST", Icons.Outlined.Assignment, Icons.Filled.Assignment),
                         Triple("SETTINGS", Icons.Outlined.Settings, Icons.Filled.Settings)
                     )
+                    val activeNavTint = if (VaultTheme.isDark) Color(0xFF38BDF8) else SlatePrimary
+                    val inactiveNavTint = VaultTheme.textSecondary
                     items.forEach { (tab, outlineIcon, filledIcon) ->
                         val isSelected = model.selectedTabItem == tab
                         NavigationBarItem(
@@ -338,7 +340,7 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
                                 Icon(
                                     imageVector = if (isSelected) filledIcon else outlineIcon,
                                     contentDescription = tab,
-                                    tint = if (isSelected) SlatePrimary else Color.Gray
+                                    tint = if (isSelected) activeNavTint else inactiveNavTint
                                 )
                             },
                             label = {
@@ -346,7 +348,7 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
                                     text = tab.lowercase().replaceFirstChar { it.uppercase() },
                                     fontSize = 11.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) SlatePrimary else Color.Gray
+                                    color = if (isSelected) activeNavTint else inactiveNavTint
                                 )
                             }
                         )
@@ -355,11 +357,31 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
             }
         }
     ) { innerPadding ->
+        BackHandler(
+            enabled = model.isLoggedIn &&
+                model.selectedTabItem != "DASHBOARD" &&
+                !showEmergencySosDialog &&
+                !showMedicalEmergencyCardDialog &&
+                !model.showLegalAboutHub &&
+                !model.showObservabilityDialog &&
+                !model.showAdminAuditDialog &&
+                !showRoleSelector &&
+                !showAddVaultItemDialog &&
+                !showAddDependentDialog &&
+                !showAddContactDialog &&
+                !showAddClaimDialog &&
+                !showCsvImportDialog &&
+                !showExportDialog &&
+                !showEmergencyRequestDialog
+        ) {
+            model.selectedTabItem = "DASHBOARD"
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(SlateLightBg)
+                .background(VaultTheme.background)
         ) {
             if (!model.isLoggedIn) {
                 com.example.ui.LoginScreen(model = model)
@@ -637,6 +659,14 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
                     onDismiss = { showMedicalEmergencyCardDialog = false }
                 )
             }
+
+            // 15. Enterprise Server Registration Audit & Query Dashboard Dialog
+            if (model.showAdminAuditDialog) {
+                com.example.ui.AdminAuditDashboardDialog(
+                    model = model,
+                    onDismiss = { model.showAdminAuditDialog = false }
+                )
+            }
         }
     }
 }
@@ -867,164 +897,59 @@ fun DashboardScreen(
             .verticalScroll(scrollState)
             .padding(16.dp)
     ) {
-        // 🚨 High Priority Emergency SOS & Offline Location Hotbar
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF7F1D1D)),
-            shape = RoundedCornerShape(14.dp),
-            border = BorderStroke(1.dp, Color(0xFFEF4444)),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 10.dp)
-                .clickable { onOpenSos() }
-                .testTag("dashboard_sos_card")
-        ) {
-            Row(
-                modifier = Modifier.padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFDC2626)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(imageVector = Icons.Default.Warning, contentDescription = "SOS", tint = Color.White, modifier = Modifier.size(22.dp))
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = if (model.isHindiMode) "🚨 आपातकालीन SOS व ऑफ़लाइन लोकेशन" else "🚨 Emergency SOS & Offline Location",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Black,
-                            color = Color.White
-                        )
-                        Text(
-                            text = if (model.isHindiMode) "बिना इंटरनेट के GPS SMS भेजें और सीधे परिवार को कॉल करें" else "1-Tap Call & Dispatch Live GPS via Offline SMS",
-                            fontSize = 11.sp,
-                            color = Color(0xFFFECACA)
-                        )
-                    }
-                }
-                Surface(
-                    color = Color(0xFFDC2626),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        text = "OPEN SOS",
-                        color = Color.White,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
-                    )
-                }
-            }
-        }
-
-        // 🩺 High Priority Family Emergency Medical & Health Card Button
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = BorderStroke(1.dp, Color(0xFFFECDD3)),
-            shape = RoundedCornerShape(14.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp)
-                .clickable { onOpenMedicalCard() }
-                .testTag("dashboard_medical_card_button")
-        ) {
-            Row(
-                modifier = Modifier.padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFFEF2F2)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MedicalServices,
-                            contentDescription = "Medical",
-                            tint = Color(0xFFDC2626),
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = if (model.isHindiMode) "🩺 आपातकालीन मेडिकल कार्ड (त्वरित स्वास्थ्य संदर्भ)" else "🩺 Family Emergency Medical Card",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = SlatePrimary
-                        )
-                        Text(
-                            text = if (model.isHindiMode) "ब्लड ग्रुप, दवाइयां, डॉक्टर कॉल व कैशलेस TPA कार्ड" else "Blood groups, critical allergies & cashless hospital policy",
-                            fontSize = 11.sp,
-                            color = Color.Gray
-                        )
-                    }
-                }
-                Surface(
-                    color = Color(0xFFDC2626),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        text = "VIEW",
-                        color = Color.White,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
-                    )
-                }
-            }
-        }
-
-        // Welcome Header
+        // 1. Compact Top Header (Reduced vertical height)
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
                 Text(
-                    text = "Welcome Back, ${model.currentRole.label.split(" ")[0]}",
-                    fontSize = 20.sp,
+                    text = if (model.isHindiMode) "नमस्ते, ${model.currentRole.label.split(" ")[0]}" else "Welcome, ${model.currentRole.label.split(" ")[0]}",
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = SlatePrimary
+                    color = VaultTheme.textPrimary
                 )
-                Text(
-                    text = "Continuity Plan Status: Active Protection",
-                    fontSize = 11.sp,
-                    color = Color.Gray
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF16A34A))
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(
+                        text = if (model.isHindiMode) "सुरक्षा सक्रिय • 100% ऑफ़लाइन" else "Active Protection • 100% Offline",
+                        fontSize = 11.sp,
+                        color = VaultTheme.textSecondary
+                    )
+                }
             }
 
-            // Quick Switch Check-In Indicator
+            // Quick Owner Check-In Indicator
             if (model.currentRole == UserRole.OWNER) {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFFEF3C7))
+                        .background(if (VaultTheme.isDark) Color(0xFF78350F) else Color(0xFFFEF3C7))
+                        .border(1.dp, CreamGold.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
                         .clickable { model.performOwnerCheckIn() }
                         .padding(horizontal = 8.dp, vertical = 6.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.Timer,
-                            contentDescription = "Dead man",
+                            contentDescription = "Dead man switch",
                             tint = CreamGold,
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "Check in (${model.deadManSwitchDaysLeft}d left)",
+                            text = "${model.deadManSwitchDaysLeft}d check-in",
                             fontSize = 10.sp,
-                            color = CreamGold,
+                            color = if (VaultTheme.isDark) Color(0xFFFDE68A) else CreamGold,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -1032,60 +957,321 @@ fun DashboardScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // Visual Vault Hero Banner
+        // 2. Prominent Emergency SOS Action Banner (Direct, High-Visibility)
         Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF991B1B)),
             shape = RoundedCornerShape(14.dp),
-            border = BorderStroke(1.dp, SlateBorder),
+            border = BorderStroke(1.5.dp, Color(0xFFEF4444)),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 14.dp)
-                .testTag("dashboard_vault_hero_banner")
+                .padding(bottom = 12.dp)
+                .testTag("dashboard_sos_card")
         ) {
-            Box {
-                Image(
-                    painter = painterResource(id = R.drawable.img_vault_hero_banner_1789194543546),
-                    contentDescription = "Family Vault Security Banner",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(130.dp),
-                    contentScale = ContentScale.Crop
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(130.dp)
-                        .background(
-                            androidx.compose.ui.graphics.Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color(0xCC0F172A))
-                            )
-                        )
-                )
+            Row(
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Surface(
-                        color = TealAccent,
-                        shape = RoundedCornerShape(4.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFDC2626)),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "OFFLINE VAULT",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Black,
-                            color = SlatePrimary,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = "SOS",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = if (model.isHindiMode) "🚨 आपातकालीन SOS व लोकेशन" else "🚨 Emergency SOS & Location",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White
+                        )
+                        Text(
+                            text = if (model.isHindiMode) "1-टैप में GPS SMS भेजें और परिवार को कॉल करें" else "1-Tap GPS SMS & Direct Hotline Dialing",
+                            fontSize = 11.sp,
+                            color = Color(0xFFFECACA)
+                        )
+                    }
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Surface(
+                        color = Color(0xFFDC2626),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.clickable { onOpenSos() }
+                    ) {
+                        Text(
+                            text = "TRIGGER SOS",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)
+                        )
+                    }
+                    Surface(
+                        color = Color.White.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.clickable { onOpenMedicalCard() }
+                    ) {
+                        Text(
+                            text = "🩺 Medical",
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // 3. Clear Emergency Overview (The 4 Important Cards in 2x2 Grid)
+        Text(
+            text = if (model.isHindiMode) "आपातकालीन अवलोकन (ओवरव्यू)" else "EMERGENCY OVERVIEW",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = VaultTheme.textSecondary,
+            letterSpacing = 1.sp,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        // Row 1: Family Members & Vault Items
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Card 1: 👨‍👩‍👧 Family Members
+            Card(
+                colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+                border = BorderStroke(1.dp, VaultTheme.cardBorder),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { model.selectedTabItem = "CONTACTS" }
+                    .testTag("overview_card_family")
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF0284C7).copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.People,
+                                contentDescription = "Family",
+                                tint = Color(0xFF0284C7),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Text(
+                            text = "${dependents.size}",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = VaultTheme.textPrimary
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = if (model.isHindiMode) "100% स्थानीय एन्क्रिप्शन • शून्य क्लाउड डेटा" else "Zero-Cloud • AES-256 GCM Encrypted",
-                        fontSize = 11.sp,
+                        text = if (model.isHindiMode) "परिवार के सदस्य" else "Family Members",
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = VaultTheme.textPrimary
+                    )
+                    Text(
+                        text = if (dependents.isEmpty()) "Tap to add members" else "${dependents.firstOrNull()?.fullName ?: ""} & others",
+                        fontSize = 10.sp,
+                        color = VaultTheme.textSecondary,
+                        maxLines = 1
+                    )
+                }
+            }
+
+            // Card 2: 🔐 Vault Items
+            Card(
+                colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+                border = BorderStroke(1.dp, VaultTheme.cardBorder),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { model.selectedTabItem = "VAULT" }
+                    .testTag("overview_card_vault")
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(TealAccent.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = "Vault Items",
+                                tint = TealAccent,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Text(
+                            text = "${vaultItems.size}",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = VaultTheme.textPrimary
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = if (model.isHindiMode) "वॉल्ट रिकॉर्ड्स" else "Vault Items",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = VaultTheme.textPrimary
+                    )
+                    Text(
+                        text = "${vaultItems.count { it.category == "BANK" }} Bank • ${vaultItems.count { it.category == "INSURANCE" }} Ins.",
+                        fontSize = 10.sp,
+                        color = VaultTheme.textSecondary,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+
+        // Row 2: Pending Checklist & Emergency Contacts
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Card 3: 📋 Pending Checklist
+            val pendingCount = checklists.count { !it.completed }
+            Card(
+                colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+                border = BorderStroke(1.dp, VaultTheme.cardBorder),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { model.selectedTabItem = "CHECKLIST" }
+                    .testTag("overview_card_checklist")
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFFD97706).copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Assignment,
+                                contentDescription = "Checklist",
+                                tint = Color(0xFFD97706),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Text(
+                            text = "$pendingCount",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (pendingCount > 0) Color(0xFFD97706) else Color(0xFF16A34A)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = if (model.isHindiMode) "लंबित चेकलिस्ट" else "Pending Checklist",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = VaultTheme.textPrimary
+                    )
+                    Text(
+                        text = "${checklists.count { it.completed }}/${checklists.size} tasks prepared",
+                        fontSize = 10.sp,
+                        color = VaultTheme.textSecondary,
+                        maxLines = 1
+                    )
+                }
+            }
+
+            // Card 4: 🚨 Emergency Contacts
+            val totalContacts = contacts.size + model.localSecureContacts.size
+            Card(
+                colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+                border = BorderStroke(1.dp, VaultTheme.cardBorder),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onOpenSos() }
+                    .testTag("overview_card_contacts")
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFFDC2626).copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ContactPhone,
+                                contentDescription = "Emergency Contacts",
+                                tint = Color(0xFFDC2626),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Text(
+                            text = "$totalContacts",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = VaultTheme.textPrimary
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = if (model.isHindiMode) "आपातकालीन नंबर" else "Emergency Hotlines",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = VaultTheme.textPrimary
+                    )
+                    Text(
+                        text = "112, Doctors & Family",
+                        fontSize = 10.sp,
+                        color = Color(0xFFDC2626),
+                        maxLines = 1
                     )
                 }
             }
@@ -1344,8 +1530,8 @@ fun DashboardScreen(
         val lawyerContact = contacts.find { it.category.contains("Lawyer", ignoreCase = true) }
 
         Card(
-            colors = CardDefaults.cardColors(containerColor = if (model.isHindiMode) Color(0xFFFEF2F2) else Color(0xFFFFF1F2)),
-            border = BorderStroke(1.dp, Color(0xFFFECDD3)),
+            colors = CardDefaults.cardColors(containerColor = if (VaultTheme.isDark) Color(0xFF3B0712) else Color(0xFFFFF1F2)),
+            border = BorderStroke(1.dp, if (VaultTheme.isDark) Color(0xFF881337) else Color(0xFFFECDD3)),
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier
                 .fillMaxWidth()
@@ -1364,13 +1550,13 @@ fun DashboardScreen(
                             text = if (model.isHindiMode) "आपातकालीन त्वरित कॉल (1-Tap SOS)" else "Quick Emergency SOS Call",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
-                            color = Color(0xFF9F1239)
+                            color = if (VaultTheme.isDark) Color(0xFFFDA4AF) else Color(0xFF9F1239)
                         )
                     }
                     Text(
                         text = if (model.isHindiMode) "सीधा कॉल करें" else "Direct Dial",
                         fontSize = 10.sp,
-                        color = Color(0xFFBE123C),
+                        color = if (VaultTheme.isDark) Color(0xFFFB7185) else Color(0xFFBE123C),
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -1400,7 +1586,7 @@ fun DashboardScreen(
                             val intent = android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:$docPhone"))
                             context.startActivity(intent)
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary),
+                        colors = ButtonDefaults.buttonColors(containerColor = if (VaultTheme.isDark) Color(0xFF334155) else SlatePrimary),
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
@@ -1428,8 +1614,8 @@ fun DashboardScreen(
 
         // Legal & Knowledge Quick Bar
         Card(
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = BorderStroke(1.dp, SlateBorder),
+            colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+            border = BorderStroke(1.dp, VaultTheme.cardBorder),
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier
                 .fillMaxWidth()
@@ -1458,16 +1644,16 @@ fun DashboardScreen(
                             text = if (model.isHindiMode) "कानूनी व सुरक्षा केंद्र (T&C, Q&A, नीतियां)" else "Legal, Q&A, Policies & Security Hub",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = SlatePrimary
+                            color = VaultTheme.textPrimary
                         )
                         Text(
                             text = if (model.isHindiMode) "अशमित गौतम द्वारा निर्मित • 100% ऑन-डिवाइस" else "Built by Ashmit Gautam • 100% On-Device",
                             fontSize = 10.sp,
-                            color = Color.Gray
+                            color = VaultTheme.textSecondary
                         )
                     }
                 }
-                Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = SlatePrimary, modifier = Modifier.size(20.dp))
+                Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = VaultTheme.textPrimary, modifier = Modifier.size(20.dp))
             }
         }
 
@@ -1476,14 +1662,14 @@ fun DashboardScreen(
             text = "IMMEDIATE EMERGENCY INSTRUCTIONS",
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
-            color = SlatePrimary,
+            color = VaultTheme.textSecondary,
             letterSpacing = 1.sp,
             modifier = Modifier.padding(vertical = 4.dp)
         )
 
         Card(
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = BorderStroke(1.dp, SlateBorder),
+            colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+            border = BorderStroke(1.dp, VaultTheme.cardBorder),
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -1492,12 +1678,12 @@ fun DashboardScreen(
                     text = "If something happens to me (First Steps)",
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
-                    color = SlatePrimary
+                    color = VaultTheme.textPrimary
                 )
                 Text(
                     text = "This checklist helps Priya (Spouse) and family handle first actions cleanly.",
                     fontSize = 11.sp,
-                    color = Color.Gray,
+                    color = VaultTheme.textSecondary,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
@@ -1520,13 +1706,12 @@ fun DashboardScreen(
                                 text = task.taskName,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (task.completed) Color.Gray else SlatePrimary,
-                                style = if (task.completed) MaterialTheme.typography.bodyMedium.copy(color = Color.LightGray) else MaterialTheme.typography.bodyMedium
+                                color = if (task.completed) VaultTheme.textSecondary else VaultTheme.textPrimary
                             )
                             Text(
                                 text = task.instructions,
                                 fontSize = 11.sp,
-                                color = if (task.completed) Color.LightGray else Color.DarkGray
+                                color = VaultTheme.textSecondary
                             )
                         }
                     }
@@ -1541,15 +1726,15 @@ fun DashboardScreen(
             text = "ORGANIZATION & AI CONTINUITY",
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
-            color = SlatePrimary,
+            color = VaultTheme.textSecondary,
             letterSpacing = 1.sp,
             modifier = Modifier.padding(vertical = 4.dp)
         )
 
         // Feature Highlight: Offline AI Continuity Assistant Card
         Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
-            border = BorderStroke(1.dp, Color(0xFF86EFAC)),
+            colors = CardDefaults.cardColors(containerColor = if (VaultTheme.isDark) Color(0xFF052E16) else Color(0xFFF0FDF4)),
+            border = BorderStroke(1.dp, if (VaultTheme.isDark) Color(0xFF166534) else Color(0xFF86EFAC)),
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier
                 .fillMaxWidth()
@@ -1565,13 +1750,13 @@ fun DashboardScreen(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFFDCFCE7)),
+                        .background(if (VaultTheme.isDark) Color(0xFF166534) else Color(0xFFDCFCE7)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Psychology,
                         contentDescription = "Offline AI Bot",
-                        tint = Color(0xFF16A34A),
+                        tint = if (VaultTheme.isDark) Color(0xFF4ADE80) else Color(0xFF16A34A),
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -1582,7 +1767,7 @@ fun DashboardScreen(
                             text = if (model.isHindiMode) "ऑफ़लाइन AI कंटीन्यूइटी बॉट" else "Offline AI Continuity Advisor",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
-                            color = Color(0xFF14532D)
+                            color = if (VaultTheme.isDark) Color(0xFF86EFAC) else Color(0xFF14532D)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Surface(
@@ -1718,8 +1903,8 @@ fun AlertItemCard(
     onAction: () -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = backgroundColor),
-        border = BorderStroke(1.dp, borderColor),
+        colors = CardDefaults.cardColors(containerColor = if (VaultTheme.isDark) Color(0xFF1E293B) else backgroundColor),
+        border = BorderStroke(1.dp, if (VaultTheme.isDark) VaultTheme.cardBorder else borderColor),
         shape = RoundedCornerShape(10.dp),
         modifier = Modifier
             .fillMaxWidth()
@@ -1730,18 +1915,18 @@ fun AlertItemCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = title, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = SlatePrimary)
-                Text(text = description, fontSize = 11.sp, color = Color.DarkGray, modifier = Modifier.padding(top = 2.dp))
+                Text(text = title, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = VaultTheme.textPrimary)
+                Text(text = description, fontSize = 11.sp, color = VaultTheme.textSecondary, modifier = Modifier.padding(top = 2.dp))
             }
             Spacer(modifier = Modifier.width(8.dp))
             Button(
                 onClick = onAction,
-                colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary),
+                colors = ButtonDefaults.buttonColors(containerColor = if (VaultTheme.isDark) TealAccent else SlatePrimary),
                 shape = RoundedCornerShape(6.dp),
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                 modifier = Modifier.height(30.dp)
             ) {
-                Text(text = actionLabel, fontSize = 10.sp, color = Color.White)
+                Text(text = actionLabel, fontSize = 10.sp, color = if (VaultTheme.isDark) Color.Black else Color.White, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -1756,16 +1941,16 @@ fun DashboardShortcutCard(
     onClick: () -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, SlateBorder),
+        colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+        border = BorderStroke(1.dp, VaultTheme.cardBorder),
         shape = RoundedCornerShape(12.dp),
         modifier = modifier.clickable { onClick() }
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Icon(imageVector = icon, contentDescription = "Shortcut Key", tint = TealAccent, modifier = Modifier.size(24.dp))
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = title, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = SlatePrimary)
-            Text(text = subtitle, fontSize = 10.sp, color = Color.Gray, modifier = Modifier.padding(top = 2.dp))
+            Text(text = title, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = VaultTheme.textPrimary)
+            Text(text = subtitle, fontSize = 10.sp, color = VaultTheme.textSecondary, modifier = Modifier.padding(top = 2.dp))
         }
     }
 }
@@ -1778,37 +1963,49 @@ fun VaultScreen(
     onAddItem: (String) -> Unit,
     onEditItem: (VaultItem) -> Unit
 ) {
-    val categories = listOf(
-        Pair("BANK", "Bank Accounts"),
-        Pair("INVESTMENT", "Investments"),
-        Pair("INSURANCE", "Insurance"),
-        Pair("CARD", "Cards"),
-        Pair("PROPERTY", "Properties"),
-        Pair("LOCKER", "Lockers"),
-        Pair("LIABILITY", "Liabilities"),
-        Pair("DOCUMENT", "Documents"),
-        Pair("TAX", "Tax & Filing"),
-        Pair("DIGITAL", "Digital Keys")
+    val topCategories = listOf(
+        Triple("BANK", if (model.isHindiMode) "बैंक खाते" else "Bank Accounts", Icons.Default.AccountBalance),
+        Triple("INSURANCE", if (model.isHindiMode) "बीमा" else "Insurance", Icons.Default.HealthAndSafety),
+        Triple("INVESTMENT", if (model.isHindiMode) "निवेश" else "Investments", Icons.Default.TrendingUp),
+        Triple("DOCUMENT", if (model.isHindiMode) "दस्तावेज़" else "Documents", Icons.Default.Description)
+    )
+
+    val allCategories = listOf(
+        Pair("ALL", if (model.isHindiMode) "सभी" else "All"),
+        Pair("BANK", if (model.isHindiMode) "बैंक" else "Bank"),
+        Pair("INSURANCE", if (model.isHindiMode) "बीमा" else "Insurance"),
+        Pair("INVESTMENT", if (model.isHindiMode) "निवेश" else "Investments"),
+        Pair("DOCUMENT", if (model.isHindiMode) "दस्तावेज़" else "Documents"),
+        Pair("CARD", if (model.isHindiMode) "कार्ड्स" else "Cards"),
+        Pair("PROPERTY", if (model.isHindiMode) "संपत्ति" else "Properties"),
+        Pair("LOCKER", if (model.isHindiMode) "लॉकर" else "Lockers"),
+        Pair("LIABILITY", if (model.isHindiMode) "ऋण/कर्ज" else "Liabilities"),
+        Pair("TAX", if (model.isHindiMode) "टैक्स व सीए" else "Tax & Filing"),
+        Pair("DIGITAL", if (model.isHindiMode) "डिजिटल कीज़" else "Digital Keys")
     )
 
     var currentCategory by remember { mutableStateOf("BANK") }
     var searchText by remember { mutableStateOf("") }
+    var viewingDetailsItem by remember { mutableStateOf<VaultItem?>(null) }
 
-    val filteredItems = vaultItems.filter {
-        it.category == currentCategory &&
-        (it.title.lowercase().contains(searchText.lowercase()) ||
-         it.institution.lowercase().contains(searchText.lowercase()) ||
-         it.numberOrId.lowercase().contains(searchText.lowercase()))
+    val filteredItems = vaultItems.filter { item ->
+        val matchesCategory = if (currentCategory == "ALL") true else item.category == currentCategory
+        val matchesSearch = searchText.isEmpty() ||
+            item.title.contains(searchText, ignoreCase = true) ||
+            item.institution.contains(searchText, ignoreCase = true) ||
+            item.numberOrId.contains(searchText, ignoreCase = true) ||
+            item.nomineeName.contains(searchText, ignoreCase = true)
+        matchesCategory && matchesSearch
     }
 
     Scaffold(
         containerColor = Color.Transparent,
         floatingActionButton = {
-            // Add item button matches active category
             FloatingActionButton(
-                onClick = { onAddItem(currentCategory) },
-                containerColor = SlatePrimary,
-                contentColor = Color.White
+                onClick = { onAddItem(if (currentCategory == "ALL") "BANK" else currentCategory) },
+                containerColor = TealAccent,
+                contentColor = Color.White,
+                modifier = Modifier.testTag("vault_fab_add")
             ) {
                 Icon(imageVector = Icons.Default.Add, contentDescription = "Add Item")
             }
@@ -1820,7 +2017,7 @@ fun VaultScreen(
                 .padding(paddingVals)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            // Search Input Block
+            // 1. Search Bar with Clear Button
             OutlinedTextField(
                 value = searchText,
                 onValueChange = { searchText = it },
@@ -1828,119 +2025,155 @@ fun VaultScreen(
                     .fillMaxWidth()
                     .padding(bottom = 12.dp)
                     .testTag("vault_search"),
-                leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = "Search icon") },
-                placeholder = { Text("Search this category...") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search",
+                        tint = VaultTheme.textSecondary
+                    )
+                },
+                trailingIcon = {
+                    if (searchText.isNotEmpty()) {
+                        IconButton(onClick = { searchText = "" }) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = "Clear search",
+                                tint = VaultTheme.textSecondary
+                            )
+                        }
+                    }
+                },
+                placeholder = {
+                    Text(
+                        if (model.isHindiMode) "खाता, बीमा, पॉलिसी या नॉमिनी खोजें..." else "Search bank, insurance, nominee, ID...",
+                        color = VaultTheme.textSecondary
+                    )
+                },
                 singleLine = true,
-                shape = RoundedCornerShape(10.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = TealAccent,
-                    unfocusedBorderColor = Color.LightGray,
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White
-                )
+                shape = RoundedCornerShape(12.dp),
+                colors = vaultTextFieldColors()
             )
 
-            // Horizontal custom category scroller
+            // 2. Primary 4 Category Cards (Bank, Insurance, Investments, Documents)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                topCategories.take(2).forEach { (catId, label, icon) ->
+                    val isSelected = currentCategory == catId
+                    val count = vaultItems.count { it.category == catId }
+                    CategoryCard(
+                        icon = icon,
+                        title = label,
+                        count = count,
+                        isSelected = isSelected,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("vault_cat_card_$catId"),
+                        onClick = { currentCategory = catId }
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                topCategories.drop(2).forEach { (catId, label, icon) ->
+                    val isSelected = currentCategory == catId
+                    val count = vaultItems.count { it.category == catId }
+                    CategoryCard(
+                        icon = icon,
+                        title = label,
+                        count = count,
+                        isSelected = isSelected,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("vault_cat_card_$catId"),
+                        onClick = { currentCategory = catId }
+                    )
+                }
+            }
+
+            // 3. Horizontal Filter Chips (All + Categories)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
-                    .padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(bottom = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                categories.forEach { (catId, label) ->
+                allCategories.forEach { (catId, label) ->
                     val isSelected = catId == currentCategory
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(if (isSelected) SlatePrimary else Color.White)
-                            .border(1.dp, if (isSelected) SlatePrimary else SlateBorder, RoundedCornerShape(20.dp))
-                            .clickable { currentCategory = catId }
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                    ) {
-                        Text(
-                            text = label,
-                            fontSize = 12.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isSelected) Color.White else Color.DarkGray
-                        )
-                    }
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { currentCategory = catId },
+                        label = {
+                            val count = if (catId == "ALL") vaultItems.size else vaultItems.count { it.category == catId }
+                            Text(
+                                text = "$label ($count)",
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = VaultTheme.cardBg,
+                            labelColor = VaultTheme.textSecondary,
+                            selectedContainerColor = if (VaultTheme.isDark) Color(0xFF0F766E) else Color(0xFFCCFBF1),
+                            selectedLabelColor = if (VaultTheme.isDark) Color.White else Color(0xFF0F766E)
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = isSelected,
+                            borderColor = VaultTheme.cardBorder,
+                            selectedBorderColor = TealAccent
+                        ),
+                        shape = RoundedCornerShape(20.dp)
+                    )
                 }
             }
 
-            // Categories Description Note
-            Box(
+            // Category Guide / Hint
+            val guideText = when (currentCategory) {
+                "BANK" -> "Verify registered mobile, account holder type, and nominee on bank portal."
+                "INSURANCE" -> "Store policy term, cashless TPA helpline, and nominee coverage status."
+                "INVESTMENT" -> "Demat folio, mutual funds & PPF. Check nominee linkage."
+                "DOCUMENT" -> "Registered physical Will, title deeds, PAN & passport coordinates."
+                "CARD" -> "Never store CVV or PIN. Keep bank emergency block phone numbers."
+                "LOCKER" -> "Trace locker key coordinates, branch, and joint operating mandate."
+                "LIABILITY" -> "Outstanding home / car loans. Check loan insurance policy."
+                else -> "Encrypted on-device vault. Confidential records hidden from plain sight."
+            }
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
-                    .background(TealAccent.copy(alpha = 0.05f))
-                    .padding(10.dp)
+                    .background(if (VaultTheme.isDark) Color(0xFF0F172A) else Color(0xFFF1F5F9))
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                val desc = when (currentCategory) {
-                    "BANK" -> "Verify that the registered mobile, joint statuses, and nominee match active records."
-                    "INVESTMENT" -> "Demat stocks, Mutual Funds, National Pension Scheme (NPS), and PPF. Flag empty nominee fields."
-                    "INSURANCE" -> "Term covers and Mediclaim floaters. Store TPA key helplines and claim forms locations."
-                    "CARD" -> "Never record PIN or CVV. Simply document holder statuses, limits and bank block numbers."
-                    "PROPERTY" -> "Store registration numbers and physical locker coordinates of paper title deeds."
-                    "LOCKER" -> "Trace where key is placed, held-in name, and access protocol guidelines for heirs."
-                    "LIABILITY" -> "Outstanding loans (home/car EMI). Record linked insurances for loan amortization coverage."
-                    "DOCUMENT" -> "Legal credentials. Record coordinates of PAN, passports, and your registered physical Will."
-                    "TAX" -> "Tax login hints and Chartered Accountant (CA) filing directories."
-                    "DIGITAL" -> "Vault hints, Bitwarden recovery paths, and critical recovery details."
-                    else -> ""
-                }
+                Icon(
+                    imageVector = Icons.Default.Security,
+                    contentDescription = null,
+                    tint = TealAccent,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "📢 Guide: $desc",
+                    text = guideText,
                     fontSize = 11.sp,
-                    color = TealAccent,
-                    fontWeight = FontWeight.Bold
+                    color = VaultTheme.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
-            // Visual Physical Documents & Keys Guide Banner for physical document / locker categories
-            if (currentCategory == "DOCUMENT" || currentCategory == "LOCKER" || currentCategory == "PROPERTY") {
-                Spacer(modifier = Modifier.height(10.dp))
-                Card(
-                    shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, SlateBorder),
-                    modifier = Modifier.fillMaxWidth().testTag("vault_docs_banner")
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .background(Color.White)
-                            .padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.img_emergency_documents_organizer_1789320102141),
-                            contentDescription = "Physical Document Binder and Safe Keys",
-                            modifier = Modifier
-                                .size(width = 80.dp, height = 52.dp)
-                                .clip(RoundedCornerShape(6.dp)),
-                            contentScale = ContentScale.Crop
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = if (model.isHindiMode) "भौतिक दस्तावेज़ और सुरक्षित लॉकर ट्रैकिंग" else "Physical Binders & Safe Coordinates",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = SlatePrimary
-                            )
-                            Text(
-                                text = if (model.isHindiMode) "मूल वसीयत, रजिस्ट्री व लॉकर की चाबी की वास्तविक जगह अवश्य दर्ज करें।" else "Record exact cupboard, bank branch, and locker key locations for your nominees.",
-                                fontSize = 9.sp,
-                                color = Color.Gray,
-                                lineHeight = 12.sp
-                            )
-                        }
-                    }
-                }
-            }
+            Spacer(modifier = Modifier.height(10.dp))
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Vault Records list
+            // 4. Compact Item Cards List
             if (filteredItems.isEmpty()) {
                 Column(
                     modifier = Modifier
@@ -1949,40 +2182,371 @@ fun VaultScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.img_emergency_documents_organizer_1789320102141),
-                        contentDescription = "Empty Records Illustration",
-                        modifier = Modifier
-                            .size(110.dp)
-                            .clip(RoundedCornerShape(12.dp)),
-                        contentScale = ContentScale.Crop
+                    Icon(
+                        imageVector = Icons.Default.FolderOpen,
+                        contentDescription = "Empty",
+                        tint = VaultTheme.textSecondary.copy(alpha = 0.5f),
+                        modifier = Modifier.size(56.dp)
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "No details saved in this folder",
+                        text = if (searchText.isNotEmpty()) "No matching records found" else "No items in this category",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.DarkGray
+                        color = VaultTheme.textPrimary
                     )
                     Text(
-                        text = "Tap the '+' trigger below to add a secure record now.",
-                        fontSize = 11.sp,
-                        color = Color.Gray,
-                        textAlign = TextAlign.Center
+                        text = "Tap the '+' button below to add a new record.",
+                        fontSize = 12.sp,
+                        color = VaultTheme.textSecondary
                     )
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(filteredItems) { item ->
-                        VaultItemCard(
+                    items(filteredItems, key = { it.id }) { item ->
+                        CompactVaultItemCard(
                             item = item,
                             model = model,
-                            onEditClick = { onEditItem(item) }
+                            onViewDetails = { viewingDetailsItem = item },
+                            onEditClick = { onEditItem(item) },
+                            onDeleteClick = { model.deleteVaultItem(item) }
                         )
                     }
+                }
+            }
+        }
+    }
+
+    // 5. Full View Details Dialog
+    if (viewingDetailsItem != null) {
+        VaultItemDetailsDialog(
+            item = viewingDetailsItem!!,
+            model = model,
+            onDismiss = { viewingDetailsItem = null },
+            onEdit = {
+                val itemToEdit = viewingDetailsItem!!
+                viewingDetailsItem = null
+                onEditItem(itemToEdit)
+            },
+            onDelete = {
+                val itemToDelete = viewingDetailsItem!!
+                viewingDetailsItem = null
+                model.deleteVaultItem(itemToDelete)
+            }
+        )
+    }
+}
+
+@Composable
+fun CategoryCard(
+    icon: ImageVector,
+    title: String,
+    count: Int,
+    isSelected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) {
+                if (VaultTheme.isDark) Color(0xFF134E4A) else Color(0xFFF0FDFA)
+            } else {
+                VaultTheme.cardBg
+            }
+        ),
+        border = BorderStroke(
+            if (isSelected) 1.5.dp else 1.dp,
+            if (isSelected) TealAccent else VaultTheme.cardBorder
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = modifier.clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (isSelected) TealAccent else TealAccent.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = title,
+                    tint = if (isSelected) Color.White else TealAccent,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = VaultTheme.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "$count items",
+                    fontSize = 10.sp,
+                    color = VaultTheme.textSecondary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun CompactVaultItemCard(
+    item: VaultItem,
+    model: VaultViewModel,
+    onViewDetails: () -> Unit,
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit
+) {
+    var showMenu by remember { mutableStateOf(false) }
+    val isMasked = item.isMasked && !model.isEmergencyAccessReleased
+
+    val catIcon = when (item.category) {
+        "BANK" -> Icons.Default.AccountBalance
+        "INSURANCE" -> Icons.Default.HealthAndSafety
+        "INVESTMENT" -> Icons.Default.TrendingUp
+        "DOCUMENT" -> Icons.Default.Description
+        "CARD" -> Icons.Default.CreditCard
+        "PROPERTY" -> Icons.Default.Home
+        "LOCKER" -> Icons.Default.Lock
+        "LIABILITY" -> Icons.Default.MoneyOff
+        "TAX" -> Icons.Default.Receipt
+        else -> Icons.Default.VpnKey
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+        border = BorderStroke(1.dp, VaultTheme.cardBorder),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onViewDetails() }
+            .testTag("vault_item_card_${item.id}")
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            // Top Row: Category Icon + Title/Institution + 3-dots Menu
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(TealAccent.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = catIcon,
+                        contentDescription = item.category,
+                        tint = TealAccent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = item.title,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = VaultTheme.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "${item.institution} • ${item.ownerName}",
+                        fontSize = 11.sp,
+                        color = VaultTheme.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Box {
+                    IconButton(
+                        onClick = { showMenu = true },
+                        modifier = Modifier
+                            .size(32.dp)
+                            .testTag("vault_item_menu_${item.id}")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Actions",
+                            tint = VaultTheme.textSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("View Details") },
+                            leadingIcon = { Icon(Icons.Default.Visibility, contentDescription = null, tint = TealAccent) },
+                            onClick = {
+                                showMenu = false
+                                onViewDetails()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Edit Item") },
+                            leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = TealAccent) },
+                            onClick = {
+                                showMenu = false
+                                onEditClick()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Delete Item", color = RedAlert) },
+                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = RedAlert) },
+                            onClick = {
+                                showMenu = false
+                                onDeleteClick()
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Middle Row: Masked ID + Nominee pill
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Sensitive identifier masked by default
+                val maskedText = if (isMasked) {
+                    "•••• " + (if (item.numberOrId.length > 4) item.numberOrId.takeLast(4) else item.numberOrId)
+                } else {
+                    item.numberOrId
+                }
+                Text(
+                    text = maskedText,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.SemiBold,
+                    color = VaultTheme.textPrimary
+                )
+
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (item.documentPhotoBase64.isNotEmpty() || item.attachmentUri.isNotEmpty()) {
+                        Surface(
+                            color = TealAccent.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.PhotoCamera, contentDescription = "Document Attached", tint = TealAccent, modifier = Modifier.size(10.dp))
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text("Doc Photo", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = TealAccent)
+                            }
+                        }
+                    }
+
+                    // Nominee Status Badge
+                    if (item.nomineeName.isNotEmpty()) {
+                        Surface(
+                            color = if (VaultTheme.isDark) Color(0xFF064E3B) else Color(0xFFDCFCE7),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = "✓ Nominee: ${item.nomineeName}",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (VaultTheme.isDark) Color(0xFF6EE7B7) else Color(0xFF166534),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    } else {
+                        Surface(
+                            color = if (VaultTheme.isDark) Color(0xFF450A0A) else Color(0xFFFEF2F2),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = "⚠️ No Nominee",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = RedAlert,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Bottom Action Row: "View Details" + "Edit"
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onViewDetails,
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, TealAccent.copy(alpha = 0.5f)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(32.dp)
+                        .testTag("vault_item_view_details"),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Visibility,
+                        contentDescription = null,
+                        tint = TealAccent,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "View Details",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TealAccent
+                    )
+                }
+
+                TextButton(
+                    onClick = onEditClick,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .height(32.dp)
+                        .testTag("vault_item_quick_edit"),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        tint = VaultTheme.textSecondary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Edit",
+                        fontSize = 11.sp,
+                        color = VaultTheme.textSecondary
+                    )
                 }
             }
         }
@@ -1990,255 +2554,369 @@ fun VaultScreen(
 }
 
 @Composable
-fun VaultItemCard(
+fun VaultItemDetailsDialog(
     item: VaultItem,
     model: VaultViewModel,
-    onEditClick: () -> Unit
+    onDismiss: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
 ) {
+    var isUnmaskedLocal by remember { mutableStateOf(false) }
     val isOwner = model.currentRole == UserRole.OWNER
-    val isSpouseWithRelease = model.currentRole == UserRole.SPOUSE && model.isEmergencyAccessReleased
-    val isExecutorWithRelease = model.currentRole == UserRole.EXECUTOR && model.isEmergencyAccessReleased
-    val hasPermissionToView = isOwner || isSpouseWithRelease || isExecutorWithRelease
+    val canUnmask = isOwner || model.isEmergencyAccessReleased
 
-    val isMaskedState = item.isMasked && !model.isEmergencyAccessReleased
+    val isActuallyMasked = !isUnmaskedLocal && item.isMasked && !model.isEmergencyAccessReleased
+    val context = LocalContext.current
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, SlateBorder),
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            // Card Title Header
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = VaultTheme.dialogBg,
+        title = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
+                    Surface(
+                        color = TealAccent.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = item.category,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TealAccent,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = item.title,
-                        fontSize = 15.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = SlatePrimary
-                    )
-                    Text(
-                        text = "${item.institution} • Holder: ${item.ownerName}",
-                        fontSize = 11.sp,
-                        color = Color.Gray
+                        color = VaultTheme.textPrimary
                     )
                 }
-
-                // Edit Button
-                IconButton(onClick = onEditClick) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit Item Details",
-                        tint = TealAccent,
-                        modifier = Modifier.size(18.dp)
-                    )
+                IconButton(onClick = onDismiss, modifier = Modifier.testTag("vault_details_close")) {
+                    Icon(imageVector = Icons.Default.Close, contentDescription = "Close", tint = VaultTheme.textSecondary)
                 }
             }
-
-            Divider(color = SlateBorder, modifier = Modifier.padding(vertical = 10.dp))
-
-            // Bank Acc Num / Policy Num (Privacy Masked check)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text(
-                        text = when (item.category) {
-                            "BANK" -> "Account Number"
-                            "INSURANCE" -> "Policy Number"
-                            "INVESTMENT" -> "Folio / Account ID"
-                            "CARD" -> "Masked Card Number"
-                            "DOCUMENT" -> "Document ID"
-                            "LIABILITY" -> "Loan Account No"
-                            else -> "Identifier"
-                        },
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Gray
-                    )
-                    Text(
-                        text = if (isMaskedState) "•••• •••• •••• " + item.numberOrId.takeLast(4) else item.numberOrId,
-                        fontSize = 14.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        color = SlatePrimary
-                    )
-                }
-
-                // Decryption click
-                IconButton(
-                    onClick = {
-                        if (hasPermissionToView) {
-                            model.toggleItemMasking(item)
-                        } else {
-                            // Warn evaluator of role checks
-                            Toast.makeText(
-                                model.getApplication(),
-                                "Restricted: Switch active role to Rahul (Owner) or trigger emergency release to view passwords/IDs.",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                    }
-                ) {
-                    Icon(
-                        imageVector = if (isMaskedState) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                        contentDescription = "Toggle field visual masking",
-                        tint = if (isMaskedState) CreamGold else TealAccent,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Nominee details
-            Box(
+        },
+        text = {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(if (item.nomineeName.isEmpty()) Color(0xFFFEF2F2) else Color(0xFFF1F5F9))
-                    .padding(8.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = if (item.nomineeName.isEmpty()) Icons.Default.Warning else Icons.Default.Face,
-                        contentDescription = "Nominee status representation",
-                        tint = if (item.nomineeName.isEmpty()) RedAlert else TealAccent,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text(
-                            text = if (item.nomineeName.isEmpty()) "CRITICAL GAP: No Nominee Registered" else "Nominee: ${item.nomineeName} (${item.nomineeRelation})",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (item.nomineeName.isEmpty()) RedAlert else SlatePrimary
-                        )
-                        if (item.nomineeName.isNotEmpty()) {
-                            Text(
-                                text = if (item.nomineeVerified) "✓ Nominee updated & verified on portals" else "⚠️ Nominee registered offline - check portal linkage",
-                                fontSize = 9.sp,
-                                color = if (item.nomineeVerified) GreenSuccess else CreamGold
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Expose Location coordinates if they correspond to recovery
-            if (item.physicalLocation.isNotEmpty() || item.digitalLocation.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (item.physicalLocation.isNotEmpty()) {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                            Icon(imageVector = Icons.Default.Inventory, contentDescription = "Drawer icon", tint = Color.Gray, modifier = Modifier.size(12.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "File: ${item.physicalLocation}",
-                                fontSize = 10.sp,
-                                color = Color.DarkGray,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                    if (item.digitalLocation.isNotEmpty()) {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                            Icon(imageVector = Icons.Default.Cloud, contentDescription = "Cloud location", tint = Color.Gray, modifier = Modifier.size(12.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Link: ${item.digitalLocation}",
-                                fontSize = 10.sp,
-                                color = Color.DarkGray,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Expanding custom fields
-            if (item.detailsString.trim().isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(SlateLightBg)
-                        .padding(8.dp)
-                ) {
-                    val fields = item.detailsString.split("\n")
-                    fields.forEach { field ->
-                        if (field.contains(":")) {
-                            val parts = field.split(":", limit = 2)
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 1.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(text = parts[0].trim(), fontSize = 10.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
-                                Text(
-                                    text = if (isMaskedState && parts[0].lowercase().contains("password")) "•••••" else parts[1].trim(),
-                                    fontSize = 10.sp,
-                                    color = SlatePrimary,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        } else {
-                            Text(text = field, fontSize = 10.sp, color = Color.DarkGray)
-                        }
-                    }
-                }
-            }
-
-            // Remarks note
-            if (item.remarks.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Note: ${item.remarks}",
-                    fontSize = 11.sp,
-                    color = Color.DarkGray,
-                    modifier = Modifier.padding(start = 2.dp)
+                // Institution & Owner
+                DetailRowItem(
+                    label = "Institution / Platform",
+                    value = item.institution.ifEmpty { "Not specified" }
                 )
-            }
+                DetailRowItem(
+                    label = "Holder / Owner Name",
+                    value = item.ownerName
+                )
 
-            // Attached document preview badge
-            if (item.attachmentUri.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(6.dp))
+                Divider(color = VaultTheme.cardBorder)
+
+                // Identifier with Mask/Unmask toggle
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(TealAccent.copy(alpha = 0.1f))
-                        .border(1.dp, TealAccent.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 8.dp, vertical = 5.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Attachment,
-                        contentDescription = "Document Attached",
-                        tint = TealAccent,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = when (item.category) {
+                                "BANK" -> "Account Number"
+                                "INSURANCE" -> "Policy Number"
+                                "INVESTMENT" -> "Folio / Account ID"
+                                "CARD" -> "Card Number"
+                                "DOCUMENT" -> "Document ID"
+                                "LIABILITY" -> "Loan Account No"
+                                else -> "Identifier"
+                            },
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = VaultTheme.textSecondary
+                        )
+                        Text(
+                            text = if (isActuallyMasked) "•••• •••• •••• " + item.numberOrId.takeLast(4) else item.numberOrId,
+                            fontSize = 14.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            color = VaultTheme.textPrimary
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            if (canUnmask) {
+                                isUnmaskedLocal = !isUnmaskedLocal
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    "Switch role to Rahul (Owner) or release emergency switch to unmask.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = if (isActuallyMasked) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = "Toggle Masking",
+                            tint = TealAccent,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                Divider(color = VaultTheme.cardBorder)
+
+                // Nominee Details
+                Text(
+                    text = "Nominee Information",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = VaultTheme.textSecondary
+                )
+                if (item.nomineeName.isNotEmpty()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Face,
+                            contentDescription = null,
+                            tint = TealAccent,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "${item.nomineeName} (${item.nomineeRelation.ifEmpty { "Registered" }})",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = VaultTheme.textPrimary
+                        )
+                    }
                     Text(
-                        text = "📎 Document Photo Attached (ID / Policy Proof)",
+                        text = if (item.nomineeVerified) "✓ Verified with active official records" else "⚠️ Nominee recorded locally - confirm on portal",
                         fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = SlatePrimary
+                        color = if (item.nomineeVerified) GreenSuccess else CreamGold
+                    )
+                } else {
+                    Text(
+                        text = "⚠️ No nominee configured. Highly recommended to add a nominee to prevent legal succession delays.",
+                        fontSize = 11.sp,
+                        color = RedAlert
                     )
                 }
+
+                Divider(color = VaultTheme.cardBorder)
+
+                // Locations
+                if (item.physicalLocation.isNotEmpty() || item.digitalLocation.isNotEmpty()) {
+                    Text(
+                        text = "Storage Locations",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = VaultTheme.textSecondary
+                    )
+                    if (item.physicalLocation.isNotEmpty()) {
+                        DetailRowItem(label = "Physical Location", value = item.physicalLocation)
+                    }
+                    if (item.digitalLocation.isNotEmpty()) {
+                        DetailRowItem(label = "Digital Link / Path", value = item.digitalLocation)
+                    }
+                    Divider(color = VaultTheme.cardBorder)
+                }
+
+                // Custom Details / Dues
+                if (item.detailsString.isNotBlank()) {
+                    Text(
+                        text = "Additional Details",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = VaultTheme.textSecondary
+                    )
+                    item.detailsString.lines().filter { it.isNotBlank() }.forEach { line ->
+                        if (line.contains(":")) {
+                            val parts = line.split(":", limit = 2)
+                            DetailRowItem(label = parts[0].trim(), value = parts[1].trim())
+                        } else {
+                            Text(text = line, fontSize = 11.sp, color = VaultTheme.textPrimary)
+                        }
+                    }
+                    Divider(color = VaultTheme.cardBorder)
+                }
+
+                // Remarks
+                if (item.remarks.isNotBlank()) {
+                    Text(
+                        text = "Instructions for Family",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = VaultTheme.textSecondary
+                    )
+                    Text(
+                        text = item.remarks,
+                        fontSize = 12.sp,
+                        color = VaultTheme.textPrimary
+                    )
+                    Divider(color = VaultTheme.cardBorder)
+                }
+
+                // Document Attachment
+                val detailDocBitmap = remember(item.documentPhotoBase64) {
+                    ImageUtils.base64ToBitmap(item.documentPhotoBase64)
+                }
+                var showDetailFullDoc by remember { mutableStateOf(false) }
+
+                if (detailDocBitmap != null || item.documentPhotoBase64.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(TealAccent.copy(alpha = 0.08f))
+                            .border(1.dp, TealAccent.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                            .padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(imageVector = Icons.Default.CameraAlt, contentDescription = null, tint = TealAccent, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Physical Document Photo (Base64)",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TealAccent
+                            )
+                        }
+                        if (detailDocBitmap != null) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(140.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color.Black.copy(alpha = 0.2f))
+                                    .clickable { showDetailFullDoc = true },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    bitmap = detailDocBitmap.asImageBitmap(),
+                                    contentDescription = "Physical Document Photo",
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                Surface(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(4.dp),
+                                    color = Color.Black.copy(alpha = 0.7f),
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        "Tap to enlarge",
+                                        fontSize = 9.sp,
+                                        color = Color.White,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (showDetailFullDoc && detailDocBitmap != null) {
+                        AlertDialog(
+                            onDismissRequest = { showDetailFullDoc = false },
+                            containerColor = VaultTheme.dialogBg,
+                            title = {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Physical Document Photo", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary)
+                                    IconButton(onClick = { showDetailFullDoc = false }) {
+                                        Icon(Icons.Default.Close, contentDescription = "Close", tint = VaultTheme.textSecondary)
+                                    }
+                                }
+                            },
+                            text = {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 200.dp, max = 380.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color.Black),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Image(
+                                        bitmap = detailDocBitmap.asImageBitmap(),
+                                        contentDescription = "Physical Document Photo Full",
+                                        contentScale = ContentScale.Fit,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                            },
+                            confirmButton = {
+                                Button(
+                                    onClick = { showDetailFullDoc = false },
+                                    colors = ButtonDefaults.buttonColors(containerColor = TealAccent)
+                                ) {
+                                    Text("Done", color = Color.White)
+                                }
+                            }
+                        )
+                    }
+                } else if (item.attachmentUri.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(TealAccent.copy(alpha = 0.1f))
+                            .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(imageVector = Icons.Default.Attachment, contentDescription = null, tint = TealAccent, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Document photo attached to this record",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = VaultTheme.textPrimary
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onEdit,
+                colors = ButtonDefaults.buttonColors(containerColor = TealAccent),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.testTag("vault_details_edit")
+            ) {
+                Icon(imageVector = Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Edit Record", fontWeight = FontWeight.Bold, color = Color.White)
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDelete,
+                modifier = Modifier.testTag("vault_details_delete")
+            ) {
+                Text("Delete", color = RedAlert)
             }
         }
+    )
+}
+
+@Composable
+fun DetailRowItem(label: String, value: String) {
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+        Text(text = label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = VaultTheme.textSecondary)
+        Text(text = value, fontSize = 12.sp, color = VaultTheme.textPrimary)
     }
 }
 
@@ -2296,10 +2974,10 @@ fun ContactsScreen(
                 onClick = { selectedSegmentIndex = 0 },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (selectedSegmentIndex == 0) SlatePrimary else Color.White,
-                    contentColor = if (selectedSegmentIndex == 0) Color.White else SlatePrimary
+                    containerColor = if (selectedSegmentIndex == 0) TealAccent else VaultTheme.cardBg,
+                    contentColor = if (selectedSegmentIndex == 0) Color.White else VaultTheme.textPrimary
                 ),
-                border = BorderStroke(1.dp, SlateBorder),
+                border = BorderStroke(1.dp, if (selectedSegmentIndex == 0) TealAccent else VaultTheme.cardBorder),
                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
             ) {
                 Text("Family & Heirs", fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -2308,10 +2986,10 @@ fun ContactsScreen(
                 onClick = { selectedSegmentIndex = 1 },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (selectedSegmentIndex == 1) SlatePrimary else Color.White,
-                    contentColor = if (selectedSegmentIndex == 1) Color.White else SlatePrimary
+                    containerColor = if (selectedSegmentIndex == 1) TealAccent else VaultTheme.cardBg,
+                    contentColor = if (selectedSegmentIndex == 1) Color.White else VaultTheme.textPrimary
                 ),
-                border = BorderStroke(1.dp, SlateBorder),
+                border = BorderStroke(1.dp, if (selectedSegmentIndex == 1) TealAccent else VaultTheme.cardBorder),
                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
             ) {
                 Text("Trusted Advisors", fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -2320,10 +2998,10 @@ fun ContactsScreen(
                 onClick = { selectedSegmentIndex = 2 },
                 modifier = Modifier.weight(1.5f),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (selectedSegmentIndex == 2) TealAccent else Color.White,
-                    contentColor = if (selectedSegmentIndex == 2) Color.White else SlatePrimary
+                    containerColor = if (selectedSegmentIndex == 2) TealAccent else VaultTheme.cardBg,
+                    contentColor = if (selectedSegmentIndex == 2) Color.White else VaultTheme.textPrimary
                 ),
-                border = BorderStroke(1.dp, SlateBorder),
+                border = BorderStroke(1.dp, if (selectedSegmentIndex == 2) TealAccent else VaultTheme.cardBorder),
                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
             ) {
                 Text("🔒 Secure Local", fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -2335,7 +3013,7 @@ fun ContactsScreen(
             Scaffold(
                 containerColor = Color.Transparent,
                 floatingActionButton = {
-                    FloatingActionButton(onClick = onAddDependent, containerColor = SlatePrimary, contentColor = Color.White) {
+                    FloatingActionButton(onClick = onAddDependent, containerColor = TealAccent, contentColor = Color.White) {
                         Icon(imageVector = Icons.Default.Add, contentDescription = "Add heir")
                     }
                 }
@@ -2345,21 +3023,21 @@ fun ContactsScreen(
                         text = "FAMILY DEPENDENTS & HEIRS",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = SlatePrimary,
+                        color = VaultTheme.textPrimary,
                         letterSpacing = 1.sp,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
 
                     if (dependents.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("No family coordinates stored. Add your Spouse/Child to prepare handshakes.")
+                            Text("No family coordinates stored. Add your Spouse/Child to prepare handshakes.", color = VaultTheme.textSecondary)
                         }
                     } else {
                         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             items(dependents) { dep ->
                                 Card(
-                                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                                    border = BorderStroke(1.dp, SlateBorder),
+                                    colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+                                    border = BorderStroke(1.dp, VaultTheme.cardBorder),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(modifier = Modifier.padding(14.dp)) {
@@ -2372,8 +3050,8 @@ fun ContactsScreen(
                                                 Icon(imageVector = Icons.Default.FamilyRestroom, contentDescription = "Dependent", tint = TealAccent)
                                                 Spacer(modifier = Modifier.width(10.dp))
                                                 Column {
-                                                    Text(text = dep.fullName, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = SlatePrimary)
-                                                    Text(text = "Relation: ${dep.relation} • DOB: ${dep.dob}", fontSize = 11.sp, color = Color.Gray)
+                                                    Text(text = dep.fullName, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = VaultTheme.textPrimary)
+                                                    Text(text = "Relation: ${dep.relation} • DOB: ${dep.dob}", fontSize = 11.sp, color = VaultTheme.textSecondary)
                                                 }
                                             }
                                             IconButton(onClick = { onEditDependent(dep) }) {
@@ -2382,16 +3060,16 @@ fun ContactsScreen(
                                         }
                                         Spacer(modifier = Modifier.height(10.dp))
                                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            Box(modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(SlateLightBg).padding(6.dp)) {
-                                                Text(text = "🩸 Blood Group: " + dep.bloodGroup, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                            Box(modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(if (VaultTheme.isDark) Color(0xFF1E293B) else SlateLightBg).padding(6.dp)) {
+                                                Text(text = "🩸 Blood Group: " + dep.bloodGroup, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary)
                                             }
-                                            Box(modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(SlateLightBg).padding(6.dp)) {
-                                                Text(text = "📞 Mobile: " + dep.mobile, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                            Box(modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(if (VaultTheme.isDark) Color(0xFF1E293B) else SlateLightBg).padding(6.dp)) {
+                                                Text(text = "📞 Mobile: " + dep.mobile, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary)
                                             }
                                         }
                                         if (dep.notes.isNotEmpty()) {
                                             Spacer(modifier = Modifier.height(8.dp))
-                                            Text(text = "Instructions: ${dep.notes}", fontSize = 11.sp, color = Color.DarkGray)
+                                            Text(text = "Instructions: ${dep.notes}", fontSize = 11.sp, color = VaultTheme.textSecondary)
                                         }
                                     }
                                 }
@@ -2405,7 +3083,7 @@ fun ContactsScreen(
             Scaffold(
                 containerColor = Color.Transparent,
                 floatingActionButton = {
-                    FloatingActionButton(onClick = onAddContact, containerColor = SlatePrimary, contentColor = Color.White) {
+                    FloatingActionButton(onClick = onAddContact, containerColor = TealAccent, contentColor = Color.White) {
                         Icon(imageVector = Icons.Default.Add, contentDescription = "Add Advisor")
                     }
                 }
@@ -2415,21 +3093,21 @@ fun ContactsScreen(
                         text = "TRUSTED EMERGENCY CONTACTS & ADVISORS",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = SlatePrimary,
+                        color = VaultTheme.textPrimary,
                         letterSpacing = 1.sp,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
 
                     if (contacts.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("No external coordinates available. Add your Family CA / Doctor / Lawyer.")
+                            Text("No external coordinates available. Add your Family CA / Doctor / Lawyer.", color = VaultTheme.textSecondary)
                         }
                     } else {
                         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             items(contacts) { con ->
                                 Card(
-                                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                                    border = BorderStroke(1.dp, SlateBorder),
+                                    colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+                                    border = BorderStroke(1.dp, VaultTheme.cardBorder),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(modifier = Modifier.padding(14.dp)) {
@@ -2450,8 +3128,8 @@ fun ContactsScreen(
                                                 }
                                                 Spacer(modifier = Modifier.width(10.dp))
                                                 Column {
-                                                    Text(text = con.contactName, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = SlatePrimary)
-                                                    Text(text = "Role: ${con.category} • Priority: ${con.priority}", fontSize = 11.sp, color = Color.Gray)
+                                                    Text(text = con.contactName, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = VaultTheme.textPrimary)
+                                                    Text(text = "Role: ${con.category} • Priority: ${con.priority}", fontSize = 11.sp, color = VaultTheme.textSecondary)
                                                 }
                                             }
                                             IconButton(onClick = { onEditContact(con) }) {
@@ -2460,16 +3138,16 @@ fun ContactsScreen(
                                         }
                                         Spacer(modifier = Modifier.height(10.dp))
                                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            Box(modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(SlateLightBg).padding(6.dp)) {
-                                                Text(text = "📞 Phone: " + con.phone, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                            Box(modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(if (VaultTheme.isDark) Color(0xFF1E293B) else SlateLightBg).padding(6.dp)) {
+                                                Text(text = "📞 Phone: " + con.phone, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary)
                                             }
-                                            Box(modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(SlateLightBg).padding(6.dp)) {
-                                                Text(text = "✉ Email: " + con.email, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                            Box(modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(if (VaultTheme.isDark) Color(0xFF1E293B) else SlateLightBg).padding(6.dp)) {
+                                                Text(text = "✉ Email: " + con.email, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary)
                                             }
                                         }
                                         if (con.remarks.isNotEmpty()) {
                                             Spacer(modifier = Modifier.height(8.dp))
-                                            Text(text = "Directions: ${con.remarks}", fontSize = 11.sp, color = Color.DarkGray)
+                                            Text(text = "Directions: ${con.remarks}", fontSize = 11.sp, color = VaultTheme.textSecondary)
                                         }
                                     }
                                 }
@@ -2522,14 +3200,14 @@ fun ContactsScreen(
                         text = "ENCRYPTED LOCAL STORAGE COORDINATES",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = SlatePrimary,
+                        color = VaultTheme.textPrimary,
                         letterSpacing = 1.sp,
                         modifier = Modifier.padding(bottom = 4.dp)
                     )
                     Text(
                         text = "Every contact detail is ciphered via AES-GCM (SubtleCrypto Native Counterpart), detached from sqlite database layers in sandboxed preferences.",
                         fontSize = 11.sp,
-                        color = Color.Gray,
+                        color = VaultTheme.textSecondary,
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
 
@@ -2542,7 +3220,7 @@ fun ContactsScreen(
                         ) {
                             Text(
                                 "No secured local coordinates yet. Touch the '+' button to fill up the emergency form.",
-                                color = Color.DarkGray,
+                                color = VaultTheme.textSecondary,
                                 fontSize = 13.sp,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                 modifier = Modifier.padding(24.dp)
@@ -2552,8 +3230,8 @@ fun ContactsScreen(
                         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             items(localSecureContacts) { item ->
                                 Card(
-                                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                                    border = BorderStroke(1.dp, SlateBorder),
+                                    colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+                                    border = BorderStroke(1.dp, VaultTheme.cardBorder),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(modifier = Modifier.padding(14.dp)) {
@@ -2574,8 +3252,8 @@ fun ContactsScreen(
                                                 }
                                                 Spacer(modifier = Modifier.width(10.dp))
                                                 Column {
-                                                    Text(text = item.name, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = SlatePrimary)
-                                                    Text(text = "Relation: ${item.relationship}", fontSize = 11.sp, color = Color.Gray)
+                                                    Text(text = item.name, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = VaultTheme.textPrimary)
+                                                    Text(text = "Relation: ${item.relationship}", fontSize = 11.sp, color = VaultTheme.textSecondary)
                                                 }
                                             }
                                             IconButton(onClick = { onEditLocalSecure(item) }) {
@@ -2584,18 +3262,18 @@ fun ContactsScreen(
                                         }
                                         Spacer(modifier = Modifier.height(10.dp))
                                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            Box(modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(SlateLightBg).padding(6.dp)) {
-                                                Text(text = "📞 Phone: " + item.phone, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                            Box(modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(if (VaultTheme.isDark) Color(0xFF1E293B) else SlateLightBg).padding(6.dp)) {
+                                                Text(text = "📞 Phone: " + item.phone, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary)
                                             }
                                             if (item.altPhone.isNotEmpty()) {
-                                                Box(modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(SlateLightBg).padding(6.dp)) {
-                                                    Text(text = "📞 Alt: " + item.altPhone, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                Box(modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(if (VaultTheme.isDark) Color(0xFF1E293B) else SlateLightBg).padding(6.dp)) {
+                                                    Text(text = "📞 Alt: " + item.altPhone, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary)
                                                 }
                                             }
                                         }
                                         if (item.notes.isNotEmpty()) {
                                             Spacer(modifier = Modifier.height(8.dp))
-                                            Text(text = "Security Directives: ${item.notes}", fontSize = 11.sp, color = Color.DarkGray)
+                                            Text(text = "Security Directives: ${item.notes}", fontSize = 11.sp, color = VaultTheme.textSecondary)
                                         }
                                     }
                                 }
@@ -2609,6 +3287,7 @@ fun ContactsScreen(
 }
 
 // ==================== CHECKLIST & CLAIMS SCREEN ====================
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChecklistScreen(
     model: VaultViewModel,
@@ -2618,6 +3297,8 @@ fun ChecklistScreen(
     onEditClaim: (ClaimRecord) -> Unit
 ) {
     var activeSubTab by remember { mutableStateOf(0) } // 0: Handover Steps, 1: Claims Tracker
+    var selectedTaskIdForDetails by remember { mutableStateOf<Int?>(null) }
+    val currentDetailTask = checklists.find { it.id == selectedTaskIdForDetails }
 
     Column(
         modifier = Modifier
@@ -2711,40 +3392,142 @@ fun ChecklistScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
-                            Text(
-                                text = phase.uppercase(),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = CreamGold
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = phase.uppercase(),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = CreamGold
+                                )
+                                val completedCount = phaseTasks.count { it.completed }
+                                Text(
+                                    text = "$completedCount/${phaseTasks.size} completed",
+                                    fontSize = 10.sp,
+                                    color = Color.Gray,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                             Divider(color = SlateBorder, modifier = Modifier.padding(vertical = 8.dp))
 
-                            phaseTasks.forEach { task ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Checkbox(
-                                        checked = task.completed,
-                                        onCheckedChange = { model.toggleChecklistTask(task) },
-                                        colors = CheckboxDefaults.colors(checkedColor = TealAccent)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = task.taskName,
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (task.completed) Color.Gray else SlatePrimary,
-                                            style = if (task.completed) MaterialTheme.typography.bodyMedium.copy(color = Color.LightGray) else MaterialTheme.typography.bodyMedium
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                phaseTasks.forEach { task ->
+                                    val taskStatus = when {
+                                        task.completed -> "Completed"
+                                        task.status.isNotBlank() -> task.status
+                                        else -> "Pending"
+                                    }
+                                    val (badgeBg, badgeText, badgeIcon) = when (taskStatus) {
+                                        "Completed" -> Triple(
+                                            Color(0xFFDCFCE7),
+                                            Color(0xFF15803D),
+                                            Icons.Default.CheckCircle
                                         )
-                                        Text(
-                                            text = task.instructions,
-                                            fontSize = 11.sp,
-                                            color = if (task.completed) Color.LightGray else Color.DarkGray
+                                        "In progress", "In Progress" -> Triple(
+                                            Color(0xFFFEF3C7),
+                                            Color(0xFFB45309),
+                                            Icons.Default.Timelapse
                                         )
+                                        else -> Triple(
+                                            Color(0xFFF1F5F9),
+                                            Color(0xFF475569),
+                                            Icons.Default.Schedule
+                                        )
+                                    }
+
+                                    Card(
+                                        colors = CardDefaults.cardColors(containerColor = if (task.completed) Color(0xFFF8FAFC) else Color.White),
+                                        border = BorderStroke(1.dp, if (task.completed) Color(0xFFE2E8F0) else SlateBorder.copy(alpha = 0.8f)),
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { selectedTaskIdForDetails = task.id }
+                                            .testTag("checklist_task_${task.id}")
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Checkbox(
+                                                checked = task.completed,
+                                                onCheckedChange = { model.toggleChecklistTask(task) },
+                                                colors = CheckboxDefaults.colors(checkedColor = TealAccent)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        text = task.taskName,
+                                                        fontSize = 13.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = if (task.completed) Color.Gray else SlatePrimary,
+                                                        modifier = Modifier.weight(1f, fill = false)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Surface(
+                                                        color = badgeBg,
+                                                        shape = RoundedCornerShape(12.dp),
+                                                        border = BorderStroke(0.5.dp, badgeText.copy(alpha = 0.25f))
+                                                    ) {
+                                                        Row(
+                                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = badgeIcon,
+                                                                contentDescription = null,
+                                                                tint = badgeText,
+                                                                modifier = Modifier.size(10.dp)
+                                                            )
+                                                            Spacer(modifier = Modifier.width(3.dp))
+                                                            Text(
+                                                                text = taskStatus,
+                                                                fontSize = 10.sp,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = badgeText
+                                                            )
+                                                        }
+                                                    }
+                                                }
+
+                                                Spacer(modifier = Modifier.height(3.dp))
+                                                Text(
+                                                    text = task.instructions,
+                                                    fontSize = 11.sp,
+                                                    color = if (task.completed) Color.LightGray else Color.DarkGray,
+                                                    maxLines = 2,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                ) {
+                                                    Text(
+                                                        text = if (model.isHindiMode) "विवरण, संपर्क व चरण देखें" else "View details, contacts & steps",
+                                                        fontSize = 10.sp,
+                                                        color = TealAccent,
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                    Icon(
+                                                        imageVector = Icons.Default.ChevronRight,
+                                                        contentDescription = null,
+                                                        tint = TealAccent,
+                                                        modifier = Modifier.size(12.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -2845,6 +3628,397 @@ fun ChecklistScreen(
                 }
             }
         }
+    }
+
+    if (currentDetailTask != null) {
+        ModalBottomSheet(
+            onDismissRequest = { selectedTaskIdForDetails = null },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = VaultTheme.dialogBg,
+            dragHandle = { BottomSheetDefaults.DragHandle(color = VaultTheme.cardBorder) },
+            modifier = Modifier.fillMaxWidth().testTag("checklist_details_bottom_sheet")
+        ) {
+            ChecklistTaskDetailBottomSheetContent(
+                task = currentDetailTask,
+                isHindi = model.isHindiMode,
+                onStatusChange = { newStatus ->
+                    model.updateChecklistTaskStatus(currentDetailTask, newStatus)
+                },
+                onClose = { selectedTaskIdForDetails = null }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ChecklistTaskDetailBottomSheetContent(
+    task: EmergencyActionItem,
+    isHindi: Boolean,
+    onStatusChange: (String) -> Unit,
+    onClose: () -> Unit
+) {
+    val context = LocalContext.current
+    var statusExpanded by remember { mutableStateOf(false) }
+    val currentStatus = when {
+        task.completed -> "Completed"
+        task.status.isNotBlank() -> task.status
+        else -> "Pending"
+    }
+    val statusOptions = listOf("Pending", "In progress", "Completed")
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 20.dp, vertical = 8.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        // Top row: Phase Badge & Close Button
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                color = CreamGold.copy(alpha = 0.15f),
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, CreamGold.copy(alpha = 0.4f))
+            ) {
+                Text(
+                    text = task.phase.uppercase(),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = CreamGold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+
+            IconButton(onClick = onClose) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Close Bottom Sheet",
+                    tint = VaultTheme.textSecondary
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Title
+        Text(
+            text = task.taskName,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Black,
+            color = VaultTheme.textPrimary
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // General instructions
+        Text(
+            text = task.instructions,
+            fontSize = 12.sp,
+            color = VaultTheme.textSecondary,
+            lineHeight = 16.sp
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // STATUS SECTION WITH DROPDOWN
+        Text(
+            text = if (isHindi) "कार्य की स्थिति (Status Dropdown)" else "TASK STATUS",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = VaultTheme.textSecondary,
+            letterSpacing = 1.sp
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+
+        ExposedDropdownMenuBox(
+            expanded = statusExpanded,
+            onExpandedChange = { statusExpanded = !statusExpanded },
+            modifier = Modifier.fillMaxWidth().testTag("checklist_status_dropdown")
+        ) {
+            val statusColor = when (currentStatus) {
+                "Completed" -> Color(0xFF15803D)
+                "In progress", "In Progress" -> Color(0xFFB45309)
+                else -> Color(0xFF475569)
+            }
+
+            OutlinedTextField(
+                value = currentStatus,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text(if (isHindi) "स्थिति चुनें" else "Select Status") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = statusExpanded) },
+                leadingIcon = {
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .clip(CircleShape)
+                            .background(statusColor)
+                    )
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = TealAccent,
+                    unfocusedBorderColor = VaultTheme.cardBorder,
+                    focusedTextColor = VaultTheme.textPrimary,
+                    unfocusedTextColor = VaultTheme.textPrimary,
+                    focusedContainerColor = VaultTheme.cardBg,
+                    unfocusedContainerColor = VaultTheme.cardBg
+                ),
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+            )
+
+            ExposedDropdownMenu(
+                expanded = statusExpanded,
+                onDismissRequest = { statusExpanded = false },
+                modifier = Modifier.background(VaultTheme.dialogBg)
+            ) {
+                statusOptions.forEach { opt ->
+                    val optColor = when (opt) {
+                        "Completed" -> Color(0xFF15803D)
+                        "In progress" -> Color(0xFFB45309)
+                        else -> Color(0xFF475569)
+                    }
+                    val isSelected = opt.equals(currentStatus, ignoreCase = true)
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(10.dp)
+                                        .clip(CircleShape)
+                                        .background(optColor)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = opt,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) TealAccent else VaultTheme.textPrimary
+                                )
+                            }
+                        },
+                        onClick = {
+                            statusExpanded = false
+                            onStatusChange(opt)
+                        }
+                    )
+                }
+            }
+        }
+
+        // Quick status pills row for easy 1-tap switching
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            statusOptions.forEach { opt ->
+                val isSelected = opt.equals(currentStatus, ignoreCase = true)
+                val chipColor = when (opt) {
+                    "Completed" -> Color(0xFF15803D)
+                    "In progress" -> Color(0xFFB45309)
+                    else -> Color(0xFF475569)
+                }
+                Surface(
+                    color = if (isSelected) chipColor.copy(alpha = 0.15f) else VaultTheme.cardBg,
+                    border = BorderStroke(
+                        width = if (isSelected) 1.5.dp else 1.dp,
+                        color = if (isSelected) chipColor else VaultTheme.cardBorder
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onStatusChange(opt) }
+                ) {
+                    Text(
+                        text = opt,
+                        fontSize = 11.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isSelected) chipColor else VaultTheme.textSecondary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 1. WHO TO CONTACT
+        Card(
+            colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+            border = BorderStroke(1.dp, VaultTheme.cardBorder),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(TealAccent.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Phone,
+                                contentDescription = null,
+                                tint = TealAccent,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = if (isHindi) "किसे संपर्क करें (Who to Contact)" else "Who to Contact",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = VaultTheme.textPrimary
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val contactText = task.whoToContact.ifBlank {
+                    if (isHindi) "• पारिवारिक डॉक्टर व आपातकालीन संपर्क\n• संबंधित बैंक या बीमा शाखा प्रबंधक"
+                    else "• Primary attending physician & emergency contacts\n• Concerned institution nodal service desk"
+                }
+
+                Text(
+                    text = contactText,
+                    fontSize = 12.sp,
+                    color = VaultTheme.textPrimary,
+                    lineHeight = 18.sp
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 2. DOCUMENTS TO PREPARE
+        Card(
+            colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+            border = BorderStroke(1.dp, VaultTheme.cardBorder),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(CreamGold.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Description,
+                            contentDescription = null,
+                            tint = CreamGold,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = if (isHindi) "आवश्यक दस्तावेज़ (Documents to Prepare)" else "Documents to Prepare",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = VaultTheme.textPrimary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val docsText = task.documentsToPrepare.ifBlank {
+                    if (isHindi) "• मृत्यु प्रमाण पत्र की प्रमाणित प्रतियां (15-20 प्रतियां)\n• आधार कार्ड और पैन कार्ड (मृतक व नॉमिनी)\n• मूल पॉलिसी / बैंक पासबुक या कैंसल्ड चेक"
+                    else "• Certified copies of Death Certificate\n• Aadhaar & PAN KYC of deceased and nominee\n• Original document / Bank passbook / cancelled cheque"
+                }
+
+                Text(
+                    text = docsText,
+                    fontSize = 12.sp,
+                    color = VaultTheme.textPrimary,
+                    lineHeight = 18.sp
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 3. STEP-BY-STEP GUIDANCE
+        Card(
+            colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+            border = BorderStroke(1.dp, VaultTheme.cardBorder),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF38BDF8).copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FormatListNumbered,
+                            contentDescription = null,
+                            tint = Color(0xFF0284C7),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = if (isHindi) "चरणबद्ध मार्गदर्शन (Step-by-Step Guidance)" else "Step-by-Step Guidance",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = VaultTheme.textPrimary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val guidanceText = task.stepByStepGuidance.ifBlank {
+                    if (isHindi) "1. सभी आवश्यक दस्तावेजों की मूल व प्रमाणित प्रतियां एकत्रित करें।\n2. अधिकृत संपर्क सूत्र से समय लेकर आवेदन जमा करें।\n3. रसीद व ट्रैकिंग संदर्भ संख्या सुरक्षित दर्ज करें।"
+                    else "1. Gather and verify all certified identification and authorization documents.\n2. Submit official claim / transition packet to designated officer.\n3. Retain acknowledgment slip and record tracking reference in Vault."
+                }
+
+                Text(
+                    text = guidanceText,
+                    fontSize = 12.sp,
+                    color = VaultTheme.textPrimary,
+                    lineHeight = 18.sp
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Button(
+            onClick = onClose,
+            colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary),
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = if (isHindi) "पूर्ण (बंद करें)" else "Done",
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -3282,6 +4456,67 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = if (model.isHindiMode) "सिस्टम स्वास्थ्य और सुरक्षा मॉनिटर खोलें" else "Open Observability & Health Monitor",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+
+                Divider(color = SlateBorder.copy(alpha = 0.5f))
+
+                // Enterprise Server Persistence & User Audit Section
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(imageVector = Icons.Default.AdminPanelSettings, contentDescription = "Admin Audit", tint = TealAccent, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (model.isHindiMode) "सर्वर पंजीकरण ऑडिट एवं क्लस्टर स्केलिंग" else "Server Registration Audit & Cluster Scaling",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = SlatePrimary
+                            )
+                        }
+                        Surface(
+                            color = Color(0xFF10B981).copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = "ONLINE • 3 NODES",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF059669),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = if (model.isHindiMode)
+                            "सभी पंजीकृत उपयोगकर्ताओं, साल्टेड SHA-256 क्रेडेंशियल्स, JWT टोकन, लोड बैलेंसर (ELB) और अतुल्यकालिक अनुरोध कतार का लाइव ऑडिट देखें।"
+                        else
+                            "Track, query, and audit total registered user accounts on the platform in real time. Inspect salted cryptographic credentials, signed JWT sessions, and high-concurrency request scaling queues.",
+                        fontSize = 10.sp,
+                        color = Color.Gray,
+                        lineHeight = 13.sp
+                    )
+
+                    Button(
+                        onClick = { model.openAdminAuditDashboard() },
+                        colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth().testTag("btn_settings_admin_audit"),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.AdminPanelSettings, contentDescription = "Admin Dashboard", tint = TealAccent, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (model.isHindiMode) "प्रशासक पंजीकरण ऑडिट डैशबोर्ड खोलें" else "Open Admin Registration Audit & Query Dashboard",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -4674,12 +5909,62 @@ fun AddEditVaultItemDialog(
     var remarks by remember { mutableStateOf(initialItem?.remarks ?: "") }
     var detailsString by remember { mutableStateOf(initialItem?.detailsString ?: "") }
     var attachmentUri by remember { mutableStateOf(initialItem?.attachmentUri ?: "") }
+    var documentPhotoBase64 by remember { mutableStateOf(initialItem?.documentPhotoBase64 ?: "") }
+    var showFullDocumentPhoto by remember { mutableStateOf(false) }
+    val documentBitmap = remember(documentPhotoBase64) {
+        ImageUtils.base64ToBitmap(documentPhotoBase64)
+    }
+
+    val context = LocalContext.current
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { capturedBitmap ->
+        if (capturedBitmap != null) {
+            val base64 = ImageUtils.bitmapToBase64(capturedBitmap)
+            if (base64.isNotEmpty()) {
+                documentPhotoBase64 = base64
+                Toast.makeText(context, "Physical document photo captured & stored as Base64!", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            cameraLauncher.launch(null)
+        } else {
+            Toast.makeText(context, "Camera permission is required to photograph physical documents.", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    val launchCameraCapture = {
+        val hasPermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
+        if (hasPermission) {
+            cameraLauncher.launch(null)
+        } else {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri != null) {
             attachmentUri = uri.toString()
+            try {
+                context.contentResolver.openInputStream(uri)?.use { stream ->
+                    val bmp = BitmapFactory.decodeStream(stream)
+                    if (bmp != null) {
+                        documentPhotoBase64 = ImageUtils.bitmapToBase64(bmp)
+                    }
+                }
+            } catch (e: Exception) {
+                // Fallback retains attachmentUri
+            }
         }
     }
 
@@ -4687,12 +5972,13 @@ fun AddEditVaultItemDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = VaultTheme.dialogBg,
         title = {
             Text(
                 if (initialItem == null) "Add secure continuity record" else "Modify registered folder item",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = SlatePrimary
+                color = VaultTheme.textPrimary
             )
         },
         text = {
@@ -4703,7 +5989,7 @@ fun AddEditVaultItemDialog(
                     .verticalScroll(scrollState),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text("Category folder type", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                Text("Category folder type", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textSecondary)
                 Row(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -4712,101 +5998,225 @@ fun AddEditVaultItemDialog(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(if (category == cat) SlatePrimary else SlateLightBg)
+                                .background(if (category == cat) TealAccent else VaultTheme.cardBg)
+                                .border(1.dp, if (category == cat) TealAccent else VaultTheme.cardBorder, RoundedCornerShape(6.dp))
                                 .clickable { category = cat }
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
-                            Text(text = cat, fontSize = 10.sp, color = if (category == cat) Color.White else Color.Gray)
+                            Text(text = cat, fontSize = 10.sp, color = if (category == cat) Color.White else VaultTheme.textSecondary)
                         }
                     }
                 }
 
-                Text("Asset Name / Heading (e.g. HDFC Salary Account)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                Text("Asset Name / Heading (e.g. HDFC Salary Account)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textSecondary)
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth().testTag("vault_form_title"),
                     value = title,
                     onValueChange = { title = it },
-                    placeholder = { Text("HDFC Primary Savings") }
+                    placeholder = { Text("HDFC Primary Savings", color = VaultTheme.textSecondary) },
+                    colors = vaultTextFieldColors()
                 )
 
-                Text("Holder / Owner Name", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                Text("Holder / Owner Name", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textSecondary)
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth().testTag("vault_form_owner"),
                     value = ownerName,
-                    onValueChange = { ownerName = it }
+                    onValueChange = { ownerName = it },
+                    colors = vaultTextFieldColors()
                 )
 
-                Text("Bank / Insurer / Platform (e.g. SBI, LIC, Zerodha)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                Text("Bank / Insurer / Platform (e.g. SBI, LIC, Zerodha)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textSecondary)
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = institution,
-                    onValueChange = { institution = it }
+                    onValueChange = { institution = it },
+                    colors = vaultTextFieldColors()
                 )
 
-                Text("Secure Number (Acc Num / Policy ID / Folio)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                Text("Secure Number (Acc Num / Policy ID / Folio)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textSecondary)
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = numberOrId,
-                    onValueChange = { numberOrId = it }
+                    onValueChange = { numberOrId = it },
+                    colors = vaultTextFieldColors()
                 )
 
-                Divider(color = SlateBorder, modifier = Modifier.padding(vertical = 4.dp))
+                Divider(color = VaultTheme.cardBorder, modifier = Modifier.padding(vertical = 4.dp))
 
-                Text("Nominee Details (Check your portal link!)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = SlatePrimary)
+                Text("Nominee Details (Check your portal link!)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TealAccent)
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = nomineeName,
                     onValueChange = { nomineeName = it },
-                    placeholder = { Text("Nominee full name") }
+                    placeholder = { Text("Nominee full name", color = VaultTheme.textSecondary) },
+                    colors = vaultTextFieldColors()
                 )
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = nomineeRelation,
                     onValueChange = { nomineeRelation = it },
-                    placeholder = { Text("Spouse, Daughter, Parent") }
+                    placeholder = { Text("Spouse, Daughter, Parent", color = VaultTheme.textSecondary) },
+                    colors = vaultTextFieldColors()
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = nomineeVerified, onCheckedChange = { nomineeVerified = it }, colors = CheckboxDefaults.colors(checkedColor = TealAccent))
-                    Text("Verified with active registry details", fontSize = 11.sp)
+                    Text("Verified with active registry details", fontSize = 11.sp, color = VaultTheme.textPrimary)
                 }
 
-                Divider(color = SlateBorder, modifier = Modifier.padding(vertical = 4.dp))
+                Divider(color = VaultTheme.cardBorder, modifier = Modifier.padding(vertical = 4.dp))
 
-                Text("Physical File Coordinates (Cabinet cabinet drawer/box)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                Text("Physical File Coordinates (Cabinet drawer/box)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textSecondary)
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = physicalLocation,
                     onValueChange = { physicalLocation = it },
-                    placeholder = { Text("e.g. Almirah Cabinet A, File Block 1") }
+                    placeholder = { Text("e.g. Almirah Cabinet A, File Block 1", color = VaultTheme.textSecondary) },
+                    colors = vaultTextFieldColors()
                 )
 
-                Text("Digital Document Location (Drive / Box Link)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                Text("Digital Document Location (Drive / Box Link)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textSecondary)
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = digitalLocation,
                     onValueChange = { digitalLocation = it },
-                    placeholder = { Text("e.g. GDrive path link") }
+                    placeholder = { Text("e.g. GDrive path link", color = VaultTheme.textSecondary) },
+                    colors = vaultTextFieldColors()
                 )
 
-                Text("Custom Fields (Key:Value, separate by lines)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                Text("Custom Fields (Key:Value, separate by lines)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textSecondary)
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = detailsString,
                     onValueChange = { detailsString = it },
-                    placeholder = { Text("IFSC: HDFC0000102\nType: Savings Account\nPremium: 10000\nDue Date: 2026-09-12") }
+                    placeholder = { Text("IFSC: HDFC0000102\nType: Savings Account\nPremium: 10000\nDue Date: 2026-09-12", color = VaultTheme.textSecondary) },
+                    colors = vaultTextFieldColors()
                 )
 
-                Text("General Instructions For Family", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                Text("General Instructions For Family", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textSecondary)
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = remarks,
-                    onValueChange = { remarks = it }
+                    onValueChange = { remarks = it },
+                    colors = vaultTextFieldColors()
                 )
 
-                Divider(color = SlateBorder, modifier = Modifier.padding(vertical = 4.dp))
+                Divider(color = VaultTheme.cardBorder, modifier = Modifier.padding(vertical = 4.dp))
 
-                Text("Document Attachment / Photo (Aadhaar, PAN, Policy)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = SlatePrimary)
-                if (attachmentUri.isNotEmpty()) {
+                Text("Physical Document / Photo Proof", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TealAccent)
+                if (documentBitmap != null || documentPhotoBase64.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(TealAccent.copy(alpha = 0.08f))
+                            .border(1.dp, TealAccent.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                            .padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                Icon(imageVector = Icons.Default.CameraAlt, contentDescription = "Camera Document", tint = TealAccent, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Column {
+                                    Text(
+                                        text = "Physical Document Captured",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = VaultTheme.textPrimary
+                                    )
+                                    Text(
+                                        text = "Stored locally as Base64 in Asset (${(documentPhotoBase64.length * 3 / 4) / 1024} KB)",
+                                        fontSize = 10.sp,
+                                        color = VaultTheme.textSecondary
+                                    )
+                                }
+                            }
+                            IconButton(
+                                onClick = {
+                                    documentPhotoBase64 = ""
+                                    attachmentUri = ""
+                                },
+                                modifier = Modifier.testTag("remove_document_photo_button")
+                            ) {
+                                Icon(imageVector = Icons.Default.Close, contentDescription = "Remove Document Photo", tint = RedAlert, modifier = Modifier.size(16.dp))
+                            }
+                        }
+
+                        if (documentBitmap != null) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(130.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color.Black.copy(alpha = 0.2f))
+                                    .clickable { showFullDocumentPhoto = true },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    bitmap = documentBitmap.asImageBitmap(),
+                                    contentDescription = "Physical Document Photo Preview",
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                Surface(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(6.dp),
+                                    color = Color.Black.copy(alpha = 0.65f),
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.ZoomIn, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Tap to enlarge", fontSize = 9.sp, color = Color.White)
+                                    }
+                                }
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = launchCameraCapture,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("retake_document_camera_button"),
+                                colors = ButtonDefaults.buttonColors(containerColor = TealAccent),
+                                shape = RoundedCornerShape(6.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Icon(imageVector = Icons.Default.PhotoCamera, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Retake Photo", fontSize = 11.sp, color = Color.White)
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("change_document_gallery_button"),
+                                shape = RoundedCornerShape(6.dp),
+                                border = BorderStroke(1.dp, VaultTheme.cardBorder),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Icon(imageVector = Icons.Default.AddPhotoAlternate, contentDescription = null, tint = VaultTheme.textSecondary, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("From Gallery", fontSize = 11.sp, color = VaultTheme.textSecondary)
+                            }
+                        }
+                    }
+                } else if (attachmentUri.isNotEmpty()) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -4824,18 +6234,14 @@ fun AddEditVaultItemDialog(
                                 text = "Document photo attached",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = SlatePrimary
+                                color = VaultTheme.textPrimary
                             )
                         }
                         Row {
                             TextButton(
-                                onClick = {
-                                    photoPickerLauncher.launch(
-                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                    )
-                                }
+                                onClick = launchCameraCapture
                             ) {
-                                Text("Change", fontSize = 11.sp, color = TealAccent)
+                                Text("Camera", fontSize = 11.sp, color = TealAccent)
                             }
                             IconButton(onClick = { attachmentUri = "" }) {
                                 Icon(imageVector = Icons.Default.Close, contentDescription = "Remove", tint = RedAlert, modifier = Modifier.size(16.dp))
@@ -4843,19 +6249,39 @@ fun AddEditVaultItemDialog(
                         }
                     }
                 } else {
-                    OutlinedButton(
-                        onClick = {
-                            photoPickerLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                            )
-                        },
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, TealAccent)
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.AddPhotoAlternate, contentDescription = "Attach Document", tint = TealAccent, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Attach Photo (Card / Certificate / Policy)", fontSize = 11.sp, color = SlatePrimary, fontWeight = FontWeight.SemiBold)
+                        Button(
+                            onClick = launchCameraCapture,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("capture_document_camera_button"),
+                            colors = ButtonDefaults.buttonColors(containerColor = TealAccent),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.CameraAlt, contentDescription = "Camera", tint = Color.White, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Capture Physical Document (Camera)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                photoPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("pick_document_gallery_button"),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, VaultTheme.cardBorder)
+                        ) {
+                            Icon(imageVector = Icons.Default.AddPhotoAlternate, contentDescription = "Gallery", tint = VaultTheme.textSecondary, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Attach from Photo Gallery", fontSize = 11.sp, color = VaultTheme.textSecondary)
+                        }
                     }
                 }
             }
@@ -4884,21 +6310,67 @@ fun AddEditVaultItemDialog(
                                     remarks = remarks,
                                     detailsString = detailsString,
                                     attachmentUri = attachmentUri,
+                                    documentPhotoBase64 = documentPhotoBase64,
                                     isMasked = true
                                 )
                             )
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary)
+                    colors = ButtonDefaults.buttonColors(containerColor = TealAccent),
+                    modifier = Modifier.testTag("save_vault_item_button")
                 ) {
-                    Text("Secure Record")
+                    Text(if (initialItem == null) "Secure Record" else "Save Changes", color = Color.White)
                 }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel", color = Color.Gray) }
+            TextButton(onClick = onDismiss) { Text("Cancel", color = VaultTheme.textSecondary) }
         }
     )
+
+    if (showFullDocumentPhoto && documentBitmap != null) {
+        AlertDialog(
+            onDismissRequest = { showFullDocumentPhoto = false },
+            containerColor = VaultTheme.dialogBg,
+            title = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Physical Document Photo", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary)
+                    IconButton(onClick = { showFullDocumentPhoto = false }) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = VaultTheme.textSecondary)
+                    }
+                }
+            },
+            text = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 200.dp, max = 380.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color.Black),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        bitmap = documentBitmap.asImageBitmap(),
+                        contentDescription = "Full Document",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showFullDocumentPhoto = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = TealAccent)
+                ) {
+                    Text("Done", color = Color.White)
+                }
+            }
+        )
+    }
 }
 
 @Composable

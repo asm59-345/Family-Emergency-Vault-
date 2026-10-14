@@ -57,6 +57,7 @@ data class VaultItem(
     val remarks: String = "",
     val detailsString: String = "", // Custom payload e.g. IFSC, UPI ID, Expiry Date, MATURITY, Premium due dates, etc.
     val attachmentUri: String = "", // Local URI of attached photo or scanned document
+    val documentPhotoBase64: String = "", // Local Base64 string of captured physical document photo
     val lastUpdated: Long = System.currentTimeMillis()
 )
 
@@ -67,6 +68,10 @@ data class EmergencyActionItem(
     val taskName: String,
     val instructions: String,
     val completed: Boolean = false,
+    val status: String = "Pending", // "Pending", "In progress", "Completed"
+    val whoToContact: String = "",
+    val documentsToPrepare: String = "",
+    val stepByStepGuidance: String = "",
     val updatedBy: String = "",
     val lastUpdated: Long = System.currentTimeMillis()
 )
@@ -118,3 +123,34 @@ data class LocalSecureContact(
     val altPhone: String,
     val notes: String
 )
+
+@Entity(
+    tableName = "server_user_records",
+    indices = [
+        Index(value = ["email"], unique = true),
+        Index(value = ["userId"])
+    ]
+)
+data class ServerUserRecord(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val userId: String, // Unique server UUID e.g. "usr_fev_881249"
+    val email: String, // Unique registered email address
+    val fullName: String,
+    val phone: String,
+    val passwordHash: String, // Salted cryptographic SHA-256 / PBKDF2 hash
+    val passwordSalt: String, // Random cryptographic salt
+    val mpin: String, // 4-digit master transaction MPIN
+    val nomineeName: String,
+    val nomineeRelation: String,
+    val securityQuestion: String,
+    val securityAnswerHash: String,
+    val digitalCertificateId: String,
+    val createdAt: Long = System.currentTimeMillis(),
+    val lastLoginAt: Long = System.currentTimeMillis(),
+    val status: String = "ACTIVE_VERIFIED", // "ACTIVE_VERIFIED", "SUSPENDED", "PENDING_AUDIT"
+    val role: String = "OWNER", // "OWNER", "ADMIN", "SPOUSE", "AUDITOR"
+    val tokenJwt: String = "", // Signed authorization JWT token
+    val deviceFingerprint: String = "",
+    val isBiometricEnrolled: Boolean = false
+)
+

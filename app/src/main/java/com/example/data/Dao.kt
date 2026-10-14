@@ -155,3 +155,37 @@ interface AuditLogDao {
     @Query("DELETE FROM audit_logs WHERE timestamp < :cutoffMillis")
     suspend fun cleanOlderThan(cutoffMillis: Long): Int
 }
+
+@Dao
+interface ServerUserDao {
+    @Query("SELECT * FROM server_user_records ORDER BY createdAt DESC")
+    fun getAllFlow(): Flow<List<ServerUserRecord>>
+
+    @Query("SELECT * FROM server_user_records ORDER BY createdAt DESC")
+    suspend fun getAll(): List<ServerUserRecord>
+
+    @Query("SELECT COUNT(*) FROM server_user_records")
+    fun getCountFlow(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM server_user_records")
+    suspend fun getCount(): Int
+
+    @Query("SELECT * FROM server_user_records WHERE LOWER(email) = LOWER(:email) LIMIT 1")
+    suspend fun getByEmail(email: String): ServerUserRecord?
+
+    @Query("SELECT * FROM server_user_records WHERE userId = :userId LIMIT 1")
+    suspend fun getById(userId: String): ServerUserRecord?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(user: ServerUserRecord): Long
+
+    @Update
+    suspend fun update(user: ServerUserRecord)
+
+    @Delete
+    suspend fun delete(user: ServerUserRecord)
+
+    @Query("DELETE FROM server_user_records")
+    suspend fun deleteAll()
+}
+
