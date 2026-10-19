@@ -722,22 +722,23 @@ fun SignupScreen(model: VaultViewModel) {
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Quick-Demo Bypass
-        Button(
+        // Explicit Demo Mode
+        OutlinedButton(
             onClick = {
-                model.initQuickDemoBypass()
+                model.enableDemoPreviewMode()
             },
-            colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.12f)),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = TealAccent),
+            border = BorderStroke(1.dp, TealAccent.copy(alpha = 0.5f)),
             shape = RoundedCornerShape(8.dp),
-            modifier = Modifier.fillMaxWidth().height(40.dp)
+            modifier = Modifier.fillMaxWidth().height(42.dp)
         ) {
+            Icon(Icons.Default.Visibility, contentDescription = null, tint = TealAccent, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(6.dp))
             Text(
-                text = if (model.isHindiMode) "⚡ त्वरित डेमो: राहुल शर्मा (मालिक) से शुरू करें" else "⚡ Speed Check: Quick-Sign with Rahul (Owner)",
-                color = Color.White,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Normal
+                text = if (model.isHindiMode) "✨ डेमो मोड देखें (केवल नमूना डेटा)" else "✨ Explore Demo Mode (Preview Sample Data)",
+                color = TealAccent,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
             )
         }
 
@@ -798,7 +799,7 @@ fun SignupScreen(model: VaultViewModel) {
 This application stores your emergency records, bank accounts, insurance policies, and critical files strictly within your device's encrypted SQLite sandbox.
 
 2. Cryptographic Security:
-Sensitive records are protected by military-grade 256-bit encryption. Your master MPIN remains in private local storage.
+Sensitive records are protected by local AES-GCM 256-bit encryption. Your master MPIN remains in private local storage.
 
 3. Emergency Nominee Access:
 Your designated family nominee is authorized to request access only in verified life emergencies or after the Dead-Man timer expires.
@@ -907,7 +908,7 @@ fun LoginScreen(model: VaultViewModel) {
             letterSpacing = 1.sp
         )
         Text(
-            text = if (model.isHindiMode) "सुरक्षित ऑफ़लाइन आपातकालीन सुरक्षा वॉलेट" else "Military-grade decentralized backup wallet",
+            text = if (model.isHindiMode) "सुरक्षित ऑफ़लाइन आपातकालीन सुरक्षा वॉलेट" else "Encrypted on-device emergency vault",
             fontSize = 11.sp,
             color = VaultTheme.textSecondary,
             modifier = Modifier.padding(top = 2.dp)

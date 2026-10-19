@@ -43,7 +43,7 @@ enum class VaultFontTheme(
         id = "cyber",
         titleEn = "High-Tech Cyber Vault",
         titleHi = "साइबर डिफेंस वॉल्ट",
-        descriptionEn = "Technical Monospace titles and cryptographic tracking for zero-knowledge vault integrity.",
+        descriptionEn = "Technical Monospace titles and cryptographic tracking for secure vault integrity.",
         descriptionHi = "तकनीकी मोनोस्पेस शैली: एन्क्रिप्टेड सुरक्षा और सुरक्षा प्रोटोकॉल।",
         headingFamily = FontFamily.Monospace,
         bodyFamily = FontFamily.SansSerif,

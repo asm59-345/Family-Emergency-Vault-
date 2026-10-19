@@ -72,7 +72,7 @@ class MainActivity : FragmentActivity() {
                 activity = this,
                 title = if (model.isHindiMode) "बायोमेट्रिक प्रमाणीकरण" else "Biometric Vault Authentication",
                 subtitle = if (model.isHindiMode) "फिंगरप्रिंट या फेस अनलॉक से वॉल्ट खोलें" else "Scan fingerprint or face to decrypt sensitive data",
-                description = if (model.isHindiMode) "आपके वित्तीय व आपातकालीन रिकॉर्ड्स डिवाइस पर एन्क्रिप्टेड हैं।" else "Military-grade on-device cryptographic protection for family assets.",
+                description = if (model.isHindiMode) "आपके वित्तीय व आपातकालीन रिकॉर्ड्स डिवाइस पर एन्क्रिप्टेड हैं।" else "On-device biometric security for family emergency assets.",
                 negativeButtonText = if (model.isHindiMode) "मास्टर पिन का प्रयोग करें" else "Use Master MPIN",
                 onSuccess = {
                     model.unlockViaBiometrics("Fingerprint / Face Unlock")
@@ -483,8 +483,8 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
                         modifier = Modifier.size(56.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = "Ask Gemini AI Assistant",
+                            imageVector = Icons.Default.MenuBook,
+                            contentDescription = "Emergency Continuity Guide",
                             tint = Color.White
                         )
                     }
@@ -569,11 +569,10 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
             // 6. CSV Importer Dialog
             if (showCsvImportDialog) {
                 CsvImportDialog(
-                    onDismiss = { showCsvImportDialog = false },
-                    onImportConfirm = { mapping ->
-                        model.simulateCsvImport(mapping)
+                    model = model,
+                    onDismiss = {
+                        model.clearCsvPreview()
                         showCsvImportDialog = false
-                        Toast.makeText(context, "Spreadsheet imported securely!", Toast.LENGTH_LONG).show()
                     }
                 )
             }
@@ -2766,12 +2765,18 @@ fun VaultItemDetailsDialog(
                 }
 
                 // Document Attachment
-                val detailDocBitmap = remember(item.documentPhotoBase64) {
-                    ImageUtils.base64ToBitmap(item.documentPhotoBase64)
+                val detailDocBitmap = remember(item.documentPhotoBase64, item.attachmentUri) {
+                    if (item.attachmentUri.isNotEmpty()) {
+                        com.example.util.DocumentStorageManager.loadDocumentBitmap(context, item.attachmentUri)
+                    } else if (item.documentPhotoBase64.isNotEmpty()) {
+                        ImageUtils.base64ToBitmap(item.documentPhotoBase64)
+                    } else {
+                        null
+                    }
                 }
                 var showDetailFullDoc by remember { mutableStateOf(false) }
 
-                if (detailDocBitmap != null || item.documentPhotoBase64.isNotEmpty()) {
+                if (detailDocBitmap != null || item.attachmentUri.isNotEmpty() || item.documentPhotoBase64.isNotEmpty()) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -2785,13 +2790,33 @@ fun VaultItemDetailsDialog(
                             Icon(imageVector = Icons.Default.CameraAlt, contentDescription = null, tint = TealAccent, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Physical Document Photo (Base64)",
+                                text = "Document Photo (Private Storage)",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = TealAccent
                             )
                         }
-                        if (detailDocBitmap != null) {
+                        val canViewDocument = model.currentRole == UserRole.OWNER || model.currentRole == UserRole.SPOUSE || model.isEmergencyAccessReleased
+                        if (!canViewDocument) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                color = Color.Black.copy(alpha = 0.25f),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(imageVector = Icons.Default.Lock, contentDescription = null, tint = AmberWarning, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Confidential document preview restricted. Requires Owner/Spouse session or emergency access release.",
+                                        fontSize = 11.sp,
+                                        color = VaultTheme.textSecondary
+                                    )
+                                }
+                            }
+                        } else if (detailDocBitmap != null) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -4034,14 +4059,18 @@ fun SettingsScreen(
     val scrollState = rememberScrollState()
     val context = LocalContext.current
 
-    // Restore Backup Dialog State
+    // Restore & Export Backup Dialog State
     var showRestoreDialog by remember { mutableStateOf(false) }
     var restoreJsonInput by remember { mutableStateOf("") }
+    var restorePassphrase by remember { mutableStateOf("") }
     var restoreStatusMessage by remember { mutableStateOf<String?>(null) }
+    var showExportDialog by remember { mutableStateOf(false) }
+    var exportPassphrase by remember { mutableStateOf("") }
+    var exportAsEncrypted by remember { mutableStateOf(true) }
     var showQrDialog by remember { mutableStateOf(false) }
 
     if (showQrDialog) {
-        val publicApkUrl = "https://ais-pre-bru2epfqu3yybajn2lqh2x-786684627999.asia-southeast1.run.app/app-debug.apk"
+        val publicApkUrl = "https://family-emergency-vault.vercel.app/"
         val qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=8&data=" + android.net.Uri.encode(publicApkUrl)
 
         AlertDialog(
@@ -4051,7 +4080,7 @@ fun SettingsScreen(
                     Icon(imageVector = Icons.Default.PhoneAndroid, contentDescription = null, tint = TealAccent, modifier = Modifier.size(24.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (model.isHindiMode) "ऐप डाउनलोड QR कोड" else "Direct APK Download QR",
+                        text = if (model.isHindiMode) "वेब साथी व ऐप पोर्टल QR" else "Web Companion & App Portal QR",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
                     )
@@ -4065,9 +4094,9 @@ fun SettingsScreen(
                 ) {
                     Text(
                         text = if (model.isHindiMode)
-                            "फोन कैमरा या गूगल लेंस से स्कैन करके सीधे APK डाउनलोड करें:"
+                            "फोन कैमरा या गूगल लेंस से स्कैन करके वेब साथी व ऐप पोर्टल खोलें:"
                         else
-                            "Scan with any Android camera or Google Lens to download the APK directly:",
+                            "Scan with phone camera or Google Lens to open the companion web portal:",
                         fontSize = 12.sp,
                         color = Color.DarkGray,
                         textAlign = TextAlign.Center
@@ -4081,13 +4110,13 @@ fun SettingsScreen(
                     ) {
                         coil.compose.AsyncImage(
                             model = qrUrl,
-                            contentDescription = "Scan to Download APK",
+                            contentDescription = "Scan to Open Web Portal",
                             modifier = Modifier.fillMaxSize()
                         )
                     }
 
                     Text(
-                        text = "FamilyEmergencyVault-v1.0.apk (27 MB)\nPackage: com.aistudio.familyemergencyvault",
+                        text = "Family Emergency Vault Portal\nhttps://family-emergency-vault.vercel.app/",
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
                         color = Color.Gray,
@@ -4101,9 +4130,9 @@ fun SettingsScreen(
                         OutlinedButton(
                             onClick = {
                                 val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                val clip = android.content.ClipData.newPlainText("APK Link", publicApkUrl)
+                                val clip = android.content.ClipData.newPlainText("Portal Link", publicApkUrl)
                                 clipboard.setPrimaryClip(clip)
-                                android.widget.Toast.makeText(context, "Download link copied!", android.widget.Toast.LENGTH_SHORT).show()
+                                android.widget.Toast.makeText(context, "Portal link copied!", android.widget.Toast.LENGTH_SHORT).show()
                             },
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.weight(1f),
@@ -4122,7 +4151,7 @@ fun SettingsScreen(
                             modifier = Modifier.weight(1f),
                             contentPadding = PaddingValues(vertical = 4.dp)
                         ) {
-                            Text("Open APK", fontSize = 11.sp, color = Color.White)
+                            Text("Open Portal", fontSize = 11.sp, color = Color.White)
                         }
                     }
                 }
@@ -4130,6 +4159,110 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(onClick = { showQrDialog = false }) {
                     Text("Close", fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
+    if (showExportDialog) {
+        AlertDialog(
+            onDismissRequest = { showExportDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(imageVector = Icons.Default.Security, contentDescription = null, tint = TealAccent, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (model.isHindiMode) "वॉल्ट बैकअप एक्सपोर्ट" else "Export Vault Backup",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = if (model.isHindiMode)
+                            "गोपनीयता के लिए एन्क्रिप्टेड बैकअप (AES-256-GCM) का उपयोग करें।"
+                        else
+                            "To protect financial privacy, choose encrypted backup with passphrase (AES-256-GCM) or sanitized plaintext.",
+                        fontSize = 12.sp,
+                        color = Color.DarkGray
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = exportAsEncrypted,
+                            onClick = { exportAsEncrypted = true },
+                            label = { Text("AES-256 Encrypted", fontSize = 11.sp) }
+                        )
+                        FilterChip(
+                            selected = !exportAsEncrypted,
+                            onClick = { exportAsEncrypted = false },
+                            label = { Text("Sanitized (Masked)", fontSize = 11.sp) }
+                        )
+                    }
+
+                    if (exportAsEncrypted) {
+                        OutlinedTextField(
+                            value = exportPassphrase,
+                            onValueChange = { exportPassphrase = it },
+                            label = { Text("Passphrase") },
+                            placeholder = { Text("Enter strong secret passphrase") },
+                            singleLine = true,
+                            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            text = "Save this passphrase safely. It is required to restore your data on a new device.",
+                            fontSize = 10.sp,
+                            color = Color.Gray
+                        )
+                    } else {
+                        Surface(
+                            color = AmberWarning.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "⚠️ Plaintext export masks sensitive account numbers to ****1234 and omits credentials to prevent leakage.",
+                                fontSize = 11.sp,
+                                color = Color(0xFF92400E),
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val json = if (exportAsEncrypted) {
+                            if (exportPassphrase.isBlank()) {
+                                Toast.makeText(context, "Passphrase cannot be empty for encrypted backup", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            model.exportVaultEncrypted(exportPassphrase)
+                        } else {
+                            model.exportVaultToJson()
+                        }
+                        showExportDialog = false
+                        val sendIntent = android.content.Intent().apply {
+                            action = android.content.Intent.ACTION_SEND
+                            putExtra(android.content.Intent.EXTRA_TEXT, json)
+                            putExtra(android.content.Intent.EXTRA_SUBJECT, "Family Emergency Vault Backup")
+                            type = "text/plain"
+                        }
+                        val shareIntent = android.content.Intent.createChooser(sendIntent, "Export Vault Backup")
+                        context.startActivity(shareIntent)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary)
+                ) {
+                    Text(if (model.isHindiMode) "एक्सपोर्ट करें" else "Export Now", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExportDialog = false }) {
+                    Text(if (model.isHindiMode) "रद्द करें" else "Cancel")
                 }
             }
         )
@@ -4161,9 +4294,20 @@ fun SettingsScreen(
                         placeholder = { Text("{\"app\": \"Family Emergency Vault\", ...}") },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(140.dp),
+                            .height(120.dp),
                         textStyle = androidx.compose.ui.text.TextStyle(fontSize = 10.sp, fontFamily = FontFamily.Monospace)
                     )
+                    if (restoreJsonInput.contains("\"encrypted\": true") || restoreJsonInput.contains("\"encrypted\":true")) {
+                        OutlinedTextField(
+                            value = restorePassphrase,
+                            onValueChange = { restorePassphrase = it },
+                            label = { Text("Decryption Passphrase") },
+                            placeholder = { Text("Enter passphrase used during export") },
+                            singleLine = true,
+                            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                     if (restoreStatusMessage != null) {
                         Text(
                             text = restoreStatusMessage ?: "",
@@ -4177,13 +4321,13 @@ fun SettingsScreen(
                 Button(
                     onClick = {
                         if (restoreJsonInput.isNotBlank()) {
-                            model.importVaultFromJson(restoreJsonInput) { success ->
+                            model.importVaultFromJson(restoreJsonInput, restorePassphrase.ifBlank { null }) { success ->
                                 if (success) {
                                     restoreStatusMessage = if (model.isHindiMode) "सफलतापूर्वक रीस्टोर किया गया!" else "Successfully restored!"
                                     Toast.makeText(context, "Vault data restored!", Toast.LENGTH_SHORT).show()
                                     showRestoreDialog = false
                                 } else {
-                                    restoreStatusMessage = if (model.isHindiMode) "अमान्य बैकअप JSON" else "Invalid backup JSON format."
+                                    restoreStatusMessage = if (model.isHindiMode) "अमान्य बैकअप या गलत पासफ्रेज़" else "Invalid backup or wrong passphrase."
                                 }
                             }
                         }
@@ -4340,18 +4484,15 @@ fun SettingsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = if (model.isHindiMode) "ऑफ़लाइन AI कंटीन्यूइटी मोड" else "Offline AI Continuity Chatbot",
+                                text = if (model.isHindiMode) "ऑफ़लाइन आपातकालीन मार्गदर्शिका" else "On-Device Emergency Reference Guide",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = SlatePrimary
                             )
                             Text(
-                                text = if (model.aiOfflineModeOnly)
-                                    (if (model.isHindiMode) "100% ऑन-डिवाइस • शून्य क्लाउड डेटा लीक" else "100% On-Device • Zero Cloud Transmission")
-                                else
-                                    (if (model.isHindiMode) "हाइब्रिड मोड सक्रिय (क्लाउड + ऑफ़लाइन फॉलबैक)" else "Hybrid Mode Active (Gemini + Offline Fallback)"),
+                                text = if (model.isHindiMode) "100% ऑन-डिवाइस कानूनी व आपातकालीन संदर्भ (RBI, IRDAI एवं हेल्पलाइन)" else "100% On-Device Legal & Emergency Protocols (RBI, IRDAI & SOS)",
                                 fontSize = 10.sp,
-                                color = if (model.aiOfflineModeOnly) Color(0xFF16A34A) else SlatePrimary,
+                                color = Color(0xFF16A34A),
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -4476,7 +4617,7 @@ fun SettingsScreen(
                             Icon(imageVector = Icons.Default.AdminPanelSettings, contentDescription = "Admin Audit", tint = TealAccent, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = if (model.isHindiMode) "सर्वर पंजीकरण ऑडिट एवं क्लस्टर स्केलिंग" else "Server Registration Audit & Cluster Scaling",
+                                text = if (model.isHindiMode) "ऑन-डिवाइस सुरक्षा ऑडिट एवं डेटा अखंडता" else "On-Device Security Audit & Data Integrity",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = SlatePrimary
@@ -4682,15 +4823,12 @@ fun SettingsScreen(
                 ) {
                     Button(
                         onClick = {
-                            val json = model.exportVaultToJson()
-                            val sendIntent = android.content.Intent().apply {
-                                action = android.content.Intent.ACTION_SEND
-                                putExtra(android.content.Intent.EXTRA_TEXT, json)
-                                putExtra(android.content.Intent.EXTRA_SUBJECT, "Family Emergency Vault Backup")
-                                type = "text/plain"
+                            if (model.isAppMpinLocked) {
+                                Toast.makeText(context, "Unlock vault with Master MPIN first", Toast.LENGTH_SHORT).show()
+                            } else {
+                                exportPassphrase = ""
+                                showExportDialog = true
                             }
-                            val shareIntent = android.content.Intent.createChooser(sendIntent, "Export Vault Backup")
-                            context.startActivity(shareIntent)
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary),
                         shape = RoundedCornerShape(8.dp),
@@ -4698,7 +4836,7 @@ fun SettingsScreen(
                     ) {
                         Icon(imageVector = Icons.Default.Share, contentDescription = "Export", tint = Color.White, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(if (model.isHindiMode) "एक्सपोर्ट बैकअप" else "Export JSON", color = Color.White, fontSize = 11.sp)
+                        Text(if (model.isHindiMode) "एक्सपोर्ट बैकअप" else "Export Backup", color = Color.White, fontSize = 11.sp)
                     }
 
                     OutlinedButton(
@@ -4719,7 +4857,7 @@ fun SettingsScreen(
         }
 
         // ------------------ SHARE APP APK & INSTALL QR CODE ------------------
-        val publicApkDownloadUrl = "https://ais-pre-bru2epfqu3yybajn2lqh2x-786684627999.asia-southeast1.run.app/app-debug.apk"
+        val publicApkDownloadUrl = "https://family-emergency-vault.vercel.app/"
         Card(
             colors = CardDefaults.cardColors(containerColor = Color.White),
             border = BorderStroke(1.dp, TealAccent.copy(alpha = 0.6f)),
@@ -4733,7 +4871,7 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (model.isHindiMode) "📲 ऐप शेयर करें व QR कोड से इंस्टॉल करें" else "📲 Share App APK & Install QR Code",
+                        text = if (model.isHindiMode) "📲 ऐप शेयर करें व वेब पोर्टल खोलें" else "📲 Share App & Open Web Portal",
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
                         color = SlatePrimary
@@ -4745,7 +4883,7 @@ fun SettingsScreen(
                             .padding(horizontal = 8.dp, vertical = 3.dp)
                     ) {
                         Text(
-                            text = "Direct APK",
+                            text = "Web & App Portal",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = TealAccent
@@ -4755,9 +4893,9 @@ fun SettingsScreen(
 
                 Text(
                     text = if (model.isHindiMode)
-                        "अपने परिजनों (पत्नी, नॉमिनी, माता-पिता) के फोन में ऐप इंस्टॉल कराने के लिए स्क्रीन पर QR कोड दिखाएं या डायरेक्ट डाउनलोड लिंक शेयर करें।"
+                        "अपने परिजनों के साथ ऐप व वेब साथी पोर्टल शेयर करें। स्क्रीन पर QR कोड दिखाएं या लिंक शेयर करें।"
                     else
-                        "Install the vault on your family members' phones (spouse, nominee, parents). Display the QR code on your screen or share the direct download link.",
+                        "Share the Family Emergency Vault portal with your family members (spouse, nominee, parents) to view guides and download access.",
                     fontSize = 11.sp,
                     color = Color.Gray
                 )
@@ -4783,16 +4921,17 @@ fun SettingsScreen(
                                 action = android.content.Intent.ACTION_SEND
                                 putExtra(
                                     android.content.Intent.EXTRA_TEXT,
-                                    "Family Emergency Vault Android App direct download:\n$publicApkDownloadUrl\n\n100% Offline, Zero Cloud Tracking, Bank-grade Family Vault."
+                                    "Family Emergency Vault Portal & Download:\n$publicApkDownloadUrl\n\n100% Offline-First, Hardware-Backed Family Continuity Vault."
                                 )
-                                putExtra(android.content.Intent.EXTRA_SUBJECT, "Family Emergency Vault App Download")
+                                putExtra(android.content.Intent.EXTRA_SUBJECT, "Family Emergency Vault App & Companion Portal")
                                 type = "text/plain"
                             }
                             context.startActivity(android.content.Intent.createChooser(sendIntent, "Share App Download Link"))
                         },
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.weight(1f)
-                    ) {
+                    )
+ {
                         Icon(imageVector = Icons.Default.Share, contentDescription = "Share", tint = SlatePrimary, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(if (model.isHindiMode) "लिंक शेयर करें" else "Share Link", fontSize = 11.sp)
@@ -5573,9 +5712,9 @@ fun SettingsScreen(
                         )
                         Text(
                             text = if (model.isHindiMode)
-                                "यह एक 100% ऑफलाइन, सैन्य-ग्रेड एन्क्रिप्टेड डिजिटल व भौतिक लेजर है। किसी अनपेक्षित दुर्घटना, गंभीर बीमारी या मृत्यु के समय अक्सर परिवार को यह नहीं पता होता कि बैंक खाते, बीमा पॉलिसियां, लॉकर की चाबियां और संपत्ति के कागजात कहां हैं। यह ऐप उस संकट में परिवार का विश्वसनीय साथी बनता है।"
+                                "यह एक 100% ऑफलाइन, AES-एन्क्रिप्टेड डिजिटल व भौतिक लेजर है। किसी अनपेक्षित दुर्घटना, गंभीर बीमारी या मृत्यु के समय अक्सर परिवार को यह नहीं पता होता कि बैंक खाते, बीमा पॉलिसियां, लॉकर की चाबियां और संपत्ति के कागजात कहां हैं। यह ऐप उस संकट में परिवार का विश्वसनीय साथी बनता है।"
                             else
-                                "Family Emergency Vault is a 100% offline, military-grade encrypted emergency continuity ledger. In the event of critical hospitalization, unforeseen incapacitation, or sudden demise, families struggle to locate bank accounts, term life policies, physical locker keys, and real estate deeds. This app solves that chaos.",
+                                "Family Emergency Vault is an offline-first, AES-GCM encrypted emergency continuity ledger. In the event of critical hospitalization, unforeseen incapacitation, or sudden demise, families struggle to locate bank accounts, term life policies, physical locker keys, and real estate deeds. This app solves that chaos.",
                             fontSize = 10.sp,
                             color = Color.DarkGray,
                             lineHeight = 14.sp
@@ -5810,7 +5949,7 @@ fun SettingsScreen(
                 }
 
                 Text(
-                    text = "100% Offline • SQLite Room • Zero Cloud Leakage • Military-Grade Encryption",
+                    text = "Offline-First • SQLite Room • Hardware-Backed Encryption",
                     color = Color.White.copy(alpha = 0.7f),
                     fontSize = 8.sp,
                     textAlign = TextAlign.Center
@@ -5911,19 +6050,31 @@ fun AddEditVaultItemDialog(
     var attachmentUri by remember { mutableStateOf(initialItem?.attachmentUri ?: "") }
     var documentPhotoBase64 by remember { mutableStateOf(initialItem?.documentPhotoBase64 ?: "") }
     var showFullDocumentPhoto by remember { mutableStateOf(false) }
-    val documentBitmap = remember(documentPhotoBase64) {
-        ImageUtils.base64ToBitmap(documentPhotoBase64)
+    val context = LocalContext.current
+    val documentBitmap = remember(attachmentUri, documentPhotoBase64) {
+        if (attachmentUri.isNotEmpty()) {
+            com.example.util.DocumentStorageManager.loadDocumentBitmap(context, attachmentUri)
+        } else if (documentPhotoBase64.isNotEmpty()) {
+            ImageUtils.base64ToBitmap(documentPhotoBase64)
+        } else {
+            null
+        }
     }
 
-    val context = LocalContext.current
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { capturedBitmap ->
         if (capturedBitmap != null) {
-            val base64 = ImageUtils.bitmapToBase64(capturedBitmap)
-            if (base64.isNotEmpty()) {
-                documentPhotoBase64 = base64
-                Toast.makeText(context, "Physical document photo captured & stored as Base64!", Toast.LENGTH_SHORT).show()
+            val saveResult = com.example.util.DocumentStorageManager.saveBitmapDocument(context, capturedBitmap)
+            when (saveResult) {
+                is com.example.util.DocumentSaveResult.Success -> {
+                    attachmentUri = saveResult.relativePath
+                    documentPhotoBase64 = ""
+                    Toast.makeText(context, "Document photo stored in private sandbox (${saveResult.fileSizeBytes / 1024} KB)!", Toast.LENGTH_SHORT).show()
+                }
+                is com.example.util.DocumentSaveResult.Error -> {
+                    Toast.makeText(context, saveResult.message, Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
@@ -5954,16 +6105,22 @@ fun AddEditVaultItemDialog(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri != null) {
-            attachmentUri = uri.toString()
             try {
                 context.contentResolver.openInputStream(uri)?.use { stream ->
-                    val bmp = BitmapFactory.decodeStream(stream)
-                    if (bmp != null) {
-                        documentPhotoBase64 = ImageUtils.bitmapToBase64(bmp)
+                    val saveResult = com.example.util.DocumentStorageManager.saveDocumentStream(context, stream, "picked_doc.jpg")
+                    when (saveResult) {
+                        is com.example.util.DocumentSaveResult.Success -> {
+                            attachmentUri = saveResult.relativePath
+                            documentPhotoBase64 = ""
+                            Toast.makeText(context, "Document stored in private storage (${saveResult.fileSizeBytes / 1024} KB)!", Toast.LENGTH_SHORT).show()
+                        }
+                        is com.example.util.DocumentSaveResult.Error -> {
+                            Toast.makeText(context, saveResult.message, Toast.LENGTH_LONG).show()
+                        }
                     }
                 }
             } catch (e: Exception) {
-                // Fallback retains attachmentUri
+                Toast.makeText(context, "Could not store document: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -6129,7 +6286,7 @@ fun AddEditVaultItemDialog(
                                         color = VaultTheme.textPrimary
                                     )
                                     Text(
-                                        text = "Stored locally as Base64 in Asset (${(documentPhotoBase64.length * 3 / 4) / 1024} KB)",
+                                        text = if (attachmentUri.isNotEmpty()) "Stored in private sandbox ($attachmentUri)" else "Stored locally",
                                         fontSize = 10.sp,
                                         color = VaultTheme.textSecondary
                                     )
@@ -6585,91 +6742,255 @@ fun AddEditClaimDialog(
 
 @Composable
 fun CsvImportDialog(
-    onDismiss: () -> Unit,
-    onImportConfirm: (String) -> Unit
+    model: VaultViewModel,
+    onDismiss: () -> Unit
 ) {
-    var selectedFileLabel by remember { mutableStateOf("No spreadsheet loaded") }
-    var step by remember { mutableStateOf(1) } // 1: Select, 2: Map columns
+    val context = LocalContext.current
+    var importFinishedSummary by remember { mutableStateOf<com.example.util.ImportSummary?>(null) }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                var displayName = "selected_spreadsheet.csv"
+                context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                    val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (nameIndex != -1 && cursor.moveToFirst()) {
+                        displayName = cursor.getString(nameIndex)
+                    }
+                }
+                val inputStream = context.contentResolver.openInputStream(uri)
+                if (inputStream != null) {
+                    model.parseCsvFile(inputStream, displayName)
+                } else {
+                    Toast.makeText(context, "Failed to open selected file.", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error reading file: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    val preview = model.currentCsvPreview
+    val scrollState = rememberScrollState()
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Spreadsheet Mapping Wizard", fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.InsertDriveFile, contentDescription = null, tint = TealAccent, modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Spreadsheet Import Wizard", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+        },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (step == 1) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 440.dp)
+                    .verticalScroll(scrollState),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                if (importFinishedSummary != null) {
+                    val s = importFinishedSummary!!
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = if (s.insertedCount > 0) Color(0xFFDCFCE7) else Color(0xFFFEE2E2)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                text = if (s.insertedCount > 0) "✅ Import Successful" else "⚠️ Import Incomplete",
+                                fontWeight = FontWeight.Bold,
+                                color = if (s.insertedCount > 0) Color(0xFF166534) else Color(0xFF991B1B)
+                            )
+                            Text("Total rows processed: ${s.totalRows}", fontSize = 12.sp)
+                            Text("Successfully inserted: ${s.insertedCount} records", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            if (s.duplicateCount > 0) {
+                                Text("Duplicates skipped: ${s.duplicateCount}", fontSize = 12.sp, color = AmberWarning)
+                            }
+                            if (s.errorCount > 0) {
+                                Text("Row errors: ${s.errorCount}", fontSize = 12.sp, color = Color.Red)
+                                s.errors.take(5).forEach { err ->
+                                    Text("• Row ${err.rowNumber} (${err.field}): ${err.message}", fontSize = 10.sp, color = Color.Red)
+                                }
+                            }
+                        }
+                    }
+                } else if (preview == null) {
                     Text(
-                        text = "To migrate your existing family files cleanly, load your Excel/CSV organizer. We will automatically analyze headers.",
+                        text = "Select a CSV spreadsheet from your device to import assets, bank accounts, insurance policies, and investments into your household vault.",
                         fontSize = 11.sp,
                         color = Color.Gray
                     )
 
-                    Box(
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth()
                             .border(1.dp, SlateBorder, RoundedCornerShape(8.dp))
-                            .clickable {
-                                selectedFileLabel = "family_financial_organizer_2026.csv (Aadhaar & PAN columns detected)"
-                                step = 2
-                            }
+                            .clickable { filePickerLauncher.launch("*/*") }
                             .background(SlateLightBg)
                             .padding(20.dp),
-                        contentAlignment = Alignment.Center
+                        color = Color.Transparent
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(imageVector = Icons.Default.CloudUpload, contentDescription = "Upload excel", tint = TealAccent, modifier = Modifier.size(36.dp))
+                            Icon(imageVector = Icons.Default.CloudUpload, contentDescription = "Upload CSV", tint = TealAccent, modifier = Modifier.size(36.dp))
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(text = "Choose spreadsheet file", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = SlatePrimary)
-                            Text(text = "xls, xlsx, csv formats supported", fontSize = 10.sp, color = Color.Gray)
+                            Text(text = "Choose CSV File", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = SlatePrimary)
+                            Text(text = "Select .csv file with Title, Category, Institution, Nominee", fontSize = 10.sp, color = Color.Gray)
+                        }
+                    }
+
+                    if (model.isCsvParsing) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = TealAccent)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Parsing CSV & validating columns...", fontSize = 11.sp, color = TealAccent)
                         }
                     }
                 } else {
-                    Text(
-                        text = "Automatic map check: Select matching destinations for each column header found inside your CSV:",
-                        fontSize = 11.sp,
-                        color = Color.Gray
-                    )
-
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(text = "CSV Field Column", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = SlatePrimary)
-                            Text(text = "Vault Database Destination", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = SlatePrimary)
+                    // Preview & Validation Screen
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "File: ${model.currentCsvFilename}",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = SlatePrimary,
+                            maxLines = 1
+                        )
+                        TextButton(onClick = { model.clearCsvPreview() }) {
+                            Text("Change File", fontSize = 10.sp)
                         }
+                    }
 
-                        listOf(
-                            "Account Holder Name" to "Holder Name (Matches OwnerName)",
-                            "Institution Code" to "IFSC / Bank Name (Matches Institution)",
-                            "Registered Nominee" to "Nominee Name",
-                            "Policy Reference ID" to "Identifier Number"
-                        ).forEach { (csvCol, targetName) ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(SlateLightBg)
-                                    .padding(8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(text = "📂 $csvCol", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                Text(text = "➜ $targetName", fontSize = 10.sp, color = TealAccent, fontWeight = FontWeight.Bold)
+                    // Stat Badges Row
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = Color(0xFFDCFCE7),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Column(modifier = Modifier.padding(6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("${preview.validItems.size}", fontWeight = FontWeight.Bold, color = Color(0xFF166534), fontSize = 14.sp)
+                                Text("Valid", fontSize = 9.sp, color = Color(0xFF166534))
                             }
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = Color(0xFFFEF3C7),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Column(modifier = Modifier.padding(6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("${preview.duplicates.size}", fontWeight = FontWeight.Bold, color = Color(0xFF92400E), fontSize = 14.sp)
+                                Text("Duplicates", fontSize = 9.sp, color = Color(0xFF92400E))
+                            }
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = Color(0xFFFEE2E2),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Column(modifier = Modifier.padding(6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("${preview.rowErrors.size}", fontWeight = FontWeight.Bold, color = Color(0xFF991B1B), fontSize = 14.sp)
+                                Text("Errors", fontSize = 9.sp, color = Color(0xFF991B1B))
+                            }
+                        }
+                    }
+
+                    // Detected Headers
+                    if (preview.detectedHeaders.isNotEmpty()) {
+                        Text("Detected Columns:", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                        Text(
+                            text = preview.detectedHeaders.joinToString(", "),
+                            fontSize = 9.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = Color.DarkGray
+                        )
+                    }
+
+                    // Valid Items Preview
+                    if (preview.validItems.isNotEmpty()) {
+                        Text("Preview of items to import:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = SlatePrimary)
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            preview.validItems.take(5).forEach { item ->
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = SlateLightBg,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(6.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(item.title, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            Text(item.category, fontSize = 9.sp, color = TealAccent, fontWeight = FontWeight.Bold)
+                                        }
+                                        if (item.institution.isNotBlank()) {
+                                            Text("${item.institution} • ${item.numberOrId.ifBlank { "No ID" }}", fontSize = 10.sp, color = Color.Gray)
+                                        }
+                                        if (item.nomineeName.isNotBlank()) {
+                                            Text("Nominee: ${item.nomineeName} (${item.nomineeRelation.ifBlank { "Relation" }})", fontSize = 9.sp, color = Color(0xFF16A34A))
+                                        }
+                                        if (item.remarks.isNotBlank()) {
+                                            Text("Note: ${item.remarks}", fontSize = 9.sp, color = Color.DarkGray)
+                                        }
+                                    }
+                                }
+                            }
+                            if (preview.validItems.size > 5) {
+                                Text("+ ${preview.validItems.size - 5} more valid records", fontSize = 10.sp, color = Color.Gray)
+                            }
+                        }
+                    }
+
+                    // Duplicates Preview
+                    if (preview.duplicates.isNotEmpty()) {
+                        Text("Duplicates detected (will be skipped):", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AmberWarning)
+                        preview.duplicates.take(3).forEach { dup ->
+                            Text("• ${dup.title} (${dup.institution} - ${dup.numberOrId})", fontSize = 9.sp, color = Color(0xFF92400E))
+                        }
+                    }
+
+                    // Row Errors Preview
+                    if (preview.rowErrors.isNotEmpty()) {
+                        Text("Row validation issues:", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Red)
+                        preview.rowErrors.take(4).forEach { err ->
+                            Text("• Row ${err.rowNumber} (${err.field}): ${err.message}", fontSize = 9.sp, color = Color.Red)
                         }
                     }
                 }
             }
         },
         confirmButton = {
-            if (step == 2) {
+            if (importFinishedSummary != null) {
                 Button(
-                    onClick = { onImportConfirm("Acc Holder Name, IFSC Bank, Nominee Name, Policy Ref ID") },
+                    onClick = onDismiss,
                     colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary)
                 ) {
-                    Text("Trigger Import Catalog")
+                    Text("Close")
+                }
+            } else if (preview != null && preview.validItems.isNotEmpty()) {
+                Button(
+                    onClick = {
+                        model.commitCsvImport { summary ->
+                            importFinishedSummary = summary
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = TealAccent)
+                ) {
+                    Text("Import ${preview.validItems.size} Records", color = SlatePrimary, fontWeight = FontWeight.Bold)
                 }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel", color = Color.Gray) }
+            if (importFinishedSummary == null) {
+                TextButton(onClick = onDismiss) { Text("Cancel", color = Color.Gray) }
+            }
         }
     )
 }
@@ -7298,8 +7619,8 @@ fun GeminiAssistantDialog(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = "AI Spark",
+                            imageVector = Icons.Default.MenuBook,
+                            contentDescription = "Guide",
                             tint = TealAccent,
                             modifier = Modifier.size(18.dp)
                         )
@@ -7307,7 +7628,7 @@ fun GeminiAssistantDialog(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = if (isHindi) "ऑफ़लाइन AI कंटीन्यूइटी सहायक" else "Offline AI Continuity Advisor",
+                            text = if (isHindi) "आपातकालीन व उत्तराधिकार मार्गदर्शिका" else "Emergency & Succession Guide",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Black,
                             color = SlatePrimary
@@ -7321,7 +7642,7 @@ fun GeminiAssistantDialog(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = if (model.aiOfflineModeOnly) "100% On-Device • Zero Cloud Risk" else "Hybrid AI Active",
+                                text = "100% On-Device • RBI & Emergency Standards",
                                 fontSize = 10.sp,
                                 color = Color(0xFF059669),
                                 fontWeight = FontWeight.Bold
@@ -7330,31 +7651,28 @@ fun GeminiAssistantDialog(
                     }
                 }
 
-                // Privacy Badge & Offline Toggle
+                // Privacy Badge
                 Surface(
-                    color = if (model.aiOfflineModeOnly) Color(0xFFECFDF5) else SlateLightBg,
+                    color = Color(0xFFECFDF5),
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, if (model.aiOfflineModeOnly) Color(0xFF10B981) else Color.LightGray),
-                    modifier = Modifier.clickable {
-                        model.aiOfflineModeOnly = !model.aiOfflineModeOnly
-                    }
+                    border = BorderStroke(1.dp, Color(0xFF10B981))
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = if (model.aiOfflineModeOnly) Icons.Default.Lock else Icons.Default.Cloud,
+                            imageVector = Icons.Default.Lock,
                             contentDescription = "Mode",
                             modifier = Modifier.size(11.dp),
-                            tint = if (model.aiOfflineModeOnly) Color(0xFF047857) else SlatePrimary
+                            tint = Color(0xFF047857)
                         )
                         Spacer(modifier = Modifier.width(3.dp))
                         Text(
-                            text = if (model.aiOfflineModeOnly) "OFFLINE" else "CLOUD",
+                            text = "OFFLINE",
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Black,
-                            color = if (model.aiOfflineModeOnly) Color(0xFF047857) else SlatePrimary
+                            color = Color(0xFF047857)
                         )
                     }
                 }

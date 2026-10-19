@@ -7,6 +7,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import kotlinx.coroutines.flow.first
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
@@ -213,40 +214,88 @@ class ExampleRobolectricTest {
   }
 
   @Test
-  fun `database seed initializes all India emergency vault records`() = kotlinx.coroutines.runBlocking {
+  fun `clean production onboarding initializes empty vault with zero financial records and zero backdoor logins`() = kotlinx.coroutines.runBlocking {
     val context = ApplicationProvider.getApplicationContext<Context>()
     val db = androidx.room.Room.inMemoryDatabaseBuilder(
       context,
       com.example.data.AppDatabase::class.java
     ).allowMainThreadQueries().build()
 
-    // Run ensureSeeded
+    // Run clean production onboarding
     com.example.data.AppDatabase.ensureSeeded(db)
 
-    // Check Vault items seeded
+    // Verify 100% clean production state - ZERO personal or financial records pre-seeded
     val vaultCount = db.vaultItemDao().getCount()
-    org.junit.Assert.assertTrue("Vault items should be seeded", vaultCount > 0)
+    org.junit.Assert.assertEquals("New users must receive 0 pre-seeded vault items", 0, vaultCount)
 
-    // Check Dependents seeded
     val dependentsCount = db.familyDependentDao().getCount()
-    org.junit.Assert.assertTrue("Family dependents should be seeded", dependentsCount > 0)
+    org.junit.Assert.assertEquals("New users must receive 0 pre-seeded dependents", 0, dependentsCount)
 
-    // Check Contacts seeded
     val contactsCount = db.importantContactDao().getCount()
-    org.junit.Assert.assertTrue("Important contacts should be seeded", contactsCount > 0)
+    org.junit.Assert.assertEquals("New users must receive 0 pre-seeded contacts", 0, contactsCount)
 
-    // Check Action Items seeded
-    val actionItemsCount = db.emergencyActionItemDao().getCount()
-    org.junit.Assert.assertTrue("Action checklist should be seeded", actionItemsCount > 0)
+    val claimsCount = db.claimRecordDao().getCount()
+    org.junit.Assert.assertEquals("New users must receive 0 pre-seeded claims", 0, claimsCount)
 
-    // Check Server User Records seeded
+    // Verify ZERO backdoor or hardcoded server user credentials
     val serverUsers = db.serverUserDao().getAll()
-    org.junit.Assert.assertTrue("Server user records should be seeded", serverUsers.isNotEmpty())
-    val adminUser = serverUsers.firstOrNull { it.email == "rahul@gmail.com" }
-    org.junit.Assert.assertNotNull("Default owner should be seeded", adminUser)
-    org.junit.Assert.assertEquals("OWNER", adminUser?.role)
+    org.junit.Assert.assertEquals("No backdoor server accounts must be seeded in production", 0, serverUsers.size)
+
+    // Verify generic non-personal SOP emergency checklist templates exist
+    val actionItemsCount = db.emergencyActionItemDao().getCount()
+    org.junit.Assert.assertTrue("Generic SOP checklist should be available", actionItemsCount > 0)
+
+    // Verify initial audit log recorded
+    val auditLogs = db.auditLogDao().getCount()
+    org.junit.Assert.assertTrue("Initialization audit log must be recorded", auditLogs > 0)
 
     db.close()
+  }
+
+  @Test
+  fun `demo mode provides isolated sample records without contaminating real household data`() = kotlinx.coroutines.runBlocking {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val db = androidx.room.Room.inMemoryDatabaseBuilder(
+      context,
+      com.example.data.AppDatabase::class.java
+    ).allowMainThreadQueries().build()
+
+    // Initialize clean production first
+    com.example.data.AppDatabase.ensureSeeded(db)
+    org.junit.Assert.assertEquals(0, db.vaultItemDao().getCount())
+
+    // Explicitly load demo mode
+    com.example.data.AppDatabase.seedDemoData(db)
+    val totalDemoVaultCount = db.vaultItemDao().getCount()
+    org.junit.Assert.assertTrue("Demo mode populates sample records", totalDemoVaultCount > 0)
+
+    // Verify all demo records are strictly tagged with isDemo = true
+    val demoItems = db.vaultItemDao().getByDemoMode(true)
+    val realItems = db.vaultItemDao().getByDemoMode(false)
+    val realList = realItems.first()
+    val demoList = demoItems.first()
+
+    org.junit.Assert.assertEquals("Real household query must return 0 records when only demo items exist", 0, realList.size)
+    org.junit.Assert.assertEquals("Demo query must return all seeded demo records", totalDemoVaultCount, demoList.size)
+
+    // Purge demo mode
+    db.vaultItemDao().clearDemoItems()
+    org.junit.Assert.assertEquals("Purging demo items must leave vault completely clean", 0, db.vaultItemDao().getCount())
+
+    db.close()
+  }
+
+  @Test
+  fun `subtle crypto AES-GCM engine encrypts and decrypts with authenticated integrity`() {
+    val plainSecret = "FamilySecret_123456_SecureVault"
+    val cipherText = com.example.ui.SubtleCrypto.encrypt(plainSecret)
+
+    org.junit.Assert.assertTrue("Ciphertext must not be empty", cipherText.isNotEmpty())
+    org.junit.Assert.assertTrue("Ciphertext format must include IV separator", cipherText.contains(":"))
+    org.junit.Assert.assertNotEquals("Plaintext must not match ciphertext", plainSecret, cipherText)
+
+    val decrypted = com.example.ui.SubtleCrypto.decrypt(cipherText)
+    org.junit.Assert.assertEquals("Decrypted plaintext must match original secret", plainSecret, decrypted)
   }
 
   @Test
@@ -365,6 +414,172 @@ class ExampleRobolectricTest {
     org.junit.Assert.assertNotEquals(hash1, wrongHash)
 
     db.close()
+  }
+
+  @Test
+  fun `csv import parses valid rows and captures row-level errors for invalid rows`() {
+    val csvContent = """
+      Title,Category,Institution,Account Number,Nominee,Relation,Verified,Remarks
+      Salary Account,BANK,HDFC Bank,1234567890,Priya Sharma,Spouse,Yes,Main family income account.
+      Health Shield,INSURANCE,Star Health,POL-998877,Rahul Sharma,Son,Yes,Critical illness cover.
+      ,,, ,,,
+      ,BANK,,,Priya Sharma,Spouse,Yes,Remarks only but no title or number
+    """.trimIndent()
+
+    val result = com.example.util.CsvImporter.parseSpreadsheet(
+      inputStream = csvContent.byteInputStream(Charsets.UTF_8),
+      targetHouseholdId = "user@test.vault",
+      isDemoTarget = false,
+      existingItems = emptyList()
+    )
+
+    org.junit.Assert.assertEquals(2, result.validItems.size)
+    org.junit.Assert.assertEquals(1, result.rowErrors.size)
+    org.junit.Assert.assertEquals("Salary Account", result.validItems[0].title)
+    org.junit.Assert.assertEquals("Main family income account.", result.validItems[0].remarks)
+    org.junit.Assert.assertEquals("Priya Sharma", result.validItems[0].nomineeName)
+    org.junit.Assert.assertEquals("Spouse", result.validItems[0].nomineeRelation)
+    org.junit.Assert.assertEquals("user@test.vault", result.validItems[0].userId)
+    org.junit.Assert.assertFalse(result.validItems[0].isDemo)
+  }
+
+  @Test
+  fun `csv import detects duplicates against existing household items and within file`() {
+    val existing = listOf(
+      com.example.data.VaultItem(
+        category = "BANK",
+        title = "Existing Account",
+        ownerName = "User",
+        institution = "SBI",
+        numberOrId = "SBI-001122",
+        userId = "household_1",
+        isDemo = false
+      )
+    )
+
+    val csvContent = """
+      Title,Category,Institution,Account Number,Nominee,Relation,Verified,Remarks
+      New Account,BANK,ICICI,ICICI-9999,Rohan,Brother,Yes,Valid new account.
+      Duplicate Existing,BANK,SBI,SBI-001122,Rohan,Brother,Yes,Matches existing item.
+      New Account Repeat,BANK,ICICI,ICICI-9999,Rohan,Brother,Yes,Duplicate in same file.
+    """.trimIndent()
+
+    val result = com.example.util.CsvImporter.parseSpreadsheet(
+      inputStream = csvContent.byteInputStream(Charsets.UTF_8),
+      targetHouseholdId = "household_1",
+      isDemoTarget = false,
+      existingItems = existing
+    )
+
+    org.junit.Assert.assertEquals(1, result.validItems.size)
+    org.junit.Assert.assertEquals("New Account", result.validItems[0].title)
+    org.junit.Assert.assertEquals(2, result.duplicates.size)
+  }
+
+  @Test
+  fun `csv import strictly isolates demo data from real household target`() {
+    val demoItems = listOf(
+      com.example.data.VaultItem(
+        category = "BANK",
+        title = "Demo Savings",
+        ownerName = "Demo User",
+        institution = "Demo Bank",
+        numberOrId = "DEMO-1234",
+        userId = "demo_household",
+        isDemo = true
+      )
+    )
+
+    val csvContent = """
+      Title,Category,Institution,Account Number,Nominee,Relation,Verified,Remarks
+      Real Asset,BANK,Demo Bank,DEMO-1234,Real Nominee,Spouse,Yes,Real account using same identifier.
+    """.trimIndent()
+
+    val result = com.example.util.CsvImporter.parseSpreadsheet(
+      inputStream = csvContent.byteInputStream(Charsets.UTF_8),
+      targetHouseholdId = "real_household_abc",
+      isDemoTarget = false,
+      existingItems = demoItems
+    )
+
+    org.junit.Assert.assertEquals(1, result.validItems.size)
+    org.junit.Assert.assertEquals("real_household_abc", result.validItems[0].userId)
+    org.junit.Assert.assertFalse(result.validItems[0].isDemo)
+    org.junit.Assert.assertEquals(0, result.duplicates.size)
+  }
+
+  @Test
+  fun `document storage saves bitmaps and streams to private storage, validates files, and cleans up on delete`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+
+    // 1. Save Bitmap Document
+    val testBitmap = android.graphics.Bitmap.createBitmap(100, 100, android.graphics.Bitmap.Config.ARGB_8888)
+    val saveBitmapResult = com.example.util.DocumentStorageManager.saveBitmapDocument(context, testBitmap)
+    org.junit.Assert.assertTrue(saveBitmapResult is com.example.util.DocumentSaveResult.Success)
+    val relPath = (saveBitmapResult as com.example.util.DocumentSaveResult.Success).relativePath
+    org.junit.Assert.assertTrue(relPath.startsWith("doc_") && relPath.endsWith(".jpg"))
+
+    // 2. Load Bitmap back safely
+    val loadedBitmap = com.example.util.DocumentStorageManager.loadDocumentBitmap(context, relPath)
+    org.junit.Assert.assertNotNull(loadedBitmap)
+
+    // 3. Save Document Stream with size and type validation
+    val pngBytes = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+    val saveStreamResult = com.example.util.DocumentStorageManager.saveDocumentStream(
+      context,
+      pngBytes.inputStream(),
+      "scanned_passport.png"
+    )
+    org.junit.Assert.assertTrue(saveStreamResult is com.example.util.DocumentSaveResult.Success)
+    val streamRelPath = (saveStreamResult as com.example.util.DocumentSaveResult.Success).relativePath
+    org.junit.Assert.assertTrue(streamRelPath.endsWith(".png"))
+
+    // 4. Validate rejection of unsupported extensions
+    val invalidExtResult = com.example.util.DocumentStorageManager.saveDocumentStream(
+      context,
+      "dummy".byteInputStream(),
+      "malicious_script.exe"
+    )
+    org.junit.Assert.assertTrue(invalidExtResult is com.example.util.DocumentSaveResult.Error)
+
+    // 5. App restart simulation: verify reopening file persists
+    val restartedLoaded = com.example.util.DocumentStorageManager.loadDocumentBitmap(context, relPath)
+    org.junit.Assert.assertNotNull(restartedLoaded)
+
+    // 6. Delete document cleanup
+    val deleteSuccess = com.example.util.DocumentStorageManager.deleteDocument(context, relPath)
+    org.junit.Assert.assertTrue(deleteSuccess)
+    val loadedAfterDelete = com.example.util.DocumentStorageManager.loadDocumentBitmap(context, relPath)
+    org.junit.Assert.assertNull(loadedAfterDelete)
+
+    // Cleanup second file
+    com.example.util.DocumentStorageManager.deleteDocument(context, streamRelPath)
+  }
+
+  @Test
+  fun `emergency knowledge base provides structured offline reference without AI or network`() {
+    val emergencyResult = com.example.util.EmergencyKnowledgeBase.searchGuide(
+      query = "medical emergency and hospital cashless claim",
+      userName = "Arun Verma",
+      nomineeName = "Anita Verma",
+      nomineeRelation = "Spouse",
+      nomineePhone = "+91 9876543210",
+      contacts = emptyList(),
+      vaultItems = emptyList()
+    )
+    org.junit.Assert.assertTrue(emergencyResult.answer.contains("Emergency") || emergencyResult.answer.contains("Claim") || emergencyResult.answer.contains("Protocol"))
+    org.junit.Assert.assertEquals("Offline Legal & Regulatory Reference", emergencyResult.sourceBadge)
+
+    val rbiResult = com.example.util.EmergencyKnowledgeBase.searchGuide(
+      query = "rbi deceased account claim and locker nominee rules",
+      userName = "Arun Verma",
+      nomineeName = "Anita Verma",
+      nomineeRelation = "Spouse",
+      nomineePhone = "+91 9876543210",
+      contacts = emptyList(),
+      vaultItems = emptyList()
+    )
+    org.junit.Assert.assertTrue(rbiResult.answer.contains("Nominee") || rbiResult.answer.contains("RBI"))
   }
 }
 

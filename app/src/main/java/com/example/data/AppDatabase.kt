@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
         AuditLog::class,
         ServerUserRecord::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -81,6 +81,24 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE vault_items ADD COLUMN userId TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE vault_items ADD COLUMN isDemo INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE family_dependents ADD COLUMN userId TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE family_dependents ADD COLUMN isDemo INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE important_contacts ADD COLUMN userId TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE important_contacts ADD COLUMN isDemo INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE emergency_action_items ADD COLUMN userId TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE emergency_action_items ADD COLUMN isDemo INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE claim_records ADD COLUMN userId TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE claim_records ADD COLUMN isDemo INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE emergency_requests ADD COLUMN userId TEXT NOT NULL DEFAULT ''")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_vault_items_userId ON vault_items(userId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_vault_items_isDemo ON vault_items(isDemo)")
+            }
+        }
+
         fun getDatabase(context: Context, scope: CoroutineScope): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -89,12 +107,12 @@ abstract class AppDatabase : RoomDatabase() {
                     "family_continuity_vault_db"
                 )
                 .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-                .addMigrations(MIGRATION_1_2, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
 
-                // Proactively verify & seed if empty on a background thread
+                // Proactively initialize clean production state on a background thread
                 scope.launch(Dispatchers.IO) {
                     ensureSeeded(instance)
                 }
@@ -133,15 +151,96 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Clean Production Onboarding:
+         * Guarantees that new users start with a 100% clean, empty vault.
+         * Never seeds another user's accounts, fake financial figures, or backdoor logins.
+         */
         suspend fun ensureSeeded(db: AppDatabase) {
             try {
-                val count = db.vaultItemDao().getCount()
-                if (count == 0) {
-                    seedData(db)
+                val actionCount = db.emergencyActionItemDao().getCount()
+                if (actionCount == 0) {
+                    seedGenericSopTemplates(db)
+                }
+                val auditCount = db.auditLogDao().getCount()
+                if (auditCount == 0) {
+                    db.auditLogDao().insert(
+                        AuditLog(
+                            action = "Vault Security Initialized",
+                            details = "Vault storage online. Zero personal or financial records pre-seeded. Clean household onboarding active.",
+                            userRole = "SYSTEM"
+                        )
+                    )
                 }
             } catch (e: Exception) {
-                android.util.Log.e("AppDatabase", "Error ensuring database is seeded", e)
+                android.util.Log.e("AppDatabase", "Error ensuring database is initialized", e)
             }
+        }
+
+        private suspend fun seedGenericSopTemplates(db: AppDatabase) {
+            val genericTemplates = listOf(
+                EmergencyActionItem(
+                    phase = "First 24 Hours",
+                    taskName = "Locate Physical Document Binder / Safe",
+                    instructions = "Retrieve original family identity papers, property deeds, and locker keys from physical storage location.",
+                    completed = false,
+                    status = "Pending",
+                    whoToContact = "Immediate family members / key custodian",
+                    documentsToPrepare = "Physical key, Aadhaar cards, passbooks",
+                    stepByStepGuidance = "1. Access the designated secure storage folder or locker.\n2. Verify presence of emergency papers before initiating third-party claims.",
+                    updatedBy = "System Default SOP",
+                    isDemo = false
+                ),
+                EmergencyActionItem(
+                    phase = "First 24 Hours",
+                    taskName = "Notify Primary Family Contacts & Executor",
+                    instructions = "Alert trusted family contacts, designated executor, and emergency guardians.",
+                    completed = false,
+                    status = "Pending",
+                    whoToContact = "Designated family contacts list",
+                    documentsToPrepare = "Emergency contact numbers",
+                    stepByStepGuidance = "1. Call primary designated contact.\n2. Confirm physical presence and coordinate immediate response.",
+                    updatedBy = "System Default SOP",
+                    isDemo = false
+                ),
+                EmergencyActionItem(
+                    phase = "First 7 Days",
+                    taskName = "Intimate Life & Health Insurance Helplines",
+                    instructions = "Notify insurance providers within their stipulated notification window to initiate formal claim docket.",
+                    completed = false,
+                    status = "Pending",
+                    whoToContact = "Insurer 24x7 toll-free helpline / branch office",
+                    documentsToPrepare = "Policy number, hospital summary, official cert",
+                    stepByStepGuidance = "1. Call insurer claims desk to record claim intimation number.\n2. Request claim dossier submission checklist.",
+                    updatedBy = "System Default SOP",
+                    isDemo = false
+                ),
+                EmergencyActionItem(
+                    phase = "First 7 Days",
+                    taskName = "Secure or Pause Compromised Cards & Accounts",
+                    instructions = "Freeze or temporarily block debit/credit cards if credentials or devices were misplaced during an emergency incident.",
+                    completed = false,
+                    status = "Pending",
+                    whoToContact = "Bank card helpline / banking app",
+                    documentsToPrepare = "Registered mobile / customer ID",
+                    stepByStepGuidance = "1. Use official banking app or 24/7 fraud helpline to lock payment cards.",
+                    updatedBy = "System Default SOP",
+                    isDemo = false
+                ),
+                EmergencyActionItem(
+                    phase = "First 30 Days",
+                    taskName = "Initiate Bank & Asset Transmission Claims",
+                    instructions = "Submit formal nominee claim paperwork (Form DA-2) to transfer bank balances and demat holdings to registered legal nominees.",
+                    completed = false,
+                    status = "Pending",
+                    whoToContact = "Bank home branch manager / Demat depository participant",
+                    documentsToPrepare = "Death certificate, nominee KYC, cancelled cheque",
+                    stepByStepGuidance = "1. Submit claim form with self-attested nominee identity documents.\n2. Obtain formal acknowledgement receipt.",
+                    updatedBy = "System Default SOP",
+                    isDemo = false
+                )
+            )
+            genericTemplates.forEach { db.emergencyActionItemDao().insert(it) }
         }
 
         suspend fun resetToDefaults(db: AppDatabase) {
@@ -152,13 +251,21 @@ abstract class AppDatabase : RoomDatabase() {
                 db.emergencyActionItemDao().deleteAll()
                 db.claimRecordDao().deleteAll()
                 db.emergencyAccessRequestDao().deleteAll()
-                seedData(db)
+                ensureSeeded(db)
             } catch (e: Exception) {
                 android.util.Log.e("AppDatabase", "Error resetting database to defaults", e)
             }
         }
 
+        suspend fun seedDemoData(db: AppDatabase) {
+            seedData(db)
+        }
+
         suspend fun seedData(db: AppDatabase) {
+            // Clear any previous demo records before re-populating demo preview
+            db.vaultItemDao().clearDemoItems()
+            db.familyDependentDao().clearDemoItems()
+            db.importantContactDao().clearDemoItems()
             // 1. Seed Family Members
             val dependents = listOf(
                 FamilyDependent(
@@ -198,7 +305,7 @@ abstract class AppDatabase : RoomDatabase() {
                     notes = "Under treatment for hypertension. Mediclaim linked."
                 )
             )
-            dependents.forEach { db.familyDependentDao().insert(it) }
+            dependents.forEach { db.familyDependentDao().insert(it.copy(isDemo = true, userId = "DEMO_HOUSEHOLD")) }
 
             // 2. Seed Important Contacts
             val contacts = listOf(
@@ -239,7 +346,7 @@ abstract class AppDatabase : RoomDatabase() {
                     remarks = "RM for Zerodha Portfolio and demat transmission matters."
                 )
             )
-            contacts.forEach { db.importantContactDao().insert(it) }
+            contacts.forEach { db.importantContactDao().insert(it.copy(isDemo = true, userId = "DEMO_HOUSEHOLD")) }
 
             // 3. Seed Vault Items (Bank Accounts, Investments, Insurance, etc. with Indian terminology)
             val vaultItems = listOf(
@@ -459,7 +566,7 @@ abstract class AppDatabase : RoomDatabase() {
                     detailsString = "Master Email: rahul.sharma.finance@gmail.com\nRecovery Email: priya.sharma@gmail.com\nEmergency Access Switch: Nominee requested setup is enabled on Bitwarden with 4-day dead-man threshold.\nEmergency Tech Person: Mahendra Sen (RM/Friend)\nInstruction: Priya knows the physical phrase written behind our wedding photograph card structure."
                 )
             )
-            vaultItems.forEach { db.vaultItemDao().insert(it) }
+            vaultItems.forEach { db.vaultItemDao().insert(it.copy(isDemo = true, userId = "DEMO_HOUSEHOLD")) }
 
             // 4. Seed Default Checklist Tasks (Emergency Action Plan)
             val actions = listOf(
@@ -555,7 +662,7 @@ abstract class AppDatabase : RoomDatabase() {
                     updatedBy = "System"
                 )
             )
-            actions.forEach { db.emergencyActionItemDao().insert(it) }
+            actions.forEach { db.emergencyActionItemDao().insert(it.copy(isDemo = true, userId = "DEMO_HOUSEHOLD")) }
 
             // 5. Seed Claim & Closure Tracker
             val claims = listOf(
@@ -578,91 +685,17 @@ abstract class AppDatabase : RoomDatabase() {
                     notes = "Mahendra Sen is helping guide this file compilation."
                 )
             )
-            claims.forEach { db.claimRecordDao().insert(it) }
+            claims.forEach { db.claimRecordDao().insert(it.copy(isDemo = true, userId = "DEMO_HOUSEHOLD")) }
 
             // 6. Seed Audit Logs
             val auditLogs = listOf(
                 AuditLog(
-                    action = "System Setup",
-                    details = "Initialized database schema with robust India-focused seed records.",
-                    userRole = "Owner"
-                ),
-                AuditLog(
-                    action = "Database Seeding",
-                    details = "Standard records populated securely for bank accounts, term covers, lockers, real estate, liabilities, and contacts.",
-                    userRole = "Owner"
+                    action = "Demo Mode Seeded",
+                    details = "Sample demo records populated securely for preview. Isolated from real household data.",
+                    userRole = "DEMO_SYSTEM"
                 )
             )
             auditLogs.forEach { db.auditLogDao().insert(it) }
-
-            // 7. Seed Enterprise Server Users for Instant Return Login and Admin Audit
-            if (db.serverUserDao().getCount() == 0) {
-                val seedSalt = "sAlT_sEcUrE_2026_xYz"
-                val digest = java.security.MessageDigest.getInstance("SHA-256")
-                digest.update(seedSalt.toByteArray(java.nio.charset.StandardCharsets.UTF_8))
-                val adminHash = digest.digest("admin".toByteArray(java.nio.charset.StandardCharsets.UTF_8)).joinToString("") { "%02x".format(it) }
-
-                val seedUsers = listOf(
-                    ServerUserRecord(
-                        userId = "usr_fev_8819201",
-                        email = "rahul@gmail.com",
-                        fullName = "Rahul Sharma",
-                        phone = "+91 98765 43210",
-                        passwordHash = adminHash,
-                        passwordSalt = seedSalt,
-                        mpin = "4321",
-                        nomineeName = "Priya Sharma",
-                        nomineeRelation = "Spouse",
-                        securityQuestion = "What was your first school name?",
-                        securityAnswerHash = "greenwood_hash_verified",
-                        digitalCertificateId = "FEV-SRV-2026-CERT-8819",
-                        status = "ACTIVE_VERIFIED",
-                        role = "OWNER",
-                        tokenJwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.seed.rahul.verified",
-                        deviceFingerprint = "Android-Enclave-Pixel8-Sandboxed",
-                        isBiometricEnrolled = true
-                    ),
-                    ServerUserRecord(
-                        userId = "usr_fev_8819202",
-                        email = "priya@gmail.com",
-                        fullName = "Priya Sharma",
-                        phone = "+91 98765 43211",
-                        passwordHash = adminHash,
-                        passwordSalt = seedSalt,
-                        mpin = "1234",
-                        nomineeName = "Rahul Sharma",
-                        nomineeRelation = "Spouse",
-                        securityQuestion = "What is your mother's maiden name?",
-                        securityAnswerHash = "gupta_hash_verified",
-                        digitalCertificateId = "FEV-SRV-2026-CERT-8820",
-                        status = "ACTIVE_VERIFIED",
-                        role = "SPOUSE",
-                        tokenJwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.seed.priya.verified",
-                        deviceFingerprint = "Android-Enclave-Samsung-Sandboxed",
-                        isBiometricEnrolled = true
-                    ),
-                    ServerUserRecord(
-                        userId = "usr_fev_8819203",
-                        email = "admin.auditor@familyvault.io",
-                        fullName = "Ashmit Gautam (System Auditor)",
-                        phone = "+91 98110 02299",
-                        passwordHash = adminHash,
-                        passwordSalt = seedSalt,
-                        mpin = "9900",
-                        nomineeName = "Executive Board",
-                        nomineeRelation = "Organization",
-                        securityQuestion = "What was your childhood nickname?",
-                        securityAnswerHash = "ash_hash_verified",
-                        digitalCertificateId = "FEV-SRV-2026-CERT-9900",
-                        status = "ACTIVE_VERIFIED",
-                        role = "ADMIN",
-                        tokenJwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.seed.admin.auditor",
-                        deviceFingerprint = "Admin-Console-Cluster-Node01",
-                        isBiometricEnrolled = true
-                    )
-                )
-                seedUsers.forEach { db.serverUserDao().insert(it) }
-            }
         }
     }
 }

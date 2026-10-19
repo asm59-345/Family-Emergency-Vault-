@@ -20,6 +20,12 @@ interface FamilyDependentDao {
     @Delete
     suspend fun delete(item: FamilyDependent)
 
+    @Query("SELECT * FROM family_dependents WHERE isDemo = :isDemo ORDER BY fullName ASC")
+    fun getByDemoMode(isDemo: Boolean): Flow<List<FamilyDependent>>
+
+    @Query("DELETE FROM family_dependents WHERE isDemo = 1")
+    suspend fun clearDemoItems()
+
     @Query("DELETE FROM family_dependents")
     suspend fun deleteAll()
 }
@@ -28,6 +34,9 @@ interface FamilyDependentDao {
 interface ImportantContactDao {
     @Query("SELECT * FROM important_contacts ORDER BY priority ASC, contactName ASC")
     fun getAll(): Flow<List<ImportantContact>>
+
+    @Query("SELECT * FROM important_contacts WHERE isDemo = :isDemo ORDER BY priority ASC, contactName ASC")
+    fun getByDemoMode(isDemo: Boolean): Flow<List<ImportantContact>>
 
     @Query("SELECT COUNT(*) FROM important_contacts")
     suspend fun getCount(): Int
@@ -41,6 +50,9 @@ interface ImportantContactDao {
     @Delete
     suspend fun delete(item: ImportantContact)
 
+    @Query("DELETE FROM important_contacts WHERE isDemo = 1")
+    suspend fun clearDemoItems()
+
     @Query("DELETE FROM important_contacts")
     suspend fun deleteAll()
 }
@@ -49,6 +61,9 @@ interface ImportantContactDao {
 interface VaultItemDao {
     @Query("SELECT * FROM vault_items ORDER BY category ASC, title ASC")
     fun getAll(): Flow<List<VaultItem>>
+
+    @Query("SELECT * FROM vault_items WHERE isDemo = :isDemo ORDER BY category ASC, title ASC")
+    fun getByDemoMode(isDemo: Boolean): Flow<List<VaultItem>>
 
     @Query("SELECT COUNT(*) FROM vault_items")
     suspend fun getCount(): Int
@@ -67,6 +82,9 @@ interface VaultItemDao {
 
     @Delete
     suspend fun delete(item: VaultItem)
+
+    @Query("DELETE FROM vault_items WHERE isDemo = 1")
+    suspend fun clearDemoItems()
 
     @Query("DELETE FROM vault_items")
     suspend fun deleteAll()

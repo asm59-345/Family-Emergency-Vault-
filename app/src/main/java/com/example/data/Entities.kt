@@ -18,7 +18,9 @@ data class FamilyDependent(
     val address: String,
     val dependentStatus: String, // "Dependent", "Independent", "Guardian"
     val guardianDetails: String,
-    val notes: String
+    val notes: String,
+    val userId: String = "",
+    val isDemo: Boolean = false
 )
 
 @Entity(tableName = "important_contacts")
@@ -30,14 +32,18 @@ data class ImportantContact(
     val email: String,
     val address: String,
     val priority: String, // "Priority 1 (Nearest)", "Priority 2", "Secondary"
-    val remarks: String
+    val remarks: String,
+    val userId: String = "",
+    val isDemo: Boolean = false
 )
 
 @Entity(
     tableName = "vault_items",
     indices = [
         Index(value = ["category"]),
-        Index(value = ["title"])
+        Index(value = ["title"]),
+        Index(value = ["userId"]),
+        Index(value = ["isDemo"])
     ]
 )
 data class VaultItem(
@@ -47,8 +53,8 @@ data class VaultItem(
     val ownerName: String, // Owner / Holder
     val institution: String, // Bank / Platform / Insurer / Employer e.g. "SBI", "LIC", "EPFO"
     val numberOrId: String, // Account number / Folio / Policy number / PAN
-    val nomineeName: String, // Primary Nominee
-    val nomineeRelation: String, // Relation
+    val nomineeName: String = "", // Primary Nominee
+    val nomineeRelation: String = "", // Relation
     val nomineeVerified: Boolean = false,
     val physicalLocation: String = "", // e.g., "Steel Almirah Binder"
     val digitalLocation: String = "", // e.g., "Drive Link"
@@ -58,7 +64,9 @@ data class VaultItem(
     val detailsString: String = "", // Custom payload e.g. IFSC, UPI ID, Expiry Date, MATURITY, Premium due dates, etc.
     val attachmentUri: String = "", // Local URI of attached photo or scanned document
     val documentPhotoBase64: String = "", // Local Base64 string of captured physical document photo
-    val lastUpdated: Long = System.currentTimeMillis()
+    val lastUpdated: Long = System.currentTimeMillis(),
+    val userId: String = "",
+    val isDemo: Boolean = false
 )
 
 @Entity(tableName = "emergency_action_items")
@@ -73,7 +81,9 @@ data class EmergencyActionItem(
     val documentsToPrepare: String = "",
     val stepByStepGuidance: String = "",
     val updatedBy: String = "",
-    val lastUpdated: Long = System.currentTimeMillis()
+    val lastUpdated: Long = System.currentTimeMillis(),
+    val userId: String = "",
+    val isDemo: Boolean = false
 )
 
 @Entity(tableName = "claim_records")
@@ -86,7 +96,9 @@ data class ClaimRecord(
     val pendingDocuments: String,
     val expectedTimeline: String,
     val notes: String,
-    val lastUpdated: Long = System.currentTimeMillis()
+    val lastUpdated: Long = System.currentTimeMillis(),
+    val userId: String = "",
+    val isDemo: Boolean = false
 )
 
 @Entity(tableName = "emergency_requests")
@@ -98,7 +110,8 @@ data class EmergencyAccessRequest(
     val requestTime: Long = System.currentTimeMillis(),
     val delayHours: Int = 48,
     val status: String = "Pending", // "Pending", "Approved", "Rejected", "Revoked", "Active"
-    val approvedTime: Long = 0L
+    val approvedTime: Long = 0L,
+    val userId: String = ""
 )
 
 @Entity(

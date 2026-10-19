@@ -42,7 +42,7 @@ object BiometricAuthManager {
         activity: FragmentActivity,
         title: String = "Biometric Vault Authentication",
         subtitle: String = "Scan fingerprint or face to decrypt sensitive data",
-        description: String = "Military-grade on-device cryptographic protection for family assets.",
+        description: String = "Hardware-backed on-device biometric security for family assets.",
         negativeButtonText: String = "Use Master MPIN",
         onSuccess: (BiometricPrompt.AuthenticationResult) -> Unit,
         onError: (errorCode: Int, errString: CharSequence) -> Unit,

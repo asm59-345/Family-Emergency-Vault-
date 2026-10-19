@@ -114,11 +114,11 @@ fun AdminAuditDashboardDialog(
                                         .background(Color(0xFF10B981).copy(alpha = 0.2f))
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
-                                    Text("LIVE CLUSTER", color = Color(0xFF10B981), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    Text("LOCAL STORAGE", color = Color(0xFF10B981), fontSize = 9.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                             Text(
-                                text = "Real-time user persistence, token tracking & load balancer metrics",
+                                text = "On-device SQLite database, hardware Keystore auth & integrity audit trail",
                                 color = Color.White.copy(alpha = 0.6f),
                                 fontSize = 10.sp
                             )
@@ -169,26 +169,26 @@ fun AdminAuditDashboardDialog(
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             AdminKpiMetricCard(
-                                title = "TOTAL REGISTERED",
+                                title = "TOTAL PROFILES",
                                 value = userCount.toString(),
-                                subtitle = "Persisted on Server DB",
+                                subtitle = "Local Household Profiles",
                                 icon = Icons.Default.Group,
                                 accentColor = TealAccent,
                                 modifier = Modifier.weight(1f)
                             )
                             AdminKpiMetricCard(
-                                title = "ACTIVE SESSIONS",
+                                title = "ACTIVE PROFILES",
                                 value = serverUsers.count { it.status == "ACTIVE_VERIFIED" }.toString(),
-                                subtitle = "Valid JWT Tokens",
+                                subtitle = "Verified Local Sessions",
                                 icon = Icons.Default.VerifiedUser,
                                 accentColor = Color(0xFF10B981),
                                 modifier = Modifier.weight(1f)
                             )
                             AdminKpiMetricCard(
-                                title = "AVG LATENCY",
-                                value = "${clusterMetrics?.avgLatencyMs ?: 14}ms",
-                                subtitle = "Async Queue Dispatch",
-                                icon = Icons.Default.Speed,
+                                title = "STORAGE ENGINE",
+                                value = "SQLite Room",
+                                subtitle = "Local-First • No Cloud",
+                                icon = Icons.Default.Storage,
                                 accentColor = Color(0xFF0284C7),
                                 modifier = Modifier.weight(1f)
                             )
@@ -362,7 +362,7 @@ fun ClusterHealthAndScalingCard(metrics: com.example.util.ClusterMetrics?) {
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "CLUSTER TOPOLOGY & ELASTIC SCALING",
+                        text = "LOCAL-FIRST STORAGE & INTEGRITY ARCHITECTURE",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = VaultTheme.textPrimary,
@@ -370,7 +370,7 @@ fun ClusterHealthAndScalingCard(metrics: com.example.util.ClusterMetrics?) {
                     )
                 }
                 Text(
-                    text = "ELB • NGINX Active",
+                    text = "No Cloud Sync • Strictly Local",
                     fontSize = 10.sp,
                     color = Color(0xFF10B981),
                     fontWeight = FontWeight.Bold
@@ -379,17 +379,17 @@ fun ClusterHealthAndScalingCard(metrics: com.example.util.ClusterMetrics?) {
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Kubernetes Pods status
+            // Three Local Architectural Pillars
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val nodes = metrics?.activeNodes ?: listOf(
-                    com.example.util.ClusterNodeStatus("node-01-auth", "Auth Microservice", "Auth & JWT", "HEALTHY", 24, 14),
-                    com.example.util.ClusterNodeStatus("node-02-vault", "Vault Core", "AES-256 Storage", "HEALTHY", 31, 18),
-                    com.example.util.ClusterNodeStatus("node-03-audit", "Audit & Observer", "Compliance Ledger", "HEALTHY", 18, 12)
+                val nodes = listOf(
+                    Triple("SQLite Room Core", "On-Device Database", "INTEGRITY OK"),
+                    Triple("KeyStore Hardware", "Dynamic AES-GCM", "SECURE ENCLAVE"),
+                    Triple("Private File Storage", "Sandboxed Documents", "INTERNAL ONLY")
                 )
-                nodes.forEach { node ->
+                nodes.forEach { (title, subtitle, status) ->
                     Card(
                         colors = CardDefaults.cardColors(containerColor = VaultTheme.subCardBg),
                         border = BorderStroke(1.dp, VaultTheme.cardBorder),
@@ -397,28 +397,10 @@ fun ClusterHealthAndScalingCard(metrics: com.example.util.ClusterMetrics?) {
                         modifier = Modifier.weight(1f)
                     ) {
                         Column(modifier = Modifier.padding(8.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(node.name.take(12), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary)
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF10B981))
-                                )
-                            }
-                            Text(node.role, fontSize = 8.sp, color = VaultTheme.textSecondary, maxLines = 1)
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Load: ${node.loadPercent}%", fontSize = 9.sp, color = TealAccent, fontWeight = FontWeight.Bold)
-                                Text("${node.latencyMs}ms", fontSize = 9.sp, color = VaultTheme.textSecondary)
-                            }
+                            Text(title, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary, maxLines = 1)
+                            Text(subtitle, fontSize = 8.sp, color = VaultTheme.textSecondary, maxLines = 1)
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(status, fontSize = 8.sp, color = TealAccent, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -426,7 +408,7 @@ fun ClusterHealthAndScalingCard(metrics: com.example.util.ClusterMetrics?) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Asynchronous Queue and Rate Limiter Telemetry
+            // Honest Privacy & Storage Banner
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -437,19 +419,14 @@ fun ClusterHealthAndScalingCard(metrics: com.example.util.ClusterMetrics?) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(imageVector = Icons.Default.Queue, contentDescription = "Queue", tint = TealAccent, modifier = Modifier.size(14.dp))
+                    Icon(imageVector = Icons.Default.Lock, contentDescription = "Local", tint = TealAccent, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Async Queue Depth: ${metrics?.activeQueueDepth ?: 0} payloads",
+                        text = "Data Sovereignty: All accounts and documents remain inside private sandbox storage.",
                         fontSize = 10.sp,
                         color = VaultTheme.textPrimary
                     )
                 }
-                Text(
-                    text = "Total Handled: ${metrics?.totalRequestsProcessed ?: 0} reqs",
-                    fontSize = 10.sp,
-                    color = VaultTheme.textSecondary
-                )
             }
         }
     }

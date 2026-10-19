@@ -11,3 +11,4 @@ val SlateLightBg = Color(0xFFF8FAFC) // Slate-50 Clean off-white background
 val SlateBorder = Color(0xFFE2E8F0) // Subtle outline border Slate-200
 val RedAlert = Color(0xFFDC2626) // Bright crimson for missing documents, revoked access, and immediate warnings
 val GreenSuccess = Color(0xFF16A34A) // Stable emerald for verified statuses and completed claims
+val AmberWarning = Color(0xFFD97706) // Warm Amber for warnings and alerts

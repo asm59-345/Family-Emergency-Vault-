@@ -169,11 +169,12 @@
           <span x-text="isDarkMode ? '☀️' : '🌙'"></span>
         </button>
 
-        <!-- Download APK Primary Button -->
-        <a href="./app-debug.apk" download="FamilyEmergencyVault-v1.0.apk"
+        <!-- Download APK Primary Button (Debug Build for Sideloading) -->
+        <a href="./app-debug.apk" download="FamilyEmergencyVault-debug.apk"
+           title="Development / Debug APK for testing"
            class="inline-flex items-center gap-1.5 bg-teal-600 hover:bg-teal-500 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs sm:text-sm shadow-md shadow-teal-600/25 transition">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-          <span x-text="t('APK (v1.0)', 'APK (v1.0)')">APK (v1.0)</span>
+          <span x-text="t('APK (Debug)', 'APK (डीबग)')">APK (Debug)</span>
         </a>
       </div>
 
@@ -243,10 +244,11 @@
           <span>💡</span>
           <span x-text="t('Security Architecture Guide', 'सिक्योरिटी व ऐप गाइड')"></span>
         </button>
-        <a href="./app-debug.apk" download="FamilyEmergencyVault-v1.0.apk"
+        <a href="./app-debug.apk" download="FamilyEmergencyVault-debug.apk"
+           title="Development / Debug APK for testing"
            class="px-3 py-1.5 rounded-lg bg-teal-600 text-white font-bold text-xs flex items-center gap-1 shadow-sm">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-          <span x-text="t('APK (v1.0)', 'APK (v1.0)')">APK (v1.0)</span>
+          <span x-text="t('APK (Debug)', 'APK (डीबग)')">APK (Debug)</span>
         </a>
       </div>
     </div>
@@ -442,7 +444,7 @@
                   </li>
                   <li class="flex items-start gap-2">
                     <span class="w-4 h-4 rounded-full bg-teal-500/20 text-teal-300 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">2</span>
-                    <span x-html="t('<strong>Security Prompt:</strong> If your browser shows <em>"File might be harmful"</em>, tap <strong>"Download anyway"</strong>.', '<strong>सिक्योरिटी मैसेज:</strong> अगर ब्राउज़र <em>"File might be harmful"</em> दिखाए, तो <strong>"Download anyway"</strong> दबाएं।')"></span>
+                    <span x-html="t('<strong>Verify Package:</strong> Ensure package is downloaded from official vault host and matches v1.0 release.', '<strong>पैकेज जांच:</strong> सुनिश्चित करें कि पैकेज अधिकृत वॉल्ट होस्ट से डाउनलोड हुआ है।')"></span>
                   </li>
                   <li class="flex items-start gap-2">
                     <span class="w-4 h-4 rounded-full bg-teal-500/20 text-teal-300 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">3</span>
@@ -524,8 +526,8 @@
               <span x-text="t('Official Mobile Advertisement', 'ऑफिशियल मोबाइल विज्ञापन व पोस्टर')">Official Mobile Advertisement</span>
             </div>
             <h2 class="text-2xl sm:text-3xl font-black mt-1" :class="isDarkMode ? 'text-white' : 'text-slate-900'"
-                x-text="t('Military-Grade Protection for Your Loved Ones', 'आपके परिवार के लिए मिलिट्री-ग्रेड सुरक्षा')">
-              Military-Grade Protection for Your Loved Ones
+                x-text="t('Secure On-Device Protection for Your Loved Ones', 'आपके परिवार के लिए ऑन-डिवाइस सुरक्षित सुरक्षा')">
+              Secure On-Device Protection for Your Loved Ones
             </h2>
           </div>
           <a href="./app-debug.apk" download="FamilyEmergencyVault-v1.0.apk"
@@ -1121,6 +1123,19 @@
     <!-- TAB 1: WEB LEDGER (CLIENT-SIDE PRIVATE SANDBOX)-->
     <!-- ============================================== -->
     <div x-show="activeTab === 'ledger'" class="space-y-6">
+      <!-- Demo Mode Banner -->
+      <div x-show="isDemoMode" class="p-4 rounded-2xl bg-amber-500/15 border border-amber-500/40 flex flex-col sm:flex-row items-center justify-between gap-3 text-amber-200">
+        <div class="flex items-center gap-3">
+          <span class="text-2xl">⚠️</span>
+          <div>
+            <div class="text-xs sm:text-sm font-black" x-text="t('DEMO SANDBOX MODE ACTIVE', 'नमूना डेमो मोड सक्रिय है')"></div>
+            <div class="text-[11px] text-amber-300/80" x-text="t('Displaying fictional sample records. These records are strictly isolated and never saved to your personal vault.', 'काल्पनिक नमूना रिकॉर्ड्स दिखाए जा रहे हैं। यह डेटा आपके वास्तविक निजी वॉल्ट से पूरी तरह अलग है और कभी सेव नहीं होता।')"></div>
+          </div>
+        </div>
+        <button @click="exitDemoMode()" class="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shrink-0" x-text="t('Exit Demo Mode', 'डेमो मोड बंद करें')">
+        </button>
+      </div>
+
       <!-- Privacy Assurance Banner for Web Ledger -->
       <div class="p-4 rounded-2xl bg-teal-950/40 border border-teal-500/30 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div class="flex items-center gap-3">
@@ -1235,6 +1250,26 @@
             </div>
           </div>
         </template>
+
+        <!-- Clean Vault Empty State with Optional Demo Sandbox Button -->
+        <div x-show="filteredVaultItems.length === 0" class="col-span-full p-8 rounded-2xl text-center border space-y-3"
+             :class="isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200'">
+          <div class="text-3xl">🛡️</div>
+          <h4 class="font-bold text-sm sm:text-base" :class="isDarkMode ? 'text-white' : 'text-slate-900'"
+              x-text="t('Your Personal Vault is Clean & Unseeded', 'आपका निजी वॉल्ट पूरी तरह खाली व सुरक्षित है')">
+          </h4>
+          <p class="text-xs text-slate-400 max-w-md mx-auto"
+             x-text="t('No financial accounts are pre-seeded into your household. Add your real records or preview simulated sample data in demo mode.', 'कोई भी खाता स्वतः नहीं जोड़ा गया है। आप अपने वास्तविक खाते जोड़ सकते हैं या डेमो मोड में नमूना देख सकते हैं।')">
+          </p>
+          <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
+            <button @click="openAddModal()" class="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow">
+              <span x-text="t('+ Add First Asset / Account', '+ पहला खाता जोड़ें')"></span>
+            </button>
+            <button x-show="!isDemoMode" @click="loadDemoMode()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 border border-teal-500/30 font-bold text-xs">
+              <span x-text="t('🧪 Preview Sample Demo Sandbox', '🧪 नमूना डेमो मोड देखें')"></span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1289,8 +1324,8 @@
             <div class="mt-4 p-3 rounded-xl border space-y-1 text-[11px] font-mono"
                  :class="isDarkMode ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'">
               <div>• Package: <strong>com.aistudio.familyemergencyvault</strong></div>
-              <div>• File: <strong>FamilyEmergencyVault-v1.0.apk</strong></div>
-              <div>• Size: <strong>~22 MB</strong> (Zero lag, 60 FPS)</div>
+              <div>• Artifact: <strong>FamilyEmergencyVault-debug.apk</strong> (Sideload / Testing Build)</div>
+              <div>• Release Type: <strong>Debug Build</strong> (Production builds require release keystore signing)</div>
               <div>• Min SDK: <strong>Android 8.0+ (API 26)</strong></div>
             </div>
 
@@ -1319,9 +1354,9 @@
             <div class="mt-4 space-y-1.5 text-xs" :class="isDarkMode ? 'text-slate-300' : 'text-slate-600'">
               <div class="font-bold text-teal-600 dark:text-teal-400" x-text="t('📋 Installation Steps:', '📋 इंस्टॉलेशन स्टेप्स:')"></div>
               <div x-text="t('1. Tap the direct download button below or scan QR.', '1. नीचे दिए डायरेक्ट बटन या QR स्कैन से APK डाउनलोड करें।')"></div>
-              <div x-text="t('2. In Chrome, tap \'Download anyway\'.', '2. क्रोम में \'Download anyway\' पर टैप करें।')"></div>
+              <div x-text="t('2. Complete package download and verify file integrity.', '2. पैकेज डाउनलोड पूरा करें और फाइल जांचें।')"></div>
               <div x-text="t('3. Tap the file in notifications and select \'Install\'.', '3. डाउनलोड फाइल खोलकर \'Install\' करें।')"></div>
-              <div x-text="t('4. Default App Security MPIN is 4321.', '4. ऐप का डिफ़ॉल्ट MPIN 4321 है।')"></div>
+              <div x-text="t('4. Create your private 4-digit Master MPIN on first launch.', '4. ऐप खोलने पर अपना सुरक्षित 4-अंकों का मास्टर MPIN बनाएं।')"></div>
             </div>
           </div>
 
@@ -1329,7 +1364,7 @@
             <button @click="downloadApkDirect()"
                     class="w-full py-3.5 text-center rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-teal-600/30 transition flex items-center justify-center gap-2">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-              <span x-text="t('⚡ Direct Download Android APK (27 MB)', '⚡ सीधा डाउनलोड Android APK (27 MB)')"></span>
+              <span x-text="t('⚡ Direct Download Android APK (Debug Build)', '⚡ सीधा डाउनलोड Android APK (डीबग बिल्ड)')"></span>
             </button>
 
             <div class="flex items-center gap-2">
@@ -1509,7 +1544,7 @@
 
             <p class="text-xs sm:text-sm leading-relaxed"
                :class="isDarkMode ? 'text-slate-300' : 'text-slate-600'"
-               x-text="t('When unexpected crisis strikes (hospital ICU admission, accident, or sudden demise), cloud servers, forgotten passwords, or missing SMS OTPs leave families helpless. Over ₹50,000+ Crores of insurance and bank deposits lie unclaimed in India alone because families never knew accounts existed. Family Emergency Vault keeps a military-grade, 100% offline blueprint directly on your mobile device.', 'अचानक किसी आपात स्थिति (अस्पताल ICU, दुर्घटना, या अनपेक्षित निधन) के समय क्लाउड सर्वर, भूले हुए पासवर्ड या गायब SMS OTP के कारण परिवार बेबस हो जाता है। भारत में ₹50,000+ करोड़ से अधिक की बैंक जमा और बीमा राशि लावारिस पड़ी है क्योंकि परिवारों को खातों की जानकारी नहीं होती। यह ऐप सीधे आपके मोबाइल फोन में 100% ऑफलाइन सुरक्षित लेजर रखता है।')">
+               x-text="t('When unexpected crisis strikes (hospital ICU admission, accident, or sudden demise), cloud servers, forgotten passwords, or missing SMS OTPs leave families helpless. Over ₹50,000+ Crores of insurance and bank deposits lie unclaimed in India alone because families never knew accounts existed. Family Emergency Vault keeps an encrypted, on-device offline blueprint directly on your mobile device.', 'अचानक किसी आपात स्थिति (अस्पताल ICU, दुर्घटना, या अनपेक्षित निधन) के समय क्लाउड सर्वर, भूले हुए पासवर्ड या गायब SMS OTP के कारण परिवार बेबस हो जाता है। भारत में ₹50,000+ करोड़ से अधिक की बैंक जमा और बीमा राशि लावारिस पड़ी है क्योंकि परिवारों को खातों की जानकारी नहीं होती। यह ऐप सीधे आपके मोबाइल फोन में सुरक्षित एन्क्रिप्टेड लेजर रखता है।')">
             </p>
 
             <!-- Quick Action Links -->
@@ -1817,15 +1852,15 @@
         <div class="space-y-1.5 text-slate-300 text-[11px] leading-relaxed">
           <div class="flex items-start gap-2">
             <span class="font-bold text-teal-300">1.</span>
-            <span x-html="t('Tap <strong>Download anyway</strong> if Chrome or Android displays <em>"File might be harmful"</em> (this is standard for APKs downloaded outside Google Play Store).', 'क्रोम में <strong>"Download anyway"</strong> दबाएं अगर <em>"File might be harmful"</em> का संदेश दिखे।')"></span>
+            <span x-html="t('Download the APK file directly to your Android device.', 'अपने एंड्रॉइड डिवाइस पर सीधे APK फाइल डाउनलोड करें।')"></span>
           </div>
           <div class="flex items-start gap-2">
             <span class="font-bold text-teal-300">2.</span>
-            <span x-html="t('Once download completes, tap the notification or open <strong>Downloads</strong> folder in your Files app and tap <strong>FamilyEmergencyVault-v1.0.apk</strong>.', 'डाउनलोड पूरा होने पर नोटिफिकेशन या <strong>Downloads</strong> फोल्डर में जाकर <strong>FamilyEmergencyVault-v1.0.apk</strong> पर टैप करें।')"></span>
+            <span x-html="t('Once download completes, tap the notification or open <strong>Downloads</strong> folder and select <strong>FamilyEmergencyVault-v1.0.apk</strong>.', 'डाउनलोड पूरा होने पर नोटिफिकेशन या <strong>Downloads</strong> फोल्डर में जाकर <strong>FamilyEmergencyVault-v1.0.apk</strong> चुनें।')"></span>
           </div>
           <div class="flex items-start gap-2">
             <span class="font-bold text-teal-300">3.</span>
-            <span x-html="t('Select <strong>Install</strong> (enable <em>"Allow from this source"</em> if prompted by Chrome or Files). Initial Master MPIN is <strong>4321</strong>.', '<strong>Install</strong> चुनें (मांगे जाने पर <em>"Allow from this source"</em> ऑन करें)। ऐप का डिफ़ॉल्ट MPIN <strong>4321</strong> है।')"></span>
+            <span x-html="t('Select <strong>Install</strong>. On initial app launch, create your private 4-digit Master MPIN.', '<strong>Install</strong> चुनें। पहली बार ऐप शुरू करने पर अपना निजी 4-अंकों का मास्टर MPIN बनाएं।')"></span>
           </div>
         </div>
       </div>
@@ -2319,8 +2354,9 @@
             this.checklist = JSON.parse(savedChecklist || '[]');
             this.dependents = JSON.parse(savedDependents || '[]');
             this.contacts = JSON.parse(savedContacts || '[]');
+            this.isDemoMode = false;
           } else {
-            this.loadDefaultData();
+            this.initCleanVault();
           }
 
           this.updateBadges();
@@ -2336,43 +2372,74 @@
           if (vaultTab) vaultTab.badge = this.vaultItems.length.toString();
         },
 
-        loadDefaultData() {
+        initCleanVault() {
+          this.vaultItems = [];
+          this.dependents = [];
+          this.contacts = [];
+          this.isDemoMode = false;
+          this.checklist = this.getStandardChecklistTemplates();
+          this.updateBadges();
+        },
+
+        getStandardChecklistTemplates() {
+          return [
+            { id: 1, phase: 'First 24 Hours', title: 'पारिवारिक डॉक्टर व अस्पताल से संपर्क', desc: 'प्राथमिक मेडिकल पर्चियां, केस समरी और अस्पताल संपर्क तैयार रखें।', assigned: 'परिवार', completed: false },
+            { id: 2, phase: 'First 24 Hours', title: 'सुरक्षित दस्तावेज व लॉकर चाबी पहचानें', desc: 'घर के सुरक्षित स्थान या लॉकर में रखे आवश्यक पहचान पत्र व पॉलिसी पेपर्स एकत्रित करें।', assigned: 'जिम्मेदार परिजन', completed: false },
+            { id: 3, phase: 'First 7 Days', title: 'नगर निगम से अधिकृत प्रमाण पत्र की प्रतियां प्राप्त करें', desc: 'आवश्यक कानूनी प्रक्रियाओं, बैंक और बीमा क्लेम के लिए आधिकारिक प्रतियां तैयार रखें।', assigned: 'परिवार', completed: false },
+            { id: 4, phase: 'First 7 Days', title: 'बीमा कंपनियों को सूचना व क्लेम इंटिमेशन', desc: 'पॉलिसी नंबर और मेडिकल कागजात के साथ बीमा प्रदाता हेल्पडेस्क पर प्राथमिक इंटिमेशन दर्ज करें।', assigned: 'नॉमिनी', completed: false },
+            { id: 5, phase: 'First 7 Days', title: 'बैंक व क्रेडिट कार्ड्स की सुरक्षा सूचना', desc: 'अनावश्यक शुल्क या अनाधिकृत लेन-देन रोकने के लिए संबंधित बैंक को सूचित करें।', assigned: 'नॉमिनी', completed: false },
+            { id: 6, phase: 'First 30 Days', title: 'डिमैट और म्यूचुअल फंड ट्रांसमिशन प्रक्रिया आरंभ', desc: 'रजिस्टर्ड नॉमिनी के माध्यम से आधिकारिक ट्रांसमिशन फॉर्म (DA-2/Annexure) जमा करें।', assigned: 'नॉमिनी / सलाहकार', completed: false }
+          ];
+        },
+
+        loadDemoMode() {
+          this.isDemoMode = true;
           this.vaultItems = [
-            { id: 1, category: 'BANK', title: 'HDFC Savings Salary Account', institution: 'HDFC Bank', number: '50100045239123', nominee: 'Priya Sharma', relation: 'पत्नी (Spouse)', nomineeVerified: true, physicalLocation: 'दराज 1, फोल्डर A', remarks: 'सैलरी अकाउंट है। नेट बैंकिंग चालू है।' },
-            { id: 2, category: 'INSURANCE', title: 'LIC Term Plan ₹1 Crore', institution: 'Life Insurance Corp of India', number: '194512304', nominee: 'Priya Sharma', relation: 'पत्नी (Spouse)', nomineeVerified: true, physicalLocation: 'अलमारी 2, फाइल B', remarks: 'सालाना प्रीमियम 18,500। इमरजेंसी में फॉर्म 3707 भरना है।' },
-            { id: 3, category: 'INSURANCE', title: 'HDFC Ergo Health Mediclaim ₹10L', institution: 'HDFC Ergo', number: '2815200451000', nominee: 'Priya Sharma', relation: 'पत्नी (Spouse)', nomineeVerified: true, physicalLocation: 'गाड़ी के डैशबोर्ड व मुख्य फाइल में', remarks: 'कैशलेस मेडिक्लेम। कार्ड साथ रखें।' },
-            { id: 4, category: 'INVESTMENT', title: 'Zerodha Demat Shares Portfolio', institution: 'Zerodha / CDSL', number: 'IN30012015949231', nominee: 'Priya Sharma', relation: 'पत्नी (Spouse)', nomineeVerified: true, physicalLocation: 'डिजिटल (CDSL पोर्टल)', remarks: 'ब्लूचिप शेयर करीब 18.5 लाख।' },
-            { id: 5, category: 'INVESTMENT', title: 'SBI Public Provident Fund (PPF)', institution: 'State Bank of India', number: '3051421095', nominee: '', relation: '', nomineeVerified: false, physicalLocation: 'फाइल PPF', remarks: '⚠️ नॉमिनी जोड़ना बाकी है। बैंक ब्रांच जाकर फॉर्म भरें।' },
-            { id: 6, category: 'LOCKER', title: 'Safe Locker Unit 204', institution: 'SBI Golf Course Branch', number: 'Locker-204-ClassB', nominee: 'Priya Sharma', relation: 'पत्नी (Spouse)', nomineeVerified: true, physicalLocation: 'बेडरूम लकड़ी की अलमारी (चाबी S-204)', remarks: 'पुश्तैनी जेवर और प्रॉपर्टी के कागजात इसमें हैं।' },
-            { id: 7, category: 'PROPERTY', title: 'फ्लैट नंबर 502 रजिस्ट्री', institution: 'गुड़गांव तहसील कार्यालय', number: 'Reg-2016-D44521', nominee: 'Priya Sharma', relation: 'पत्नी (Joint)', nomineeVerified: true, physicalLocation: 'SBI लॉकर यूनिट 204', remarks: 'प्रिया के साथ संयुक्त नाम पर है।' }
+            { id: 'demo-1', category: 'BANK', title: 'HDFC Savings Salary Account', institution: 'HDFC Bank', number: '50100045239123', nominee: 'Priya Sharma (Sample)', relation: 'पत्नी (Spouse)', nomineeVerified: true, physicalLocation: 'दराज 1, फोल्डर A', remarks: 'सैलरी खाता। नेट बैंकिंग चालू है। (नमूना रिकॉर्ड)' },
+            { id: 'demo-2', category: 'INSURANCE', title: 'LIC Term Plan ₹1 Crore', institution: 'Life Insurance Corp of India', number: '194512304', nominee: 'Priya Sharma (Sample)', relation: 'पत्नी (Spouse)', nomineeVerified: true, physicalLocation: 'अलमारी 2, फाइल B', remarks: 'सालाना प्रीमियम 18,500। इमरजेंसी में फॉर्म 3707। (नमूना रिकॉर्ड)' },
+            { id: 'demo-3', category: 'INSURANCE', title: 'HDFC Ergo Health Mediclaim ₹10L', institution: 'HDFC Ergo', number: '2815200451000', nominee: 'Priya Sharma (Sample)', relation: 'पत्नी (Spouse)', nomineeVerified: true, physicalLocation: 'गाड़ी के डैशबोर्ड में', remarks: 'कैशलेस मेडिक्लेम। (नमूना रिकॉर्ड)' },
+            { id: 'demo-4', category: 'INVESTMENT', title: 'Zerodha Demat Shares Portfolio', institution: 'Zerodha / CDSL', number: 'IN30012015949231', nominee: 'Priya Sharma (Sample)', relation: 'पत्नी (Spouse)', nomineeVerified: true, physicalLocation: 'डिजिटल (CDSL पोर्टल)', remarks: 'ब्लूचिप शेयर करीब 18.5 लाख। (नमूना रिकॉर्ड)' },
+            { id: 'demo-5', category: 'LOCKER', title: 'Safe Locker Unit 204', institution: 'SBI Golf Course Branch', number: 'Locker-204-ClassB', nominee: 'Priya Sharma (Sample)', relation: 'पत्नी (Spouse)', nomineeVerified: true, physicalLocation: 'बेडरूम लकड़ी की अलमारी (चाबी S-204)', remarks: 'पुश्तैनी जेवर और प्रॉपर्टी के कागजात इसमें हैं। (नमूना रिकॉर्ड)' }
           ];
 
           this.checklist = [
-            { id: 1, phase: 'First 24 Hours', title: 'डॉक्टर और नजदीकी परिजनों को सूचना दें', desc: 'पारिवारिक डॉक्टर डॉ. समीर जोशी (+91 98111 22233) को मेडिकल सर्टिफिकेट व अस्पताल के लिए संपर्क करें।', assigned: 'पत्नी / भाई', completed: false },
-            { id: 2, phase: 'First 24 Hours', title: 'घर की सेफ अलमारी से जरूरी फोल्डर निकालें', desc: 'लकड़ी की अलमारी से महत्वपूर्ण दस्तावेजों वाला पीला लिफाफा और लॉकर चाबी निकालें।', assigned: 'जिम्मेदार परिजन', completed: false },
-            { id: 3, phase: 'First 7 Days', title: 'नगर निगम से डेथ सर्टिफिकेट की 15-20 प्रतियां लें', desc: 'हर बैंक, बीमा और ऑफिस में ओरिजिनल सील वाली कॉपी लगती है। नगर निगम में तुरंत अप्लाई करें।', assigned: 'परिवार', completed: false },
-            { id: 4, phase: 'First 7 Days', title: 'LIC और HDFC बीमा क्लेम फाइल करें', desc: 'पॉलिसी नंबर 194512304 के साथ क्लेम फॉर्म और डेथ सर्टिफिकेट जमा करें।', assigned: 'नॉमिनी (प्रिया)', completed: false },
-            { id: 5, phase: 'First 7 Days', title: 'बैंक को सूचित करें और क्रेडिट कार्ड ब्लॉक कराएं', desc: 'अनावश्यक शुल्क या फ्रॉड से बचने के लिए कार्ड ब्लॉक कराएं, बचत खाता चालू रखें।', assigned: 'नॉमिनी (प्रिया)', completed: false },
-            { id: 6, phase: 'First 30 Days', title: 'जीरोधा डिमैट शेयर ट्रांसफर (Transmission)', desc: 'जीरोधा आरएम महेंद्र सेन (+91 91100 11001) से संपर्क कर फॉर्म 7 जमा करें।', assigned: 'सीए आलोक मेहता', completed: false }
+            { id: 'demo-chk-1', phase: 'First 24 Hours', title: 'डॉक्टर और नजदीकी परिजनों को सूचना दें', desc: 'पारिवारिक डॉक्टर डॉ. समीर जोशी (+91 98000 00000) को मेडिकल सर्टिफिकेट व अस्पताल के लिए संपर्क करें।', assigned: 'पत्नी / भाई', completed: false },
+            { id: 'demo-chk-2', phase: 'First 24 Hours', title: 'घर की सेफ अलमारी से जरूरी फोल्डर निकालें', desc: 'लकड़ी की अलमारी से महत्वपूर्ण दस्तावेजों वाला पीला लिफाफा और लॉकर चाबी निकालें।', assigned: 'जिम्मेदार परिजन', completed: false },
+            { id: 'demo-chk-3', phase: 'First 7 Days', title: 'नगर निगम से डेथ सर्टिफिकेट की प्रतियां लें', desc: 'हर बैंक, बीमा और ऑफिस में ओरिजिनल सील वाली कॉपी लगती है।', assigned: 'परिवार', completed: false }
           ];
 
           this.dependents = [
-            { id: 1, name: 'Priya Sharma', relation: 'पत्नी (Spouse)', dob: '20 Nov 1988', bloodGroup: 'O+', phone: '+91 98765 43210', status: 'नॉमिनी व सह-मालिक', notes: 'घर के सभी लॉकर की चाबियों की जानकारी है।' },
-            { id: 2, name: 'Aarav Sharma', relation: 'बेटा (Son)', dob: '12 Jun 2015', bloodGroup: 'A+', phone: 'N/A', status: 'नाबालिग आश्रित (Minor)', notes: 'अभिभावक: प्रिया शर्मा।' },
-            { id: 3, name: 'Ramesh Sharma', relation: 'पिताजी (Father)', dob: '05 Apr 1954', bloodGroup: 'B+', phone: '+91 99112 23344', status: 'सीनियर सिटीजन आश्रित', notes: 'ब्लड प्रेशर की दवा चलती है। मेडिक्लेम में शामिल हैं।' }
+            { id: 'demo-d1', name: 'Priya Sharma (Sample)', relation: 'पत्नी (Spouse)', dob: '20 Nov 1988', bloodGroup: 'O+', phone: '+91 98000 00000', status: 'नॉमिनी व सह-मालिक (नमूना)', notes: 'नमूना रिकॉर्ड - वास्तविक परिवार से असंबद्ध' },
+            { id: 'demo-d2', name: 'Aarav Sharma (Sample)', relation: 'बेटा (Son)', dob: '12 Jun 2015', bloodGroup: 'A+', phone: 'N/A', status: 'नाबालिग आश्रित (नमूना)', notes: 'नमूना रिकॉर्ड' }
           ];
 
           this.contacts = [
-            { id: 1, name: 'Dr. Sameer Joshi', category: 'फैमिली डॉक्टर', phone: '+91 98111 22233', email: 'dr.joshi@clinic.com', remarks: 'पारिवारिक चिकित्सक। मेडिकल हिस्ट्री की पूरी जानकारी है।' },
-            { id: 2, name: 'Alok Mehta (CA)', category: 'चार्टर्ड अकाउंटेंट (CA)', phone: '+91 93123 45678', email: 'alokmehta.ca@co.in', remarks: 'सालाना टैक्स, ITR और वित्तीय सलाहकारों के काम देखते हैं।' },
-            { id: 3, name: 'Sanjay Krishna', category: 'वकील (Lawyer)', phone: '+91 98100 98100', email: 'sanjay.krishna@legal.com', remarks: 'कानूनी कागजात व वसीयत के जानकार।' },
-            { id: 4, name: 'Mahendra Sen', category: 'जीरोधा रिलेशनशिप मैनेजर', phone: '+91 91100 11001', email: 'mahendra.sen@zerodha.com', remarks: 'डिमैट शेयर ट्रांसमिशन में मदद के लिए।' }
+            { id: 'demo-c1', name: 'Dr. Sameer Joshi (Sample)', category: 'फैमिली डॉक्टर', phone: '+91 98000 00000', email: 'dr.sample@clinic.local', remarks: 'नमूना संपर्क' },
+            { id: 'demo-c2', name: 'Alok Mehta CA (Sample)', category: 'चार्टर्ड अकाउंटेंट (CA)', phone: '+91 93000 00000', email: 'ca.sample@firm.local', remarks: 'नमूना संपर्क' }
           ];
+          this.updateBadges();
+        },
 
-          this.saveAll();
+        exitDemoMode() {
+          this.isDemoMode = false;
+          const savedVault = localStorage.getItem('fev_vault_items');
+          if (savedVault) {
+            this.vaultItems = JSON.parse(savedVault);
+            this.checklist = JSON.parse(localStorage.getItem('fev_checklist') || '[]');
+            this.dependents = JSON.parse(localStorage.getItem('fev_dependents') || '[]');
+            this.contacts = JSON.parse(localStorage.getItem('fev_contacts') || '[]');
+          } else {
+            this.initCleanVault();
+          }
+          this.updateBadges();
         },
 
         saveAll() {
+          if (this.isDemoMode) {
+            // Strictly guard: demo records are never written to real household storage
+            this.updateBadges();
+            return;
+          }
           localStorage.setItem('fev_vault_items', JSON.stringify(this.vaultItems));
           localStorage.setItem('fev_checklist', JSON.stringify(this.checklist));
           localStorage.setItem('fev_dependents', JSON.stringify(this.dependents));
@@ -2741,8 +2808,16 @@
         },
 
         exportData() {
+          if (this.isDemoMode) {
+            alert(this.t('Demo mode records cannot be exported. Switch to your private vault to export real records.', 'डेमो मोड रिकॉर्ड्स को एक्सपोर्ट नहीं किया जा सकता। कृपया निजी वॉल्ट में स्विच करें।'));
+            return;
+          }
+          const sanitizedItems = this.vaultItems.map(item => ({
+            ...item,
+            number: this.maskText(item.number)
+          }));
           const data = {
-            vaultItems: this.vaultItems,
+            vaultItems: sanitizedItems,
             checklist: this.checklist,
             dependents: this.dependents,
             contacts: this.contacts,
@@ -2758,27 +2833,22 @@
         },
 
         resetToDefaults() {
-          if (confirm(this.t('Reset all data to initial sample records?', 'क्या आप पूरा डेटा ओरिजिनल सैंपल रिकॉर्ड्स पर रीसेट करना चाहते हैं?'))) {
-            localStorage.clear();
-            this.loadDefaultData();
+          if (confirm(this.t('Clear all stored records and reset to an empty vault?', 'क्या आप पूरा डेटा साफ़ करके खाली वॉल्ट पर रीसेट करना चाहते हैं?'))) {
+            localStorage.removeItem('fev_vault_items');
+            localStorage.removeItem('fev_dependents');
+            localStorage.removeItem('fev_contacts');
+            this.initCleanVault();
           }
         },
 
         getApkDownloadUrl() {
-          if (this.qrTargetMode === 'shared') {
-            return 'https://ais-pre-bru2epfqu3yybajn2lqh2x-786684627999.asia-southeast1.run.app/app-debug.apk';
-          }
-          if (this.qrTargetMode === 'current') {
+          if (this.qrTargetMode === 'current' || this.qrTargetMode === 'shared') {
             return window.location.origin + '/app-debug.apk';
           }
-          // Auto mode
+          // Auto mode: use relative path or current origin
           const host = window.location.hostname || '';
           if (host === 'localhost' || host === '127.0.0.1' || !host) {
             return './app-debug.apk';
-          }
-          if (host.includes('ais-dev-')) {
-            // Translate restricted dev instance to public shared preview instance without auth wall
-            return window.location.origin.replace('ais-dev-', 'ais-pre-') + '/app-debug.apk';
           }
           return window.location.origin + '/app-debug.apk';
         },
@@ -2792,7 +2862,7 @@
           const url = this.getApkDownloadUrl();
           const a = document.createElement('a');
           a.href = url;
-          a.download = 'FamilyEmergencyVault-v1.0.apk';
+          a.download = 'FamilyEmergencyVault-debug.apk';
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);

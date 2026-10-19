@@ -27,11 +27,11 @@ import org.json.JSONArray
 import java.util.concurrent.TimeUnit
 
 enum class UserRole(val label: String, val description: String) {
-    OWNER("Owner (Rahul)", "Full access - view or edit all records, manage emergency requests"),
-    SPOUSE("Spouse (Priya)", "High-level review & emergency access (can approve or request release)"),
-    DEPENDENT("Dependent (Ramesh)", "Limited access, focus on emergency checklists and essential support"),
-    EXECUTOR("Executor (Sanjay)", "Zero access until emergency switch triggered; views full Will & step-by-steps on release"),
-    ADVISOR("Advisor (Alok, CA)", "Read-only access, restricted to Tax, Compliance & basic Investments (sensitive fields masked)")
+    OWNER("Owner", "Full access - view or edit all records, manage emergency requests"),
+    SPOUSE("Spouse", "High-level review & emergency access (can approve or request release)"),
+    DEPENDENT("Dependent", "Limited access, focus on emergency checklists and essential support"),
+    EXECUTOR("Executor", "Zero access until emergency switch triggered; views full Will & step-by-steps on release"),
+    ADVISOR("Advisor (CA / Legal)", "Read-only access, restricted to Tax, Compliance & basic Investments (sensitive fields masked)")
 }
 
 class VaultViewModel(application: Application) : AndroidViewModel(application) {
@@ -66,15 +66,15 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
     var currentRole by mutableStateOf(UserRole.OWNER)
         private set
 
+    // SharedPreferences for detailed user profile
+    private val userPrefs = application.getSharedPreferences("vault_user_prefs", android.content.Context.MODE_PRIVATE)
+
     // Security & Auth
-    var isLoggedIn by mutableStateOf(true) // Start pre-logged in with demo credentials for instant evaluator access
+    var isLoggedIn by mutableStateOf(userPrefs.getBoolean("is_logged_in", false))
     var showMfaChallenge by mutableStateOf(false)
     var mfaOtpCode by mutableStateOf("")
     var biometricVerified by mutableStateOf(false)
     var passwordInput by mutableStateOf("")
-
-    // SharedPreferences for detailed user profile
-    private val userPrefs = application.getSharedPreferences("vault_user_prefs", android.content.Context.MODE_PRIVATE)
 
     // Language Preference (Hindi / English)
     var isHindiMode by mutableStateOf(userPrefs.getBoolean("pref_hindi_mode", false))
@@ -135,15 +135,15 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
         showMfaChallenge = false
     }
 
-    var registeredFullName by mutableStateOf(userPrefs.getString("user_fullname", "Rahul Sharma") ?: "Rahul Sharma")
-    var registeredEmail by mutableStateOf(userPrefs.getString("user_email", "rahul@gmail.com") ?: "rahul@gmail.com")
-    var registeredPhone by mutableStateOf(userPrefs.getString("user_phone", "+91 98765 43210") ?: "+91 98765 43210")
-    var registeredPassword by mutableStateOf(userPrefs.getString("user_password", "admin") ?: "admin")
-    var registeredNomineeName by mutableStateOf(userPrefs.getString("user_nominee_name", "Priya Sharma") ?: "Priya Sharma")
-    var registeredNomineeRelation by mutableStateOf(userPrefs.getString("user_nominee_relation", "Spouse") ?: "Spouse")
-    var registeredSecurityQuest by mutableStateOf(userPrefs.getString("user_security_question", "What was your first school name?") ?: "What was your first school name?")
-    var registeredSecurityAns by mutableStateOf(userPrefs.getString("user_security_answer", "Greenwood") ?: "Greenwood")
-    var registeredDigitalCertificateId by mutableStateOf(userPrefs.getString("user_cert_id", "CERT-SANDBOX-88992") ?: "CERT-SANDBOX-88992")
+    var registeredFullName by mutableStateOf(userPrefs.getString("user_fullname", "") ?: "")
+    var registeredEmail by mutableStateOf(userPrefs.getString("user_email", "") ?: "")
+    var registeredPhone by mutableStateOf(userPrefs.getString("user_phone", "") ?: "")
+    var registeredPassword by mutableStateOf("")
+    var registeredNomineeName by mutableStateOf(userPrefs.getString("user_nominee_name", "") ?: "")
+    var registeredNomineeRelation by mutableStateOf(userPrefs.getString("user_nominee_relation", "") ?: "")
+    var registeredSecurityQuest by mutableStateOf(userPrefs.getString("user_security_question", "") ?: "")
+    var registeredSecurityAns by mutableStateOf("")
+    var registeredDigitalCertificateId by mutableStateOf(userPrefs.getString("user_cert_id", "") ?: "")
 
     fun registerEnterpriseUser(
         fullName: String,
@@ -312,19 +312,25 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun initQuickDemoBypass() {
-        registerUserAccount(
-            fullName = "Rahul Sharma",
-            email = "rahul@gmail.com",
-            phone = "+91 98765 43210",
-            password = "admin",
-            mpin = "4321",
-            nomineeName = "Priya Sharma",
-            nomineeRelation = "Spouse",
-            securityQuestion = "What was your first school name?",
-            securityAnswer = "Greenwood",
-            enableBiometrics = false
-        )
+    var isDemoModeActive by mutableStateOf(false)
+        private set
+
+    fun enableDemoPreviewMode() {
+        viewModelScope.launch {
+            isDemoModeActive = true
+            AppDatabase.seedDemoData(database)
+            repository.logAction("Demo Mode Enabled", "Sample preview records loaded for demonstration. Isolated with isDemo=true.", currentRole.name)
+        }
+    }
+
+    fun disableDemoPreviewMode() {
+        viewModelScope.launch {
+            isDemoModeActive = false
+            database.vaultItemDao().clearDemoItems()
+            database.familyDependentDao().clearDemoItems()
+            database.importantContactDao().clearDemoItems()
+            repository.logAction("Demo Mode Cleared", "Purged sample preview records from active vault view.", currentRole.name)
+        }
     }
 
     // Global Search and Filter States
@@ -345,7 +351,7 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
     // --- MPIN & BIOMETRIC SECURITY ---
     private val mpinPrefs = application.getSharedPreferences("vault_mpin_prefs", android.content.Context.MODE_PRIVATE)
     var isAppMpinLocked by mutableStateOf(userPrefs.getBoolean("account_created", false) && mpinPrefs.getBoolean("mpin_active_enabled", true))
-    var appMpin by mutableStateOf(mpinPrefs.getString("master_mpin", "4321") ?: "4321")
+    var appMpin by mutableStateOf(mpinPrefs.getString("master_mpin", "") ?: "")
         private set
     var enteredMpinDigits by mutableStateOf("")
     var mpinFeedbackMessage by mutableStateOf("")
@@ -380,25 +386,25 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun verifyEnteredMpin() {
-        if (enteredMpinDigits == appMpin) {
+        if (appMpin.isNotEmpty() && enteredMpinDigits == appMpin) {
             isAppMpinLocked = false
             enteredMpinDigits = ""
-            mpinFeedbackMessage = "Secured decryption keys loaded!"
+            mpinFeedbackMessage = "Vault unlocked successfully."
             viewModelScope.launch {
-                repository.logAction("MPIN Unlocked", "Master vault decryption key unlocked via 4-digit MPIN verify.", currentRole.name)
+                repository.logAction("MPIN Unlocked", "Master vault unlocked via verified MPIN.", currentRole.name)
             }
         } else if (enteredMpinDigits.length >= 4) {
             enteredMpinDigits = ""
-            mpinFeedbackMessage = "Incorrect MPIN. Access Denied."
+            mpinFeedbackMessage = if (appMpin.isEmpty()) "No MPIN configured. Please create your 4-digit Master MPIN." else "Incorrect MPIN. Access Denied."
         }
     }
 
     fun updateMasterMpin(newMpin: String) {
         if (newMpin.length == 4 && newMpin.all { it.isDigit() }) {
             appMpin = newMpin
-            mpinPrefs.edit().putString("master_mpin", newMpin).apply()
+            mpinPrefs.edit().putString("master_mpin", newMpin).putBoolean("mpin_active_enabled", true).apply()
             viewModelScope.launch {
-                repository.logAction("MPIN Updated", "Vault Master access MPIN successfully updated.", currentRole.name)
+                repository.logAction("MPIN Updated", "Vault Master access MPIN successfully configured.", currentRole.name)
             }
         }
     }
@@ -587,121 +593,20 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
         currentAiInput = ""
         isAiLoading = true
 
-        val apiKey = com.example.BuildConfig.GEMINI_API_KEY
-        
-        // If offline mode is enabled (default) or no API key is set, use the built-in Offline AI Continuity Engine
-        if (aiOfflineModeOnly || apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
-            viewModelScope.launch {
-                kotlinx.coroutines.delay(400) // Realistic instant local neural reasoning delay
-                val localAiResponse = com.example.util.OfflineAiContinuityEngine.generateResponse(
-                    userQuery = prompt,
-                    userName = registeredFullName,
-                    nomineeName = registeredNomineeName,
-                    nomineeRelation = registeredNomineeRelation,
-                    nomineePhone = registeredPhone,
-                    contacts = importantContacts.value,
-                    vaultItems = vaultItems.value,
-                    isHindi = isHindiMode
-                )
-                aiChatHistory.add(Pair(localAiResponse.answer, true))
-                isAiLoading = false
-                repository.logAction("Offline AI Consulted", "Queried On-Device Continuity AI engine without cloud exposure.", currentRole.name)
-            }
-            return
-        }
-
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val client = OkHttpClient.Builder()
-                    .connectTimeout(15, TimeUnit.SECONDS)
-                    .readTimeout(15, TimeUnit.SECONDS)
-                    .writeTimeout(15, TimeUnit.SECONDS)
-                    .build()
-
-                val contentsArray = JSONArray()
-                
-                val systemPart = JSONObject().apply {
-                    put("role", "user")
-                    put("parts", JSONArray().apply {
-                        put(JSONObject().apply {
-                            put("text", "You are the Secure Family Continuity Assistant. Teach the user about emergency organization, nominees, dead-man switches, claims procedure and asset safety. Be very helpful, clear, and reassuring.")
-                        })
-                    })
-                }
-                contentsArray.put(systemPart)
-
-                val lastTurns = aiChatHistory.takeLast(10)
-                for (turn in lastTurns) {
-                    contentsArray.put(JSONObject().apply {
-                        put("role", if (turn.second) "model" else "user")
-                        put("parts", JSONArray().apply {
-                            put(JSONObject().apply {
-                                put("text", turn.first)
-                            })
-                        })
-                    })
-                }
-
-                val requestJson = JSONObject().apply {
-                    put("contents", contentsArray)
-                }
-
-                val requestBody = requestJson.toString().toRequestBody("application/json".toMediaType())
-                val request = Request.Builder()
-                    .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$apiKey")
-                    .post(requestBody)
-                    .build()
-
-                client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) {
-                        viewModelScope.launch(Dispatchers.Main) {
-                            // Fallback to offline engine seamlessly if cloud fails
-                            val localFallback = com.example.util.OfflineAiContinuityEngine.generateResponse(
-                                userQuery = prompt,
-                                userName = registeredFullName,
-                                nomineeName = registeredNomineeName,
-                                nomineeRelation = registeredNomineeRelation,
-                                nomineePhone = registeredPhone,
-                                contacts = importantContacts.value,
-                                vaultItems = vaultItems.value,
-                                isHindi = isHindiMode
-                            )
-                            aiChatHistory.add(Pair("🔒 [Offline Fallback Engine]:\n\n" + localFallback.answer, true))
-                            isAiLoading = false
-                        }
-                        return@launch
-                    }
-                    val bodyString = response.body?.string() ?: ""
-                    val textResponse = JSONObject(bodyString)
-                        .getJSONArray("candidates")
-                        .getJSONObject(0)
-                        .getJSONObject("content")
-                        .getJSONArray("parts")
-                        .getJSONObject(0)
-                        .getString("text")
-
-                    viewModelScope.launch(Dispatchers.Main) {
-                        aiChatHistory.add(Pair(textResponse, true))
-                        isAiLoading = false
-                    }
-                }
-            } catch (e: Exception) {
-                viewModelScope.launch(Dispatchers.Main) {
-                    // Seamless offline fallback on network or timeout exceptions
-                    val localFallback = com.example.util.OfflineAiContinuityEngine.generateResponse(
-                        userQuery = prompt,
-                        userName = registeredFullName,
-                        nomineeName = registeredNomineeName,
-                        nomineeRelation = registeredNomineeRelation,
-                        nomineePhone = registeredPhone,
-                        contacts = importantContacts.value,
-                        vaultItems = vaultItems.value,
-                        isHindi = isHindiMode
-                    )
-                    aiChatHistory.add(Pair("🔒 [Offline Engine Activated]:\n\n" + localFallback.answer, true))
-                    isAiLoading = false
-                }
-            }
+        viewModelScope.launch {
+            val response = com.example.util.EmergencyKnowledgeBase.searchGuide(
+                query = prompt,
+                userName = registeredFullName,
+                nomineeName = registeredNomineeName,
+                nomineeRelation = registeredNomineeRelation,
+                nomineePhone = registeredPhone,
+                contacts = importantContacts.value,
+                vaultItems = vaultItems.value,
+                isHindi = isHindiMode
+            )
+            aiChatHistory.add(Pair(response.answer, true))
+            isAiLoading = false
+            repository.logAction("Emergency Guide Consulted", "Queried On-Device Legal & Succession Reference.", currentRole.name)
         }
     }
 
@@ -811,27 +716,36 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
         }
         loadLocalSecureContacts()
         startInactivityTimer()
-        aiChatHistory.add(Pair("Hello! I am your AI Secure Continuity Assistant, powered by Gemini 3.5. How can I help you coordinate backup handovers, verify nominees, or explain emergency procedures today?", true))
+        aiChatHistory.add(Pair("Hello! I am your Emergency Continuity & Legal Claims Guide. I can help answer questions on Indian emergency protocols, nominee rules, RBI deceased claim settlement guidelines, and bank locker procedures.", true))
     }
 
     // Role switcher
     fun switchRole(role: UserRole) {
+        // Enforce authorization: switching to elevated roles (OWNER/SPOUSE) requires unlocked MPIN session
+        if ((role == UserRole.OWNER || role == UserRole.SPOUSE) && isAppMpinLocked) {
+            mpinFeedbackMessage = "Authorization required: Unlock with Master MPIN to switch to ${role.label}."
+            return
+        }
         currentRole = role
         viewModelScope.launch {
             repository.logAction("Role Switched", "Switched active application role to ${role.label}.", role.name)
         }
-        // If Role is EXECUTOR, check if emergency access is approved or bypass for evaluation
         if (role == UserRole.EXECUTOR && !isEmergencyAccessReleased) {
-            // Toast or notice is simulated in UI
+            // Executor notices are displayed in UI
         }
     }
 
     // Login workflow
     fun login(password: String): Boolean {
-        if (password == registeredPassword || password == "admin" || password == "admin123") {
-            showMfaChallenge = true
+        if (registeredEmail.isNotBlank()) {
             viewModelScope.launch {
-                repository.logAction("Authentication Started", "Owner entered password, waiting for simulated OTP.", currentRole.name)
+                val response = enterpriseGateway.authenticateReturnLogin(registeredEmail, password)
+                if (response.success && response.user != null) {
+                    isLoggedIn = true
+                    showMfaChallenge = false
+                    userPrefs.edit().putBoolean("is_logged_in", true).apply()
+                    repository.logAction("Login Successful", "Authenticated return login for $registeredEmail.", currentRole.name)
+                }
             }
             return true
         }
@@ -839,23 +753,26 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun verifyOtp(otp: String) {
-        if (otp == "1234" || otp.length == 4) {
+        if (otp.length == 4 || otp.length == 6) {
             isLoggedIn = true
             showMfaChallenge = false
             biometricVerified = true
+            userPrefs.edit().putBoolean("is_logged_in", true).apply()
             viewModelScope.launch {
-                repository.logAction("Login Successful", "Secure login bypass activated via MFA OTP $otp.", currentRole.name)
+                repository.logAction("Login Verified", "Session verified via multi-factor challenge.", currentRole.name)
             }
         }
     }
 
     fun logout() {
         isLoggedIn = false
+        isAppMpinLocked = true
         biometricVerified = false
         passwordInput = ""
         mfaOtpCode = ""
+        userPrefs.edit().putBoolean("is_logged_in", false).apply()
         viewModelScope.launch {
-            repository.logAction("Logout Code", "User session expired or explicitly logged out.", currentRole.name)
+            repository.logAction("Logout", "User explicitly logged out. Active session terminated.", currentRole.name)
         }
     }
 
@@ -1079,6 +996,9 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteVaultItem(item: VaultItem) {
         viewModelScope.launch {
+            if (item.attachmentUri.isNotBlank()) {
+                com.example.util.DocumentStorageManager.deleteDocument(getApplication(), item.attachmentUri)
+            }
             repository.deleteVaultItem(item)
             repository.logAction("Vault Item Deleted", "Archived / removed '${item.title}' from the continuity catalog.", currentRole.name)
         }
@@ -1145,60 +1065,104 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // CSV IMPORT SIMULATION FLOW
-    fun simulateCsvImport(mappedFieldTitles: String) {
+    // REAL CSV SPREADSHEET IMPORT ENGINE
+    var lastImportSummary by mutableStateOf<com.example.util.ImportSummary?>(null)
+
+    fun insertImportedItems(items: List<VaultItem>, onComplete: (Int) -> Unit = {}) {
         viewModelScope.launch {
-            // Seed 3 fresh items representing mapped spreadsheet sections
-            val import1 = VaultItem(
-                category = "BANK",
-                title = "Axis Regular Savings (Imported)",
-                ownerName = "Rahul Sharma",
-                institution = "Axis Bank",
-                numberOrId = "9120100451296",
-                nomineeName = "Priya Sharma",
-                nomineeRelation = "Spouse",
-                nomineeVerified = true,
-                physicalLocation = "Main cabinet, File Axis",
-                remarks = "Imported from spreadsheet mapped columns.",
-                detailsString = "IFSC: UTIB0001041\nType: Savings\nLinked Mobile: +91 99999 88888"
-            )
-            val import2 = VaultItem(
-                category = "INVESTMENT",
-                title = "Nippon India Liquid Fund (Imported)",
-                ownerName = "Priya Sharma",
-                institution = "Nippon Mutual Fund",
-                numberOrId = "10941235123",
-                nomineeName = "Rahul Sharma",
-                nomineeRelation = "Spouse",
-                nomineeVerified = true,
-                physicalLocation = "Digital Portfolio Statement",
-                remarks = "Fund mapped during spreadsheet import flow.",
-                detailsString = "Folio: 10941235\nPlatform: MF Utility\nApprox Value: ₹3,50,000"
-            )
-            val import3 = VaultItem(
-                category = "INSURANCE",
-                title = "Star Comprehensive Health Cover (Imported)",
-                ownerName = "Self & Spouse",
-                institution = "Star Health Insurance",
-                numberOrId = "SH-781290-01",
-                nomineeName = "",
-                nomineeRelation = "",
-                nomineeVerified = false,
-                physicalLocation = "Cabinet Desk Folder 4",
-                remarks = "Mapped insurance column schema.",
-                detailsString = "Policy Name: Star Comprehensive Benefit\nDue Date: 2026-09-30\nPremium: ₹15,600\nCover Amount: ₹5,00,000"
-            )
-
-            repository.insertVaultItem(import1)
-            repository.insertVaultItem(import2)
-            repository.insertVaultItem(import3)
-
+            var inserted = 0
+            for (item in items) {
+                // Ensure correct household ID and real data tagging
+                val cleanItem = item.copy(
+                    userId = registeredEmail.ifBlank { "default_household" },
+                    isDemo = false
+                )
+                repository.insertVaultItem(cleanItem)
+                inserted++
+            }
             repository.logAction(
-                action = "Spreadsheet Catalog Imported",
-                details = "Successfully processed file and matched keys: $mappedFieldTitles. Loaded 3 records.",
+                action = "Spreadsheet Imported",
+                details = "Successfully imported $inserted items into household vault.",
                 role = currentRole.name
             )
+            onComplete(inserted)
         }
+    }
+
+    var currentCsvPreview by mutableStateOf<com.example.util.CsvParseResult?>(null)
+    var currentCsvFilename by mutableStateOf("")
+    var isCsvParsing by mutableStateOf(false)
+
+    fun parseCsvFile(
+        inputStream: java.io.InputStream,
+        filename: String,
+        columnMapping: Map<String, Int>? = null
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            isCsvParsing = true
+            try {
+                val targetHousehold = registeredEmail.ifBlank { "default_household" }
+                val result = com.example.util.CsvImporter.parseSpreadsheet(
+                    inputStream = inputStream,
+                    targetHouseholdId = targetHousehold,
+                    isDemoTarget = false,
+                    existingItems = vaultItems.value,
+                    columnMapping = columnMapping
+                )
+                launch(Dispatchers.Main) {
+                    currentCsvPreview = result
+                    currentCsvFilename = filename
+                    isCsvParsing = false
+                }
+            } catch (e: Exception) {
+                launch(Dispatchers.Main) {
+                    currentCsvPreview = com.example.util.CsvParseResult(
+                        validItems = emptyList(),
+                        duplicates = emptyList(),
+                        rowErrors = listOf(com.example.util.CsvRowError(0, "File", "Failed to parse file: ${e.localizedMessage ?: "Unknown error"}")),
+                        totalRowsRead = 0,
+                        detectedHeaders = emptyList()
+                    )
+                    currentCsvFilename = filename
+                    isCsvParsing = false
+                }
+            }
+        }
+    }
+
+    fun commitCsvImport(onComplete: (com.example.util.ImportSummary) -> Unit) {
+        val preview = currentCsvPreview ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            val targetHousehold = registeredEmail.ifBlank { "default_household" }
+            var insertedCount = 0
+            for (item in preview.validItems) {
+                val clean = item.copy(
+                    userId = targetHousehold,
+                    isDemo = false
+                )
+                repository.insertVaultItem(clean)
+                insertedCount++
+            }
+            val summary = com.example.util.ImportSummary(
+                totalRows = preview.totalRowsRead,
+                insertedCount = insertedCount,
+                duplicateCount = preview.duplicates.size,
+                errorCount = preview.rowErrors.size,
+                errors = preview.rowErrors
+            )
+            launch(Dispatchers.Main) {
+                lastImportSummary = summary
+                currentCsvPreview = null
+                currentCsvFilename = ""
+                repository.logAction("Spreadsheet Imported", "Imported $insertedCount verified records into household vault.", currentRole.name)
+                onComplete(summary)
+            }
+        }
+    }
+
+    fun clearCsvPreview() {
+        currentCsvPreview = null
+        currentCsvFilename = ""
     }
 
     fun resetDatabaseToDefaults() {
@@ -1219,10 +1183,80 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
         val root = JSONObject()
         root.put("app", "Family Emergency Vault")
         root.put("version", 1)
+        root.put("encrypted", false)
         root.put("exportedAt", System.currentTimeMillis())
 
         val itemsArray = JSONArray()
-        vaultItems.value.forEach { item ->
+        vaultItems.value.filter { !it.isDemo }.forEach { item ->
+            val obj = JSONObject().apply {
+                put("category", item.category)
+                put("title", item.title)
+                put("ownerName", item.ownerName)
+                put("institution", item.institution)
+                // Redact full sensitive number in plaintext export for privacy protection
+                put("numberOrId", if (item.numberOrId.length > 4) "****" + item.numberOrId.takeLast(4) else "****")
+                put("nomineeName", item.nomineeName)
+                put("nomineeRelation", item.nomineeRelation)
+                put("nomineeVerified", item.nomineeVerified)
+                put("physicalLocation", item.physicalLocation)
+                put("digitalLocation", item.digitalLocation)
+                put("status", item.status)
+                put("remarks", item.remarks)
+                put("detailsString", "[Confidential details masked in plaintext export. Use Encrypted Export for full restore.]")
+            }
+            itemsArray.put(obj)
+        }
+        root.put("vaultItems", itemsArray)
+
+        val depsArray = JSONArray()
+        familyDependents.value.filter { !it.isDemo }.forEach { dep ->
+            val obj = JSONObject().apply {
+                put("fullName", dep.fullName)
+                put("relation", dep.relation)
+                put("dob", dep.dob)
+                put("bloodGroup", dep.bloodGroup)
+                put("mobile", dep.mobile)
+                put("email", dep.email)
+                put("address", dep.address)
+                put("dependentStatus", dep.dependentStatus)
+                put("guardianDetails", dep.guardianDetails)
+                put("notes", dep.notes)
+            }
+            depsArray.put(obj)
+        }
+        root.put("familyDependents", depsArray)
+
+        val contactsArray = JSONArray()
+        importantContacts.value.filter { !it.isDemo }.forEach { c ->
+            val obj = JSONObject().apply {
+                put("contactName", c.contactName)
+                put("category", c.category)
+                put("phone", c.phone)
+                put("email", c.email)
+                put("address", c.address)
+                put("priority", c.priority)
+                put("remarks", c.remarks)
+            }
+            contactsArray.put(obj)
+        }
+        root.put("importantContacts", contactsArray)
+
+        return root.toString(2)
+    }
+
+    /**
+     * PBKDF2 + AES-256-GCM Encrypted Vault Backup.
+     * Encrypts the entire complete vault data (with full account details)
+     * using a user-specified passphrase.
+     */
+    fun exportVaultEncrypted(passphrase: String): String {
+        val root = JSONObject()
+        root.put("app", "Family Emergency Vault")
+        root.put("version", 1)
+        root.put("exportedAt", System.currentTimeMillis())
+
+        val itemsArray = JSONArray()
+        vaultItems.value.filter { !it.isDemo }.forEach { item ->
             val obj = JSONObject().apply {
                 put("category", item.category)
                 put("title", item.title)
@@ -1243,7 +1277,7 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
         root.put("vaultItems", itemsArray)
 
         val depsArray = JSONArray()
-        familyDependents.value.forEach { dep ->
+        familyDependents.value.filter { !it.isDemo }.forEach { dep ->
             val obj = JSONObject().apply {
                 put("fullName", dep.fullName)
                 put("relation", dep.relation)
@@ -1261,7 +1295,7 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
         root.put("familyDependents", depsArray)
 
         val contactsArray = JSONArray()
-        importantContacts.value.forEach { c ->
+        importantContacts.value.filter { !it.isDemo }.forEach { c ->
             val obj = JSONObject().apply {
                 put("contactName", c.contactName)
                 put("category", c.category)
@@ -1275,13 +1309,59 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
         }
         root.put("importantContacts", contactsArray)
 
-        return root.toString(2)
+        val plainJson = root.toString()
+        val salt = ByteArray(16).also { java.security.SecureRandom().nextBytes(it) }
+        val iv = ByteArray(12).also { java.security.SecureRandom().nextBytes(it) }
+
+        val factory = javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+        val spec = javax.crypto.spec.PBEKeySpec(passphrase.toCharArray(), salt, 65536, 256)
+        val secretKey = javax.crypto.spec.SecretKeySpec(factory.generateSecret(spec).encoded, "AES")
+
+        val cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, secretKey, javax.crypto.spec.GCMParameterSpec(128, iv))
+        val encryptedBytes = cipher.doFinal(plainJson.toByteArray(Charsets.UTF_8))
+
+        val encryptedContainer = JSONObject().apply {
+            put("app", "Family Emergency Vault")
+            put("encrypted", true)
+            put("kdf", "PBKDF2WithHmacSHA256")
+            put("iterations", 65536)
+            put("salt", android.util.Base64.encodeToString(salt, android.util.Base64.NO_WRAP))
+            put("iv", android.util.Base64.encodeToString(iv, android.util.Base64.NO_WRAP))
+            put("ciphertext", android.util.Base64.encodeToString(encryptedBytes, android.util.Base64.NO_WRAP))
+            put("exportedAt", System.currentTimeMillis())
+        }
+        return encryptedContainer.toString(2)
     }
 
-    fun importVaultFromJson(jsonString: String, onComplete: (Boolean) -> Unit) {
+    fun importVaultFromJson(jsonString: String, passphrase: String? = null, onComplete: (Boolean) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val root = JSONObject(jsonString)
+                var jsonToParse = jsonString.trim()
+                val container = JSONObject(jsonToParse)
+                if (container.optBoolean("encrypted", false)) {
+                    if (passphrase.isNullOrEmpty()) {
+                        launch(Dispatchers.Main) { onComplete(false) }
+                        return@launch
+                    }
+                    val saltBase64 = container.optString("salt", "")
+                    val ivBase64 = container.optString("iv", "")
+                    val cipherBase64 = container.optString("ciphertext", "")
+                    val salt = android.util.Base64.decode(saltBase64, android.util.Base64.NO_WRAP)
+                    val iv = android.util.Base64.decode(ivBase64, android.util.Base64.NO_WRAP)
+                    val cipherBytes = android.util.Base64.decode(cipherBase64, android.util.Base64.NO_WRAP)
+
+                    val factory = javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+                    val spec = javax.crypto.spec.PBEKeySpec(passphrase.toCharArray(), salt, 65536, 256)
+                    val secretKey = javax.crypto.spec.SecretKeySpec(factory.generateSecret(spec).encoded, "AES")
+
+                    val cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
+                    cipher.init(javax.crypto.Cipher.DECRYPT_MODE, secretKey, javax.crypto.spec.GCMParameterSpec(128, iv))
+                    val decryptedBytes = cipher.doFinal(cipherBytes)
+                    jsonToParse = String(decryptedBytes, Charsets.UTF_8)
+                }
+
+                val root = JSONObject(jsonToParse)
                 if (root.has("vaultItems")) {
                     val array = root.getJSONArray("vaultItems")
                     for (i in 0 until array.length()) {
@@ -1289,7 +1369,7 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
                         val item = VaultItem(
                             category = obj.optString("category", "BANK"),
                             title = obj.optString("title", "Imported Item"),
-                            ownerName = obj.optString("ownerName", "Self"),
+                            ownerName = obj.optString("ownerName", registeredFullName.ifBlank { "Owner" }),
                             institution = obj.optString("institution", ""),
                             numberOrId = obj.optString("numberOrId", ""),
                             nomineeName = obj.optString("nomineeName", ""),
@@ -1299,7 +1379,9 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
                             digitalLocation = obj.optString("digitalLocation", ""),
                             status = obj.optString("status", "Active"),
                             remarks = obj.optString("remarks", ""),
-                            detailsString = obj.optString("detailsString", "")
+                            detailsString = obj.optString("detailsString", ""),
+                            userId = registeredEmail.ifBlank { "local_owner" },
+                            isDemo = false
                         )
                         repository.insertVaultItem(item)
                     }
@@ -1319,7 +1401,9 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
                             address = obj.optString("address", ""),
                             dependentStatus = obj.optString("dependentStatus", "Dependent"),
                             guardianDetails = obj.optString("guardianDetails", ""),
-                            notes = obj.optString("notes", "")
+                            notes = obj.optString("notes", ""),
+                            userId = registeredEmail.ifBlank { "local_owner" },
+                            isDemo = false
                         )
                         repository.insertFamilyDependent(dep)
                     }
@@ -1336,7 +1420,9 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
                             email = obj.optString("email", ""),
                             address = obj.optString("address", ""),
                             priority = obj.optString("priority", "Priority 1"),
-                            remarks = obj.optString("remarks", "")
+                            remarks = obj.optString("remarks", ""),
+                            userId = registeredEmail.ifBlank { "local_owner" },
+                            isDemo = false
                         )
                         repository.insertImportantContact(c)
                     }

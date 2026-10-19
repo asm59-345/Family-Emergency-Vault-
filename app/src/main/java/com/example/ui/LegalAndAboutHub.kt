@@ -789,7 +789,7 @@ fun AboutSecurityTab(model: VaultViewModel) {
 
         item {
             Text(
-                text = if (model.isHindiMode) "सैन्य-ग्रेड ऑन-डिवाइस सुरक्षा आर्किटेक्चर" else "Military-Grade Cryptographic & Defense Architecture",
+                text = if (model.isHindiMode) "ऑन-डिवाइस सुरक्षा व क्रिप्टोग्राफिक आर्किटेक्चर" else "On-Device Cryptographic Architecture",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = SlatePrimary
