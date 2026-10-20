@@ -176,320 +176,402 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
             }
         }
     } else {
-        Scaffold(
-            modifier = Modifier
-                .fillMaxSize()
-                .testTag("app_main_scaffold"),
-        topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = if (VaultTheme.isDark) Color(0xFF0F172A) else SlatePrimary,
-                    titleContentColor = Color.White
-                ),
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Lock,
-                            contentDescription = "Vault Shield",
-                            tint = TealAccent,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (model.isHindiMode) "आपातकालीन वॉल्ट" else "Family Vault",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = model.selectedFontTheme.headingFamily
-                        )
-                    }
-                },
-                actions = {
-                    // Emergency SOS Trigger Button
-                    Box(
-                        modifier = Modifier
-                            .padding(end = 6.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFDC2626))
-                            .clickable { showEmergencySosDialog = true }
-                            .padding(horizontal = 8.dp, vertical = 6.dp)
-                            .testTag("btn_topbar_emergency_sos"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Warning,
-                                contentDescription = "Emergency SOS",
-                                tint = Color.White,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "SOS",
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Black
-                            )
-                        }
-                    }
-
-                    // Language Switcher (EN / हिंदी)
-                    Box(
-                        modifier = Modifier
-                            .padding(end = 6.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color.White.copy(alpha = 0.2f))
-                            .clickable { model.toggleLanguage() }
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Language,
-                                contentDescription = "Language",
-                                tint = Color.White,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = if (model.isHindiMode) "हिंदी" else "English",
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-
-                    // Legal, Q&A, Policies & About Hub Icon
-                    Box(
-                        modifier = Modifier
-                            .padding(end = 6.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color.White.copy(alpha = 0.2f))
-                            .clickable { model.openLegalAboutHub(0) }
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = "Info and Legal",
-                                tint = Color.White,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = if (model.isHindiMode) "जानकारी" else "About",
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-
-                    // Role Switcher Badge
-                    Box(
-                        modifier = Modifier
-                            .padding(end = 8.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(TealAccent)
-                            .clickable { showRoleSelector = true }
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.SwitchAccount,
-                                contentDescription = "Switch Active Persona",
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = model.currentRole.label.split(" ")[0],
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val isTabletOrDesktop = maxWidth >= 600.dp
+            val navItems = listOf(
+                Triple("HOME", if (model.isHindiMode) "होम" else "Home", Pair(Icons.Outlined.Home, Icons.Filled.Home)),
+                Triple("VAULT", if (model.isHindiMode) "वॉल्ट" else "Vault", Pair(Icons.Outlined.Lock, Icons.Filled.Lock)),
+                Triple("FAMILY", if (model.isHindiMode) "परिवार" else "Family", Pair(Icons.Outlined.People, Icons.Filled.People)),
+                Triple("PLAN", if (model.isHindiMode) "योजना" else "Plan", Pair(Icons.Outlined.Assignment, Icons.Filled.Assignment)),
+                Triple("SETTINGS", if (model.isHindiMode) "सेटिंग्स" else "Settings", Pair(Icons.Outlined.Settings, Icons.Filled.Settings))
             )
-        },
-        bottomBar = {
-            if (model.isLoggedIn) {
-                NavigationBar(
-                    containerColor = VaultTheme.cardBg,
-                    tonalElevation = 8.dp,
-                    modifier = Modifier.navigationBarsPadding()
-                ) {
-                    val items = listOf(
-                        Triple("DASHBOARD", Icons.Outlined.Dashboard, Icons.Filled.Dashboard),
-                        Triple("VAULT", Icons.Outlined.Lock, Icons.Filled.Lock),
-                        Triple("CONTACTS", Icons.Outlined.People, Icons.Filled.People),
-                        Triple("CHECKLIST", Icons.Outlined.Assignment, Icons.Filled.Assignment),
-                        Triple("SETTINGS", Icons.Outlined.Settings, Icons.Filled.Settings)
-                    )
-                    val activeNavTint = if (VaultTheme.isDark) Color(0xFF38BDF8) else SlatePrimary
-                    val inactiveNavTint = VaultTheme.textSecondary
-                    items.forEach { (tab, outlineIcon, filledIcon) ->
-                        val isSelected = model.selectedTabItem == tab
-                        NavigationBarItem(
-                            selected = isSelected,
-                            onClick = { model.selectedTabItem = tab },
-                            icon = {
+
+            Scaffold(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .testTag("app_main_scaffold"),
+                topBar = {
+                    TopAppBar(
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = if (VaultTheme.isDark) Color(0xFF0F172A) else SlatePrimary,
+                            titleContentColor = Color.White
+                        ),
+                        title = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = if (isSelected) filledIcon else outlineIcon,
-                                    contentDescription = tab,
-                                    tint = if (isSelected) activeNavTint else inactiveNavTint
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = "Vault Shield",
+                                    tint = TealAccent,
+                                    modifier = Modifier.size(20.dp)
                                 )
-                            },
-                            label = {
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = tab.lowercase().replaceFirstChar { it.uppercase() },
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) activeNavTint else inactiveNavTint
+                                    text = if (model.isHindiMode) "पारिवारिक वॉल्ट" else "Family Vault",
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = model.selectedFontTheme.headingFamily
                                 )
                             }
-                        )
+                        },
+                        actions = {
+                            // Emergency Reference Guide (Offline, strictly optional)
+                            Box(
+                                modifier = Modifier
+                                    .padding(end = 6.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color.White.copy(alpha = 0.15f))
+                                    .clickable { model.isAiChatOpen = true }
+                                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                                    .testTag("btn_topbar_guide"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.MenuBook,
+                                        contentDescription = "Emergency Reference Guide",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = if (model.isHindiMode) "गाइड" else "Guide",
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            // Emergency SOS Trigger Button (Accessible header destination)
+                            Box(
+                                modifier = Modifier
+                                    .padding(end = 6.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFFDC2626))
+                                    .clickable { showEmergencySosDialog = true }
+                                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                                    .testTag("btn_topbar_emergency_sos"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = "Emergency SOS",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "SOS",
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Black
+                                    )
+                                }
+                            }
+
+                            // Language Switcher (EN / हिंदी)
+                            Box(
+                                modifier = Modifier
+                                    .padding(end = 6.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color.White.copy(alpha = 0.2f))
+                                    .clickable { model.toggleLanguage() }
+                                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                                    .testTag("btn_topbar_language"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Language,
+                                        contentDescription = "Language",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = if (model.isHindiMode) "हिंदी" else "English",
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            // Legal, Policies & About Hub Icon
+                            Box(
+                                modifier = Modifier
+                                    .padding(end = 6.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color.White.copy(alpha = 0.2f))
+                                    .clickable { model.openLegalAboutHub(0) }
+                                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                                    .testTag("btn_topbar_about"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Info,
+                                        contentDescription = "Info and Legal",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = if (model.isHindiMode) "जानकारी" else "About",
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            // Role Switcher Badge
+                            Box(
+                                modifier = Modifier
+                                    .padding(end = 8.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(TealAccent)
+                                    .clickable { showRoleSelector = true }
+                                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                                    .testTag("btn_topbar_role_selector"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.SwitchAccount,
+                                        contentDescription = "Switch Active Persona",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = model.currentRole.label.split(" ")[0],
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    )
+                },
+                bottomBar = {
+                    if (model.isLoggedIn && !isTabletOrDesktop) {
+                        NavigationBar(
+                            containerColor = VaultTheme.cardBg,
+                            tonalElevation = 8.dp,
+                            modifier = Modifier.navigationBarsPadding().testTag("bottom_nav_bar")
+                        ) {
+                            val activeNavTint = if (VaultTheme.isDark) Color(0xFF38BDF8) else TealAccent
+                            val inactiveNavTint = VaultTheme.textSecondary
+                            navItems.forEach { (tabKey, label, iconPair) ->
+                                val isSelected = model.selectedTabItem == tabKey ||
+                                    (tabKey == "HOME" && model.selectedTabItem == "DASHBOARD") ||
+                                    (tabKey == "FAMILY" && model.selectedTabItem == "CONTACTS") ||
+                                    (tabKey == "PLAN" && model.selectedTabItem == "CHECKLIST")
+                                NavigationBarItem(
+                                    selected = isSelected,
+                                    onClick = { model.selectedTabItem = tabKey },
+                                    icon = {
+                                        Icon(
+                                            imageVector = if (isSelected) iconPair.second else iconPair.first,
+                                            contentDescription = label,
+                                            tint = if (isSelected) activeNavTint else inactiveNavTint
+                                        )
+                                    },
+                                    label = {
+                                        Text(
+                                            text = label,
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) activeNavTint else inactiveNavTint
+                                        )
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
-            }
-        }
-    ) { innerPadding ->
-        BackHandler(
-            enabled = model.isLoggedIn &&
-                model.selectedTabItem != "DASHBOARD" &&
-                !showEmergencySosDialog &&
-                !showMedicalEmergencyCardDialog &&
-                !model.showLegalAboutHub &&
-                !model.showObservabilityDialog &&
-                !model.showAdminAuditDialog &&
-                !showRoleSelector &&
-                !showAddVaultItemDialog &&
-                !showAddDependentDialog &&
-                !showAddContactDialog &&
-                !showAddClaimDialog &&
-                !showCsvImportDialog &&
-                !showExportDialog &&
-                !showEmergencyRequestDialog
-        ) {
-            model.selectedTabItem = "DASHBOARD"
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .background(VaultTheme.background)
-        ) {
-            if (!model.isLoggedIn) {
-                com.example.ui.LoginScreen(model = model)
-            } else {
-                when (model.selectedTabItem) {
-                    "DASHBOARD" -> DashboardScreen(
-                        model = model,
-                        vaultItems = vaultItems,
-                        dependents = dependents,
-                        contacts = contacts,
-                        checklists = checklists,
-                        onRequestAccess = { showEmergencyRequestDialog = true },
-                        onImportTrigger = { showCsvImportDialog = true },
-                        onEditVaultItem = { item ->
-                            selectedItemForEdit = item
-                            showAddVaultItemDialog = true
-                        },
-                        onOpenSos = { showEmergencySosDialog = true },
-                        onOpenMedicalCard = { showMedicalEmergencyCardDialog = true }
-                    )
-                    "VAULT" -> VaultScreen(
-                        model = model,
-                        vaultItems = vaultItems,
-                        onAddItem = { category ->
-                            currentSelectedCategoryForAdd = category
-                            selectedItemForEdit = null
-                            showAddVaultItemDialog = true
-                        },
-                        onEditItem = { item ->
-                            selectedItemForEdit = item
-                            showAddVaultItemDialog = true
-                        }
-                    )
-                    "CONTACTS" -> ContactsScreen(
-                        model = model,
-                        dependents = dependents,
-                        contacts = contacts,
-                        onAddDependent = {
-                            selectedDependentForEdit = null
-                            showAddDependentDialog = true
-                        },
-                        onEditDependent = { dep ->
-                            selectedDependentForEdit = dep
-                            showAddDependentDialog = true
-                        },
-                        onAddContact = {
-                            selectedContactForEdit = null
-                            showAddContactDialog = true
-                        },
-                        onEditContact = { con ->
-                            selectedContactForEdit = con
-                            showAddContactDialog = true
-                        },
-                        onAddLocalSecure = {
-                            selectedLocalContactForEdit = null
-                            showAddLocalSecureContactDialog = true
-                        },
-                        onEditLocalSecure = { con ->
-                            selectedLocalContactForEdit = con
-                            showAddLocalSecureContactDialog = true
-                        },
-                        onOpenSos = { showEmergencySosDialog = true }
-                    )
-                    "CHECKLIST" -> ChecklistScreen(
-                        model = model,
-                        checklists = checklists,
-                        claims = claims,
-                        onAddClaim = {
-                            selectedClaimForEdit = null
-                            showAddClaimDialog = true
-                        },
-                        onEditClaim = { clm ->
-                            selectedClaimForEdit = clm
-                            showAddClaimDialog = true
-                        }
-                    )
-                    "SETTINGS" -> SettingsScreen(
-                        model = model,
-                        logs = logs,
-                        onCsvImport = { showCsvImportDialog = true },
-                        onExportPdf = { showExportDialog = true },
-                        onRequestEmergency = { showEmergencyRequestDialog = true }
-                    )
+            ) { innerPadding ->
+                BackHandler(
+                    enabled = model.isLoggedIn &&
+                        model.selectedTabItem != "HOME" &&
+                        model.selectedTabItem != "DASHBOARD" &&
+                        !showEmergencySosDialog &&
+                        !showMedicalEmergencyCardDialog &&
+                        !model.showLegalAboutHub &&
+                        !model.showObservabilityDialog &&
+                        !model.showAdminAuditDialog &&
+                        !showRoleSelector &&
+                        !showAddVaultItemDialog &&
+                        !showAddDependentDialog &&
+                        !showAddContactDialog &&
+                        !showAddClaimDialog &&
+                        !showCsvImportDialog &&
+                        !showExportDialog &&
+                        !showEmergencyRequestDialog
+                ) {
+                    model.selectedTabItem = "HOME"
                 }
-            }
 
-            // Global FAB for Gemini AI Assistant (Only if logged in)
-            if (model.isLoggedIn) {
-                Box(
+                Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(bottom = 16.dp, end = 16.dp),
-                    contentAlignment = Alignment.BottomEnd
+                        .padding(innerPadding)
+                        .background(VaultTheme.background)
                 ) {
-                    FloatingActionButton(
-                        onClick = { model.isAiChatOpen = true },
-                        containerColor = TealAccent,
-                        contentColor = Color.White,
-                        modifier = Modifier.size(56.dp)
+                    if (model.isLoggedIn && isTabletOrDesktop) {
+                        NavigationRail(
+                            containerColor = VaultTheme.cardBg,
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .width(96.dp)
+                                .testTag("desktop_nav_rail")
+                        ) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            val activeNavTint = if (VaultTheme.isDark) Color(0xFF38BDF8) else TealAccent
+                            val inactiveNavTint = VaultTheme.textSecondary
+                            navItems.forEach { (tabKey, label, iconPair) ->
+                                val isSelected = model.selectedTabItem == tabKey ||
+                                    (tabKey == "HOME" && model.selectedTabItem == "DASHBOARD") ||
+                                    (tabKey == "FAMILY" && model.selectedTabItem == "CONTACTS") ||
+                                    (tabKey == "PLAN" && model.selectedTabItem == "CHECKLIST")
+                                NavigationRailItem(
+                                    selected = isSelected,
+                                    onClick = { model.selectedTabItem = tabKey },
+                                    icon = {
+                                        Icon(
+                                            imageVector = if (isSelected) iconPair.second else iconPair.first,
+                                            contentDescription = label,
+                                            tint = if (isSelected) activeNavTint else inactiveNavTint
+                                        )
+                                    },
+                                    label = {
+                                        Text(
+                                            text = label,
+                                            fontSize = 10.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) activeNavTint else inactiveNavTint
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        contentAlignment = Alignment.TopCenter
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.MenuBook,
-                            contentDescription = "Emergency Continuity Guide",
-                            tint = Color.White
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .widthIn(max = 1200.dp)
+                        ) {
+                            if (!model.isLoggedIn) {
+                                com.example.ui.LoginScreen(model = model)
+                            } else {
+                                when (model.selectedTabItem) {
+                                    "HOME", "DASHBOARD" -> DashboardScreen(
+                                        model = model,
+                                        vaultItems = vaultItems,
+                                        dependents = dependents,
+                                        contacts = contacts,
+                                        checklists = checklists,
+                                        onRequestAccess = { showEmergencyRequestDialog = true },
+                                        onImportTrigger = { showCsvImportDialog = true },
+                                        onEditVaultItem = { item ->
+                                            selectedItemForEdit = item
+                                            showAddVaultItemDialog = true
+                                        },
+                                        onOpenSos = { showEmergencySosDialog = true },
+                                        onOpenMedicalCard = { showMedicalEmergencyCardDialog = true },
+                                        onAddNewRecord = { category ->
+                                            currentSelectedCategoryForAdd = category
+                                            selectedItemForEdit = null
+                                            showAddVaultItemDialog = true
+                                        },
+                                        onAddNewContact = {
+                                            selectedContactForEdit = null
+                                            showAddContactDialog = true
+                                        }
+                                    )
+                                    "VAULT" -> VaultScreen(
+                                        model = model,
+                                        vaultItems = vaultItems,
+                                        onAddItem = { category ->
+                                            currentSelectedCategoryForAdd = category
+                                            selectedItemForEdit = null
+                                            showAddVaultItemDialog = true
+                                        },
+                                        onEditItem = { item ->
+                                            selectedItemForEdit = item
+                                            showAddVaultItemDialog = true
+                                        }
+                                    )
+                                    "FAMILY", "CONTACTS" -> ContactsScreen(
+                                        model = model,
+                                        dependents = dependents,
+                                        contacts = contacts,
+                                        onAddDependent = {
+                                            selectedDependentForEdit = null
+                                            showAddDependentDialog = true
+                                        },
+                                        onEditDependent = { dep ->
+                                            selectedDependentForEdit = dep
+                                            showAddDependentDialog = true
+                                        },
+                                        onAddContact = {
+                                            selectedContactForEdit = null
+                                            showAddContactDialog = true
+                                        },
+                                        onEditContact = { con ->
+                                            selectedContactForEdit = con
+                                            showAddContactDialog = true
+                                        },
+                                        onAddLocalSecure = {
+                                            selectedLocalContactForEdit = null
+                                            showAddLocalSecureContactDialog = true
+                                        },
+                                        onEditLocalSecure = { con ->
+                                            selectedLocalContactForEdit = con
+                                            showAddLocalSecureContactDialog = true
+                                        },
+                                        onOpenSos = { showEmergencySosDialog = true }
+                                    )
+                                    "PLAN", "CHECKLIST" -> ChecklistScreen(
+                                        model = model,
+                                        checklists = checklists,
+                                        claims = claims,
+                                        vaultItems = vaultItems,
+                                        onAddClaim = {
+                                            selectedClaimForEdit = null
+                                            showAddClaimDialog = true
+                                        },
+                                        onEditClaim = { clm ->
+                                            selectedClaimForEdit = clm
+                                            showAddClaimDialog = true
+                                        },
+                                        onEditVaultItem = { item ->
+                                            selectedItemForEdit = item
+                                            showAddVaultItemDialog = true
+                                        }
+                                    )
+                                    "SETTINGS" -> SettingsScreen(
+                                        model = model,
+                                        logs = logs,
+                                        onCsvImport = { showCsvImportDialog = true },
+                                        onExportPdf = { showExportDialog = true },
+                                        onRequestEmergency = { showEmergencyRequestDialog = true }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
-            }
 
             // --- ALL FLOATING DIALOGS & SHEET SIMULATORS ---
 
@@ -879,837 +961,346 @@ fun DashboardScreen(
     onImportTrigger: () -> Unit,
     onEditVaultItem: (VaultItem) -> Unit,
     onOpenSos: () -> Unit = {},
-    onOpenMedicalCard: () -> Unit = {}
+    onOpenMedicalCard: () -> Unit = {},
+    onAddNewRecord: (String) -> Unit = {},
+    onAddNewContact: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
+    val isHindi = model.isHindiMode
 
-    // Aggregate alert alerts
+    val isZeroState = vaultItems.isEmpty() && dependents.isEmpty() && contacts.isEmpty() && !model.isDemoModeActive
+    var showFirstTimePicker by remember { mutableStateOf(false) }
+
+    if (isZeroState) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            FirstTimeOnboardingView(
+                model = model,
+                onAddFirstRecord = { showFirstTimePicker = true },
+                onEnableDemoMode = { model.enableDemoPreviewMode() }
+            )
+        }
+
+        if (showFirstTimePicker) {
+            QuickAddRecordTypeDialog(
+                isHindi = isHindi,
+                onDismiss = { showFirstTimePicker = false },
+                onSelectType = { type ->
+                    showFirstTimePicker = false
+                    when (type) {
+                        "BANK", "INSURANCE", "DOCUMENT" -> onAddNewRecord(type)
+                        "CONTACT" -> onAddNewContact()
+                    }
+                }
+            )
+        }
+        return
+    }
+
+    // Filter items without nominee (Bank, Investment, Insurance, Locker, Liability, Property)
+    val eligibleNomineeCategories = listOf("BANK", "INSURANCE", "INVESTMENT", "PROPERTY", "LOCKER", "LIABILITY")
     val itemsWithoutNominee = vaultItems.filter {
-        (it.category == "BANK" || it.category == "INVESTMENT" || it.category == "INSURANCE") && it.nomineeName.trim().isEmpty()
+        (it.category in eligibleNomineeCategories) && it.nomineeName.trim().isEmpty()
     }
     val premiumDues = model.getUpcomingPremiumDues()
     val emiDues = model.getUpcomingEMIDues()
+
+    val totalAssets = model.getTotalAssetsSum()
+    val totalLiabilities = model.getTotalLiabilitiesSum()
+    val netContinuityValue = totalAssets - totalLiabilities
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(16.dp)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // 1. Compact Top Header (Reduced vertical height)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = if (model.isHindiMode) "नमस्ते, ${model.currentRole.label.split(" ")[0]}" else "Welcome, ${model.currentRole.label.split(" ")[0]}",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = VaultTheme.textPrimary
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(7.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF16A34A))
-                    )
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text(
-                        text = if (model.isHindiMode) "सुरक्षा सक्रिय • 100% ऑफ़लाइन" else "Active Protection • 100% Offline",
-                        fontSize = 11.sp,
-                        color = VaultTheme.textSecondary
-                    )
-                }
-            }
-
-            // Quick Owner Check-In Indicator
-            if (model.currentRole == UserRole.OWNER) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (VaultTheme.isDark) Color(0xFF78350F) else Color(0xFFFEF3C7))
-                        .border(1.dp, CreamGold.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                        .clickable { model.performOwnerCheckIn() }
-                        .padding(horizontal = 8.dp, vertical = 6.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Timer,
-                            contentDescription = "Dead man switch",
-                            tint = CreamGold,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "${model.deadManSwitchDaysLeft}d check-in",
-                            fontSize = 10.sp,
-                            color = if (VaultTheme.isDark) Color(0xFFFDE68A) else CreamGold,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-        }
-
-        // 2. Prominent Emergency SOS Action Banner (Direct, High-Visibility)
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF991B1B)),
-            shape = RoundedCornerShape(14.dp),
-            border = BorderStroke(1.5.dp, Color(0xFFEF4444)),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp)
-                .testTag("dashboard_sos_card")
-        ) {
-            Row(
-                modifier = Modifier.padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+        // DEMO MODE BANNER (if active)
+        if (model.isDemoModeActive) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = if (VaultTheme.isDark) Color(0xFF332A00) else Color(0xFFFFFBEB)),
+                border = BorderStroke(1.dp, CreamGold.copy(alpha = 0.5f)),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().testTag("demo_mode_active_banner")
             ) {
                 Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFDC2626)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Warning,
-                            contentDescription = "SOS",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Default.Info, contentDescription = null, tint = CreamGold, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = if (isHindi) "डेमो मोड सक्रिय है" else "Demo Mode Active",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = if (VaultTheme.isDark) Color(0xFFFDE68A) else Color(0xFF92400E)
+                            )
+                            Text(
+                                text = if (isHindi) "सैंपल डेटा दिखाया जा रहा है। असली डेटा सुरक्षित व अलग है।" else "Displaying sample records. Real household data is isolated & empty.",
+                                fontSize = 11.sp,
+                                color = if (VaultTheme.isDark) Color(0xFFFDE68A) else Color(0xFF92400E)
+                            )
+                        }
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
+                    Button(
+                        onClick = { model.disableDemoPreviewMode() },
+                        colors = ButtonDefaults.buttonColors(containerColor = RedAlert),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.height(32.dp).testTag("btn_exit_demo_mode")
+                    ) {
                         Text(
-                            text = if (model.isHindiMode) "🚨 आपातकालीन SOS व लोकेशन" else "🚨 Emergency SOS & Location",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Black,
+                            text = if (isHindi) "डेमो बंद करें" else "Exit Demo",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
                             color = Color.White
                         )
-                        Text(
-                            text = if (model.isHindiMode) "1-टैप में GPS SMS भेजें और परिवार को कॉल करें" else "1-Tap GPS SMS & Direct Hotline Dialing",
-                            fontSize = 11.sp,
-                            color = Color(0xFFFECACA)
-                        )
-                    }
-                }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Surface(
-                        color = Color(0xFFDC2626),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.clickable { onOpenSos() }
-                    ) {
-                        Text(
-                            text = "TRIGGER SOS",
-                            color = Color.White,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Black,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)
-                        )
-                    }
-                    Surface(
-                        color = Color.White.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.clickable { onOpenMedicalCard() }
-                    ) {
-                        Text(
-                            text = "🩺 Medical",
-                            color = Color.White,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp)
-                        )
                     }
                 }
             }
         }
 
-        // 3. Clear Emergency Overview (The 4 Important Cards in 2x2 Grid)
-        Text(
-            text = if (model.isHindiMode) "आपातकालीन अवलोकन (ओवरव्यू)" else "EMERGENCY OVERVIEW",
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            color = VaultTheme.textSecondary,
-            letterSpacing = 1.sp,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        // Row 1: Family Members & Vault Items
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            // Card 1: 👨‍👩‍👧 Family Members
-            Card(
-                colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
-                border = BorderStroke(1.dp, VaultTheme.cardBorder),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { model.selectedTabItem = "CONTACTS" }
-                    .testTag("overview_card_family")
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFF0284C7).copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.People,
-                                contentDescription = "Family",
-                                tint = Color(0xFF0284C7),
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        Text(
-                            text = "${dependents.size}",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = VaultTheme.textPrimary
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = if (model.isHindiMode) "परिवार के सदस्य" else "Family Members",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = VaultTheme.textPrimary
-                    )
-                    Text(
-                        text = if (dependents.isEmpty()) "Tap to add members" else "${dependents.firstOrNull()?.fullName ?: ""} & others",
-                        fontSize = 10.sp,
-                        color = VaultTheme.textSecondary,
-                        maxLines = 1
-                    )
-                }
-            }
-
-            // Card 2: 🔐 Vault Items
-            Card(
-                colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
-                border = BorderStroke(1.dp, VaultTheme.cardBorder),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { model.selectedTabItem = "VAULT" }
-                    .testTag("overview_card_vault")
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(TealAccent.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = "Vault Items",
-                                tint = TealAccent,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        Text(
-                            text = "${vaultItems.size}",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = VaultTheme.textPrimary
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = if (model.isHindiMode) "वॉल्ट रिकॉर्ड्स" else "Vault Items",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = VaultTheme.textPrimary
-                    )
-                    Text(
-                        text = "${vaultItems.count { it.category == "BANK" }} Bank • ${vaultItems.count { it.category == "INSURANCE" }} Ins.",
-                        fontSize = 10.sp,
-                        color = VaultTheme.textSecondary,
-                        maxLines = 1
-                    )
-                }
-            }
-        }
-
-        // Row 2: Pending Checklist & Emergency Contacts
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            // Card 3: 📋 Pending Checklist
-            val pendingCount = checklists.count { !it.completed }
-            Card(
-                colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
-                border = BorderStroke(1.dp, VaultTheme.cardBorder),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { model.selectedTabItem = "CHECKLIST" }
-                    .testTag("overview_card_checklist")
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFFD97706).copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Assignment,
-                                contentDescription = "Checklist",
-                                tint = Color(0xFFD97706),
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        Text(
-                            text = "$pendingCount",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = if (pendingCount > 0) Color(0xFFD97706) else Color(0xFF16A34A)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = if (model.isHindiMode) "लंबित चेकलिस्ट" else "Pending Checklist",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = VaultTheme.textPrimary
-                    )
-                    Text(
-                        text = "${checklists.count { it.completed }}/${checklists.size} tasks prepared",
-                        fontSize = 10.sp,
-                        color = VaultTheme.textSecondary,
-                        maxLines = 1
-                    )
-                }
-            }
-
-            // Card 4: 🚨 Emergency Contacts
-            val totalContacts = contacts.size + model.localSecureContacts.size
-            Card(
-                colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
-                border = BorderStroke(1.dp, VaultTheme.cardBorder),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { onOpenSos() }
-                    .testTag("overview_card_contacts")
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFFDC2626).copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ContactPhone,
-                                contentDescription = "Emergency Contacts",
-                                tint = Color(0xFFDC2626),
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        Text(
-                            text = "$totalContacts",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = VaultTheme.textPrimary
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = if (model.isHindiMode) "आपातकालीन नंबर" else "Emergency Hotlines",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = VaultTheme.textPrimary
-                    )
-                    Text(
-                        text = "112, Doctors & Family",
-                        fontSize = 10.sp,
-                        color = Color(0xFFDC2626),
-                        maxLines = 1
-                    )
-                }
-            }
-        }
-
-        // Security Status Tracker Panel
+        // 1. HOUSEHOLD OVERVIEW
         Card(
-            colors = CardDefaults.cardColors(containerColor = SlatePrimary),
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth()
+            colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+            border = BorderStroke(1.dp, VaultTheme.cardBorder),
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier.fillMaxWidth().testTag("dashboard_household_overview")
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text(
-                            text = "EMERGENCY READY STATS",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White.copy(alpha = 0.6f),
-                            letterSpacing = 1.sp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Net Worth Snapshot",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "₹ ${String.format("%,.2f", model.getTotalAssetsSum() - model.getTotalLiabilitiesSum())} INR",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White
-                        )
-                    }
-
-                    // Score Circle
-                    Box(
-                        modifier = Modifier
-                            .size(72.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "${model.getEmergencyReadinessScore()}%",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                            Text(
-                                text = "Ready score",
-                                fontSize = 8.sp,
-                                color = Color.White.copy(alpha = 0.8f)
-                            )
-                        }
-                    }
-                }
-
-                Divider(
-                    color = Color.White.copy(alpha = 0.1f),
-                    modifier = Modifier.padding(vertical = 12.dp)
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text(text = "Total Assets", fontSize = 10.sp, color = Color.White.copy(alpha = 0.6f))
-                        Text(
-                            text = "₹ ${String.format("%,.0f", model.getTotalAssetsSum())}",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(text = "Total Liabilities", fontSize = 10.sp, color = Color.White.copy(alpha = 0.6f))
-                        Text(
-                            text = "₹ ${String.format("%,.0f", model.getTotalLiabilitiesSum())}",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFFECACA)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Progress Bar: Profile Completion
-                Column {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "Continuous Profile Completion",
-                            fontSize = 10.sp,
-                            color = Color.White.copy(alpha = 0.7f)
-                        )
-                        Text(
-                            text = "${model.getProfileCompletionPercentage()}%",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    LinearProgressIndicator(
-                        progress = { model.getProfileCompletionPercentage() / 100f },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(4.dp)),
-                        color = TealAccent,
-                        trackColor = Color.White.copy(alpha = 0.2f)
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Simulated Emergency Trigger status bar
-        if (model.isWaitingPeriodActive) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
-                border = BorderStroke(1.dp, CreamGold),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Warning,
-                            contentDescription = "Alert",
-                            tint = CreamGold
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Emergency Release Impending: 48h Delayed Switch Active",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            color = Color(0xFF92400E)
-                        )
-                    }
-                    Text(
-                        text = "Access initiated by family. System will release all private folder keys if Owner (Rahul) does not veto in response.",
-                        fontSize = 11.sp,
-                        color = Color.DarkGray,
-                        modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = { model.revokeEmergencyAccess() },
-                            colors = ButtonDefaults.buttonColors(containerColor = RedAlert),
-                            modifier = Modifier.height(32.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-                        ) {
-                            Text("VETO (I am fine)", color = Color.White, fontSize = 11.sp)
-                        }
-                    }
-                }
-            }
-        }
-
-        // Active Emergency State Opened Banner
-        if (model.isEmergencyAccessReleased) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFDCFCE7)),
-                border = BorderStroke(1.dp, GreenSuccess),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            ) {
-                Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.FolderOpen,
-                        contentDescription = "Unsecured Folders",
-                        tint = GreenSuccess
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "VAULT FULLY UNLOCKED",
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 12.sp,
-                            color = Color(0xFF166534)
-                        )
-                        Text(
-                            text = "Emergency access granted. Masking removed off bank accounts, credit cards, lockers and instructions.",
-                            fontSize = 11.sp,
-                            color = Color.DarkGray
-                        )
-                    }
-                    // Revoke Switch if Owner is here
-                    if (model.currentRole == UserRole.OWNER) {
-                        TextButton(onClick = { model.revokeEmergencyAccess() }) {
-                            Text("REVOKE", color = RedAlert, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                        }
-                    }
-                }
-            }
-        }
-
-        // --- SECTION: IMMEDIATE ALERTS & CHECKS ---
-        if (itemsWithoutNominee.isNotEmpty() || premiumDues.isNotEmpty() || emiDues.isNotEmpty()) {
-            Text(
-                text = "CONTINUITY WARNINGS",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = CreamGold,
-                letterSpacing = 1.sp,
-                modifier = Modifier.padding(vertical = 4.dp)
-            )
-
-            // Missing Nominees Warnings
-            itemsWithoutNominee.forEach { item ->
-                AlertItemCard(
-                    title = "No Nominee Configured",
-                    description = "${item.title} has no nominee registered. This will require court succession during claim process.",
-                    actionLabel = "Fix Warning",
-                    backgroundColor = Color(0xFFFEF2F2),
-                    borderColor = RedAlert.copy(alpha = 0.3f),
-                    onAction = { onEditVaultItem(item) }
-                )
-            }
-
-            // Expiries / Premiums warnings
-            premiumDues.take(1).forEach { item ->
-                val lines = item.detailsString.split("\n")
-                val due = lines.find { it.contains("Due Date:") }?.replace("Due Date:", "")?.trim() ?: "August 15"
-                AlertItemCard(
-                    title = "Premium Pending",
-                    description = "${item.title} (${item.institution}) premium is pending due on $due.",
-                    actionLabel = "View Policy",
-                    backgroundColor = Color(0xFFFEF3C7),
-                    borderColor = CreamGold.copy(alpha = 0.3f),
-                    onAction = { onEditVaultItem(item) }
-                )
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-
-        // --- SECTION: 1-TAP EMERGENCY SOS DIRECTORY CARD ---
-        val context = LocalContext.current
-        val docContact = contacts.find { it.category.contains("Doctor", ignoreCase = true) }
-        val lawyerContact = contacts.find { it.category.contains("Lawyer", ignoreCase = true) }
-
-        Card(
-            colors = CardDefaults.cardColors(containerColor = if (VaultTheme.isDark) Color(0xFF3B0712) else Color(0xFFFFF1F2)),
-            border = BorderStroke(1.dp, if (VaultTheme.isDark) Color(0xFF881337) else Color(0xFFFECDD3)),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp)
-        ) {
-            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "🚨", fontSize = 16.sp)
-                        Spacer(modifier = Modifier.width(6.dp))
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = if (model.isHindiMode) "आपातकालीन त्वरित कॉल (1-Tap SOS)" else "Quick Emergency SOS Call",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            color = if (VaultTheme.isDark) Color(0xFFFDA4AF) else Color(0xFF9F1239)
-                        )
-                    }
-                    Text(
-                        text = if (model.isHindiMode) "सीधा कॉल करें" else "Direct Dial",
-                        fontSize = 10.sp,
-                        color = if (VaultTheme.isDark) Color(0xFFFB7185) else Color(0xFFBE123C),
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // National Helpline 112
-                    Button(
-                        onClick = {
-                            val intent = android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:112"))
-                            context.startActivity(intent)
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE11D48)),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
-                    ) {
-                        Text("📞 112 National", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
-
-                    // Family Doctor
-                    val docPhone = docContact?.phone ?: "+91 98111 22233"
-                    Button(
-                        onClick = {
-                            val intent = android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:$docPhone"))
-                            context.startActivity(intent)
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = if (VaultTheme.isDark) Color(0xFF334155) else SlatePrimary),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
-                    ) {
-                        Text("👨‍⚕️ " + (if (model.isHindiMode) "डॉक्टर" else "Doctor"), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
-
-                    // Lawyer / Advisor
-                    val lawyerPhone = lawyerContact?.phone ?: "+91 98100 98100"
-                    Button(
-                        onClick = {
-                            val intent = android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:$lawyerPhone"))
-                            context.startActivity(intent)
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = TealAccent),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
-                    ) {
-                        Text("⚖️ " + (if (model.isHindiMode) "वकील" else "Lawyer"), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-
-        // Legal & Knowledge Quick Bar
-        Card(
-            colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
-            border = BorderStroke(1.dp, VaultTheme.cardBorder),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp)
-                .clickable { model.openLegalAboutHub(0) }
-                .testTag("dashboard_legal_quick_card")
-        ) {
-            Row(
-                modifier = Modifier.padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(TealAccent.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(imageVector = Icons.Default.Gavel, contentDescription = null, tint = TealAccent, modifier = Modifier.size(18.dp))
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = if (model.isHindiMode) "कानूनी व सुरक्षा केंद्र (T&C, Q&A, नीतियां)" else "Legal, Q&A, Policies & Security Hub",
-                            fontSize = 12.sp,
+                            text = if (isHindi) "${model.currentRole.label.split(" ")[0]} · पारिवारिक वॉल्ट" else "${model.currentRole.label.split(" ")[0]} · Family Vault",
+                            fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
                             color = VaultTheme.textPrimary
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF16A34A))
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (isHindi) "सक्रिय सुरक्षा • 100% ऑफ़लाइन ऑन-डिवाइस" else "Active Protection • 100% Offline On-Device",
+                                fontSize = 11.sp,
+                                color = VaultTheme.textSecondary
+                            )
+                        }
+                    }
+
+                    // Owner Check-in if owner
+                    if (model.currentRole == UserRole.OWNER) {
+                        Surface(
+                            color = if (VaultTheme.isDark) Color(0xFF78350F) else Color(0xFFFEF3C7),
+                            border = BorderStroke(1.dp, CreamGold.copy(alpha = 0.4f)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.clickable { model.performOwnerCheckIn() }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Timer, contentDescription = null, tint = CreamGold, modifier = Modifier.size(13.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "${model.deadManSwitchDaysLeft}d check-in",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (VaultTheme.isDark) Color(0xFFFDE68A) else CreamGold
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Divider(color = VaultTheme.cardBorder, modifier = Modifier.padding(vertical = 12.dp))
+
+                // Stats row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    OverviewStatPill(
+                        label = if (isHindi) "वॉल्ट रिकॉर्ड्स" else "Vault Records",
+                        value = "${vaultItems.size}",
+                        icon = Icons.Default.Lock,
+                        onClick = { model.selectedTabItem = "VAULT" }
+                    )
+                    OverviewStatPill(
+                        label = if (isHindi) "परिवार के सदस्य" else "Family Heirs",
+                        value = "${dependents.size}",
+                        icon = Icons.Default.People,
+                        onClick = { model.selectedTabItem = "FAMILY" }
+                    )
+                    OverviewStatPill(
+                        label = if (isHindi) "आपातकालीन नंबर" else "Contacts",
+                        value = "${contacts.size + model.localSecureContacts.size}",
+                        icon = Icons.Default.ContactPhone,
+                        onClick = { model.selectedTabItem = "FAMILY" }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Action buttons row (Emergency SOS and Medical ID)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onOpenSos,
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, Color(0xFFEF4444)),
+                        modifier = Modifier.weight(1f).height(40.dp).testTag("btn_dashboard_sos")
+                    ) {
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFDC2626), modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = if (model.isHindiMode) "अशमित गौतम द्वारा निर्मित • 100% ऑन-डिवाइस" else "Built by Ashmit Gautam • 100% On-Device",
-                            fontSize = 10.sp,
-                            color = VaultTheme.textSecondary
+                            text = if (isHindi) "आपातकालीन SOS" else "Emergency SOS",
+                            color = Color(0xFFDC2626),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = onOpenMedicalCard,
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, VaultTheme.cardBorder),
+                        modifier = Modifier.weight(1f).height(40.dp).testTag("btn_dashboard_medical_id")
+                    ) {
+                        Icon(Icons.Default.MedicalServices, contentDescription = null, tint = TealAccent, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (isHindi) "मेडिकल आईडी" else "Medical Card",
+                            color = VaultTheme.textPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp
                         )
                     }
                 }
-                Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = VaultTheme.textPrimary, modifier = Modifier.size(20.dp))
             }
         }
 
-        // --- SECTION: "WHAT TO DO FIRST" CONTINUITY ACTIONS ---
-        Text(
-            text = "IMMEDIATE EMERGENCY INSTRUCTIONS",
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            color = VaultTheme.textSecondary,
-            letterSpacing = 1.sp,
-            modifier = Modifier.padding(vertical = 4.dp)
-        )
-
+        // 2. ACTUAL ASSETS & LIABILITIES (When entered)
         Card(
             colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
             border = BorderStroke(1.dp, VaultTheme.cardBorder),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth()
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier.fillMaxWidth().testTag("dashboard_assets_liabilities_card")
         ) {
-            Column(modifier = Modifier.padding(14.dp)) {
-                Text(
-                    text = "If something happens to me (First Steps)",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = VaultTheme.textPrimary
-                )
-                Text(
-                    text = "This checklist helps Priya (Spouse) and family handle first actions cleanly.",
-                    fontSize = 11.sp,
-                    color = VaultTheme.textSecondary,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = if (isHindi) "वित्तीय संपत्ति व देनदारियां" else "FINANCIAL ASSETS & LIABILITIES",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TealAccent,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = if (isHindi) "कुल पारिवारिक निरंतरता मूल्य" else "Net Household Continuity Value",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = VaultTheme.textPrimary
+                        )
+                    }
 
-                // Render first 3 checklist tasks reactively from Room
-                checklists.take(3).forEach { task ->
+                    Surface(
+                        color = if (netContinuityValue >= 0) TealAccent.copy(alpha = 0.1f) else Color(0xFFFEF2F2),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = if (totalAssets == 0.0 && totalLiabilities == 0.0) "₹ 0" else "₹ ${String.format("%,.0f", netContinuityValue)}",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (netContinuityValue >= 0) TealAccent else RedAlert,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+
+                Divider(color = VaultTheme.cardBorder, modifier = Modifier.padding(vertical = 12.dp))
+
+                if (totalAssets > 0.0 || totalLiabilities > 0.0) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(text = if (isHindi) "दर्ज कुल संपत्ति" else "Recorded Assets", fontSize = 11.sp, color = VaultTheme.textSecondary)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "₹ ${String.format("%,.0f", totalAssets)}",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = VaultTheme.textPrimary
+                            )
+                            Text(text = "Bank, Investment & Property", fontSize = 9.sp, color = VaultTheme.textSecondary)
+                        }
+
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(text = if (isHindi) "दर्ज कुल देनदारियां" else "Recorded Liabilities", fontSize = 11.sp, color = VaultTheme.textSecondary)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "₹ ${String.format("%,.0f", totalLiabilities)}",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (totalLiabilities > 0) Color(0xFFDC2626) else VaultTheme.textPrimary
+                            )
+                            Text(text = "Loans & Outstandings", fontSize = 9.sp, color = VaultTheme.textSecondary)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = if (isHindi) "* राशि केवल आपके द्वारा वॉल्ट में दर्ज किए गए रिकॉर्ड्स पर आधारित है।" else "* Values are calculated solely from balances recorded in your Vault items.",
+                        fontSize = 10.sp,
+                        color = VaultTheme.textSecondary
+                    )
+                } else {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 6.dp),
+                            .background(VaultTheme.subCardBg, RoundedCornerShape(10.dp))
+                            .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Checkbox(
-                            checked = task.completed,
-                            onCheckedChange = { model.toggleChecklistTask(task) },
-                            colors = CheckboxDefaults.colors(checkedColor = TealAccent)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = VaultTheme.textSecondary, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = task.taskName,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (task.completed) VaultTheme.textSecondary else VaultTheme.textPrimary
+                                text = if (isHindi) "कोई वित्तीय शेष राशि दर्ज नहीं है" else "No financial balances recorded yet",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = VaultTheme.textPrimary
                             )
                             Text(
-                                text = task.instructions,
-                                fontSize = 11.sp,
+                                text = if (isHindi) "वॉल्ट में बैंक खाते या निवेश जोड़कर कुल संपत्ति ट्रैक करें।" else "Add bank account balances or investments in Vault to track net assets.",
+                                fontSize = 10.sp,
                                 color = VaultTheme.textSecondary
                             )
                         }
@@ -1718,177 +1309,725 @@ fun DashboardScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        // 3. UPCOMING PREMIUMS & EMIs (When valid dates exist)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                text = if (isHindi) "आगामी प्रीमियम व ईएमआई" else "UPCOMING PREMIUMS & EMIS",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = VaultTheme.textSecondary,
+                letterSpacing = 1.sp
+            )
 
-        // --- DASHBOARD ACTIONS BOARD ---
-        Text(
-            text = "ORGANIZATION & AI CONTINUITY",
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            color = VaultTheme.textSecondary,
-            letterSpacing = 1.sp,
-            modifier = Modifier.padding(vertical = 4.dp)
-        )
-
-        // Feature Highlight: Offline AI Continuity Assistant Card
-        Card(
-            colors = CardDefaults.cardColors(containerColor = if (VaultTheme.isDark) Color(0xFF052E16) else Color(0xFFF0FDF4)),
-            border = BorderStroke(1.dp, if (VaultTheme.isDark) Color(0xFF166534) else Color(0xFF86EFAC)),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp)
-                .clickable { model.isAiChatOpen = true }
-                .testTag("card_open_offline_ai_assistant")
-        ) {
-            Row(
-                modifier = Modifier.padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (VaultTheme.isDark) Color(0xFF166534) else Color(0xFFDCFCE7)),
-                    contentAlignment = Alignment.Center
+            if (premiumDues.isNotEmpty() || emiDues.isNotEmpty()) {
+                premiumDues.forEach { item ->
+                    val lines = item.detailsString.split("\n")
+                    val due = lines.find { it.contains("Due Date:") }?.replace("Due Date:", "")?.trim() ?: "Upcoming"
+                    UpcomingPaymentCard(
+                        title = item.title,
+                        institution = item.institution,
+                        dueDate = due,
+                        type = "Premium",
+                        isHindi = isHindi,
+                        onInspect = { onEditVaultItem(item) }
+                    )
+                }
+                emiDues.forEach { item ->
+                    val lines = item.detailsString.split("\n")
+                    val due = lines.find { it.contains("Due Date:") || it.contains("EMI Date:") }?.replace(Regex(".*Date:"), "")?.trim() ?: "Upcoming"
+                    UpcomingPaymentCard(
+                        title = item.title,
+                        institution = item.institution,
+                        dueDate = due,
+                        type = "EMI",
+                        isHindi = isHindi,
+                        onInspect = { onEditVaultItem(item) }
+                    )
+                }
+            } else {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+                    border = BorderStroke(1.dp, VaultTheme.cardBorder),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Psychology,
-                        contentDescription = "Offline AI Bot",
-                        tint = if (VaultTheme.isDark) Color(0xFF4ADE80) else Color(0xFF16A34A),
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.EventAvailable, contentDescription = null, tint = GreenSuccess, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = if (model.isHindiMode) "ऑफ़लाइन AI कंटीन्यूइटी बॉट" else "Offline AI Continuity Advisor",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            color = if (VaultTheme.isDark) Color(0xFF86EFAC) else Color(0xFF14532D)
+                            text = if (isHindi) "अगले 30 दिनों में कोई प्रीमियम या ईएमआई देय नहीं है।" else "No upcoming premiums or EMIs due in the next 30 days.",
+                            fontSize = 12.sp,
+                            color = VaultTheme.textSecondary
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Surface(
-                            color = Color(0xFF16A34A),
-                            shape = RoundedCornerShape(4.dp)
-                        ) {
-                            Text(
-                                text = "100% OFFLINE",
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White,
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                            )
-                        }
                     }
-                    Text(
-                        text = if (model.isHindiMode) "बिना इंटरनेट के भी बीमा, बैंक क्लेम, नॉमिनी व वसीयत नियमों पर तुरंत सलाह लें。" else "Zero cloud leak: Ask instant questions on RBI deceased claims, nominee rules, and emergency protocols.",
-                        fontSize = 11.sp,
-                        color = Color(0xFF166534),
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
                 }
-                Icon(
-                    imageVector = Icons.Default.ArrowForward,
-                    contentDescription = "Open Chat",
-                    tint = Color(0xFF16A34A),
-                    modifier = Modifier.size(18.dp)
-                )
             }
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
+        // 4. MISSING NOMINEE AND DOCUMENT ALERTS (Derived from actual records)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                text = if (isHindi) "महत्वपूर्ण अलर्ट व नॉमिनी स्थिति" else "CONTINUITY & NOMINEE ALERTS",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = VaultTheme.textSecondary,
+                letterSpacing = 1.sp
+            )
 
-        // Feature Highlight 2: Data Locality, Observability & Anti-Phishing Shield
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F9FF)),
-            border = BorderStroke(1.dp, Color(0xFFBAE6FD)),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp)
-                .clickable { model.showObservabilityDialog = true }
-                .testTag("card_open_system_observability")
-        ) {
-            Row(
-                modifier = Modifier.padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFFE0F2FE)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Security,
-                        contentDescription = "Security Shield",
-                        tint = Color(0xFF0284C7),
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = if (model.isHindiMode) "डेटा स्टोरेज व सुरक्षा मॉनिटर" else "Data Locality & System Health",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            color = Color(0xFF0369A1)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Surface(
-                            color = Color(0xFF0284C7),
-                            shape = RoundedCornerShape(4.dp)
+            if (itemsWithoutNominee.isNotEmpty()) {
+                itemsWithoutNominee.forEach { item ->
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = if (VaultTheme.isDark) Color(0xFF2D1515) else Color(0xFFFEF2F2)),
+                        border = BorderStroke(1.dp, RedAlert.copy(alpha = 0.3f)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "100% PRIVATE",
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White,
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (isHindi) "नॉमिनी दर्ज नहीं है: ${item.title}" else "Missing Nominee: ${item.title}",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = if (VaultTheme.isDark) Color(0xFFFCA5A5) else Color(0xFF991B1B)
+                                )
+                                Text(
+                                    text = if (isHindi) "${item.institution} (${item.category}) में कोई नॉमिनी नहीं है। क्लेम में अदालत की प्रक्रिया से बचने हेतु अभी जोड़ें।"
+                                        else "${item.institution} (${item.category}) has no designated nominee. Assigning a nominee prevents legal succession delays.",
+                                    fontSize = 11.sp,
+                                    color = VaultTheme.textSecondary,
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(
+                                onClick = { onEditVaultItem(item) },
+                                colors = ButtonDefaults.buttonColors(containerColor = RedAlert),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text(
+                                    text = if (isHindi) "जोड़ें" else "Assign",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
                         }
                     }
-                    Text(
-                        text = if (model.isHindiMode) "फोन में ही सुरक्षित • 0% फ़िशिंग जोखिम • रियल-टाइम स्वास्थ्य व टेलीमेट्री" else "100% On-Device Sandbox • 0% Phishing Risk • Real-time DB Observability & Scalability",
-                        fontSize = 11.sp,
-                        color = Color(0xFF0284C7),
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
                 }
-                Icon(
-                    imageVector = Icons.Default.ArrowForward,
-                    contentDescription = "Open Monitor",
-                    tint = Color(0xFF0284C7),
-                    modifier = Modifier.size(18.dp)
-                )
+            } else if (vaultItems.any { it.category in eligibleNomineeCategories }) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = if (VaultTheme.isDark) Color(0xFF052E16) else Color(0xFFF0FDF4)),
+                    border = BorderStroke(1.dp, Color(0xFF86EFAC)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = GreenSuccess, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = if (isHindi) "सभी पंजीकृत खातों व पॉलिसियों में नॉमिनी दर्ज हैं।" else "All registered accounts & policies have designated nominees.",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (VaultTheme.isDark) Color(0xFF86EFAC) else Color(0xFF166534)
+                        )
+                    }
+                }
+            } else {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+                    border = BorderStroke(1.dp, VaultTheme.cardBorder),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Info, contentDescription = null, tint = VaultTheme.textSecondary, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = if (isHindi) "वित्तीय खाते जोड़ते ही नॉमिनी अलर्ट यहां दिखाई देंगे।" else "Nominee alerts will appear here as financial accounts are added.",
+                            fontSize = 11.sp,
+                            color = VaultTheme.textSecondary
+                        )
+                    }
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        // 5. RECENT UPDATES (Audit Trail)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                text = if (isHindi) "हाल की गतिविधियां" else "RECENT UPDATES",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = VaultTheme.textSecondary,
+                letterSpacing = 1.sp
+            )
 
+            Card(
+                colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+                border = BorderStroke(1.dp, VaultTheme.cardBorder),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    val logs = model.auditLogs.value.take(3)
+                    if (logs.isNotEmpty()) {
+                        logs.forEach { log ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .clip(CircleShape)
+                                        .background(TealAccent.copy(alpha = 0.1f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.History, contentDescription = null, tint = TealAccent, modifier = Modifier.size(14.dp))
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = log.action, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = VaultTheme.textPrimary)
+                                    Text(text = log.details, fontSize = 10.sp, color = VaultTheme.textSecondary, maxLines = 1)
+                                }
+                                val timeStr = java.text.SimpleDateFormat("dd MMM, HH:mm", java.util.Locale.getDefault()).format(java.util.Date(log.timestamp))
+                                Text(text = timeStr, fontSize = 10.sp, color = VaultTheme.textSecondary)
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = if (isHindi) "कोई हाल की गतिविधि दर्ज नहीं है।" else "No recent updates recorded.",
+                            fontSize = 11.sp,
+                            color = VaultTheme.textSecondary
+                        )
+                    }
+                }
+            }
+        }
+
+        // 6. SHORT EMERGENCY READINESS CHECKLIST
+        val readiness = model.getReadinessBreakdown()
+        Card(
+            colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+            border = BorderStroke(1.dp, VaultTheme.cardBorder),
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier.fillMaxWidth().testTag("dashboard_readiness_checklist")
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = if (isHindi) "आपातकालीन तत्परता स्कोर" else "EMERGENCY READINESS",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TealAccent,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = if (isHindi) "पारिवारिक निरंतरता चेकलिस्ट" else "Family Continuity Score",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = VaultTheme.textPrimary
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clip(CircleShape)
+                            .background(TealAccent.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "${readiness.score}%",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = TealAccent
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                LinearProgressIndicator(
+                    progress = { readiness.score / 100f },
+                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                    color = TealAccent,
+                    trackColor = VaultTheme.subCardBg
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Breakdown items
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ReadinessItemRow(
+                        title = if (isHindi) "आपातकालीन संपर्क कॉन्फ़िगर किए गए" else "Emergency Contacts Configured",
+                        isReady = readiness.hasContacts,
+                        statusText = if (readiness.hasContacts) "Ready (+25%)" else "Pending (0%)"
+                    )
+                    ReadinessItemRow(
+                        title = if (isHindi) "प्राथमिक वित्तीय खाता पंजीकृत" else "Primary Financial Asset Added",
+                        isReady = readiness.hasAssets,
+                        statusText = if (readiness.hasAssets) "Ready (+25%)" else "Pending (0%)"
+                    )
+                    ReadinessItemRow(
+                        title = if (isHindi) "स्वास्थ्य / जीवन बीमा सूचीबद्ध" else "Health / Life Insurance Listed",
+                        isReady = readiness.hasInsurance,
+                        statusText = if (readiness.hasInsurance) "Ready (+25%)" else "Pending (0%)"
+                    )
+                    ReadinessItemRow(
+                        title = if (isHindi) "महत्वपूर्ण दस्तावेज़ / वसीयत नोट की गई" else "Critical Documents / Will Noted",
+                        isReady = readiness.hasDocuments,
+                        statusText = if (readiness.hasDocuments) "Ready (+25%)" else "Pending (0%)"
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = if (isHindi) "तत्परता स्कोर केवल आपके वास्तविक रिकॉर्ड्स से गणना की जाती है (कोई काल्पनिक मान नहीं)।"
+                        else "Readiness score is calculated exclusively from your actual saved records (no fabricated values).",
+                    fontSize = 10.sp,
+                    color = VaultTheme.textSecondary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun FirstTimeOnboardingView(
+    model: VaultViewModel,
+    onAddFirstRecord: () -> Unit,
+    onEnableDemoMode: () -> Unit
+) {
+    val isHindi = model.isHindiMode
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth().testTag("onboarding_welcome_card"),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+            border = BorderStroke(1.dp, VaultTheme.cardBorder)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .background(TealAccent.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Shield,
+                        contentDescription = "Vault Security",
+                        tint = TealAccent,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Text(
+                    text = if (isHindi) "पारिवारिक सुरक्षा वॉल्ट में आपका स्वागत है" else "Welcome to Family Emergency Vault",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = VaultTheme.textPrimary,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = if (isHindi) 
+                        "आपका नया पारिवारिक वॉल्ट पूरी तरह साफ़ और निजी है। सभी रिकॉर्ड्स केवल आपके फ़ोन पर सुरक्षित रहते हैं।"
+                        else "Your household starts with a clean, private vault. All records are stored strictly on your device with zero external cloud leaks.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = VaultTheme.textSecondary,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Setup Checklist
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(VaultTheme.subCardBg, RoundedCornerShape(12.dp))
+                        .padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = if (isHindi) "त्वरित सेटअप चेकलिस्ट" else "Quick Setup Checklist",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = VaultTheme.textPrimary
+                    )
+
+                    OnboardingChecklistRow(
+                        stepNumber = "1",
+                        title = if (isHindi) "पहला रिकॉर्ड जोड़ें" else "Add your first record",
+                        subtitle = if (isHindi) "बैंक खाता, बीमा, महत्वपूर्ण दस्तावेज़ या संपर्क" else "Bank account, insurance policy, document, or contact",
+                        isCompleted = false
+                    )
+
+                    OnboardingChecklistRow(
+                        stepNumber = "2",
+                        title = if (isHindi) "नॉमिनी व परिवार के सदस्य दर्ज करें" else "Assign trusted nominees & family heirs",
+                        subtitle = if (isHindi) "दावेदारों के लिए आवश्यक सुरक्षा" else "Essential protection so heirs can claim assets smoothly",
+                        isCompleted = false
+                    )
+
+                    OnboardingChecklistRow(
+                        stepNumber = "3",
+                        title = if (isHindi) "आपातकालीन कार्य योजना की समीक्षा करें" else "Review emergency action plan",
+                        subtitle = if (isHindi) "पहले 24 घंटे के लिए तैयार एसओपी" else "Pre-configured SOPs for first 24 hours & succession",
+                        isCompleted = false
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Primary Action: Add your first record
+                Button(
+                    onClick = onAddFirstRecord,
+                    colors = ButtonDefaults.buttonColors(containerColor = TealAccent),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                        .testTag("btn_onboarding_add_first_record")
+                ) {
+                    Icon(imageVector = Icons.Default.AddCircle, contentDescription = null, tint = Color.White)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isHindi) "पहला रिकॉर्ड जोड़ें" else "Add Your First Record",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Demo Mode option
+                OutlinedButton(
+                    onClick = onEnableDemoMode,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, VaultTheme.cardBorder),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .testTag("btn_onboarding_try_demo_mode")
+                ) {
+                    Icon(imageVector = Icons.Default.Preview, contentDescription = null, tint = VaultTheme.textSecondary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isHindi) "सैंपल रिकॉर्ड्स देखें (डेमो मोड)" else "Explore With Sample Data (Demo Mode)",
+                        color = VaultTheme.textPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun QuickAddRecordTypeDialog(
+    isHindi: Boolean,
+    onDismiss: () -> Unit,
+    onSelectType: (String) -> Unit
+) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .widthIn(max = 480.dp)
+                .padding(vertical = 16.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+            border = BorderStroke(1.dp, VaultTheme.cardBorder)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isHindi) "पहला रिकॉर्ड चुनें" else "Choose Record Type",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = VaultTheme.textPrimary
+                    )
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = VaultTheme.textSecondary)
+                    }
+                }
+                Text(
+                    text = if (isHindi) "आप किस प्रकार का विवरण पहले जोड़ना चाहते हैं?" else "What would you like to protect first?",
+                    fontSize = 12.sp,
+                    color = VaultTheme.textSecondary
+                )
+                Divider(color = VaultTheme.cardBorder)
+
+                QuickAddOptionRow(
+                    icon = Icons.Default.AccountBalance,
+                    iconBg = Color(0xFF0284C7).copy(alpha = 0.15f),
+                    iconTint = Color(0xFF0284C7),
+                    title = if (isHindi) "बैंक खाता (बचत / चालू / एफडी)" else "Bank Account (Savings / FD / Current)",
+                    subtitle = if (isHindi) "बैंक का नाम, खाता संख्या व नॉमिनी" else "Account number, branch & nominee details",
+                    onClick = { onSelectType("BANK") }
+                )
+
+                QuickAddOptionRow(
+                    icon = Icons.Default.HealthAndSafety,
+                    iconBg = TealAccent.copy(alpha = 0.15f),
+                    iconTint = TealAccent,
+                    title = if (isHindi) "बीमा पॉलिसी (स्वास्थ्य / जीवन)" else "Insurance Policy (Health / Life)",
+                    subtitle = if (isHindi) "पॉलिसी नंबर, प्रीमियम देय तिथि व क्लेम विवरण" else "Policy number, renewal date & claim rules",
+                    onClick = { onSelectType("INSURANCE") }
+                )
+
+                QuickAddOptionRow(
+                    icon = Icons.Default.Description,
+                    iconBg = Color(0xFFD97706).copy(alpha = 0.15f),
+                    iconTint = Color(0xFFD97706),
+                    title = if (isHindi) "महत्वपूर्ण दस्तावेज़ / वसीयत" else "Important Document / Will",
+                    subtitle = if (isHindi) "आधार, पैन, संपत्ति कागज़ात या वसीयत का स्थान" else "Physical file location, safe keys & ID copies",
+                    onClick = { onSelectType("DOCUMENT") }
+                )
+
+                QuickAddOptionRow(
+                    icon = Icons.Default.People,
+                    iconBg = Color(0xFF7C3AED).copy(alpha = 0.15f),
+                    iconTint = Color(0xFF7C3AED),
+                    title = if (isHindi) "आपातकालीन संपर्क / पारिवारिक वारिस" else "Emergency Contact / Family Heir",
+                    subtitle = if (isHindi) "डॉक्टर, वकील या मुख्य पारिवारिक संपर्क" else "Family doctor, lawyer, executor or next-of-kin",
+                    onClick = { onSelectType("CONTACT") }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun QuickAddOptionRow(
+    icon: ImageVector,
+    iconBg: Color,
+    iconTint: Color,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = VaultTheme.subCardBg,
+        border = BorderStroke(1.dp, VaultTheme.cardBorder),
+        modifier = Modifier.fillMaxWidth().minimumInteractiveComponentSize()
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            DashboardShortcutCard(
-                icon = Icons.Default.Input,
-                title = "Import Excel Sheet",
-                subtitle = "Map CSV cols to Vault DB",
-                modifier = Modifier.weight(1f),
-                onClick = onImportTrigger
-            )
-            DashboardShortcutCard(
-                icon = Icons.Default.Launch,
-                title = "Emergency Protocol",
-                subtitle = "Test 48h Vault Release",
-                modifier = Modifier.weight(1f),
-                onClick = onRequestAccess
-            )
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(iconBg),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(imageVector = icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(22.dp))
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = title, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = VaultTheme.textPrimary)
+                Text(text = subtitle, fontSize = 11.sp, color = VaultTheme.textSecondary)
+            }
+            Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = VaultTheme.textSecondary, modifier = Modifier.size(18.dp))
         }
+    }
+}
+
+@Composable
+fun OnboardingChecklistRow(
+    stepNumber: String,
+    title: String,
+    subtitle: String,
+    isCompleted: Boolean
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(26.dp)
+                .clip(CircleShape)
+                .background(if (isCompleted) TealAccent else VaultTheme.cardBorder),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isCompleted) {
+                Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+            } else {
+                Text(text = stepNumber, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary)
+            }
+        }
+        Spacer(modifier = Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = VaultTheme.textPrimary)
+            Text(text = subtitle, fontSize = 10.sp, color = VaultTheme.textSecondary)
+        }
+    }
+}
+
+@Composable
+fun OverviewStatPill(
+    label: String,
+    value: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(10.dp),
+        color = VaultTheme.subCardBg,
+        border = BorderStroke(1.dp, VaultTheme.cardBorder),
+        modifier = Modifier.minimumInteractiveComponentSize()
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(imageVector = icon, contentDescription = null, tint = TealAccent, modifier = Modifier.size(13.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(text = value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary)
+            }
+            Text(text = label, fontSize = 10.sp, color = VaultTheme.textSecondary)
+        }
+    }
+}
+
+@Composable
+fun UpcomingPaymentCard(
+    title: String,
+    institution: String,
+    dueDate: String,
+    type: String,
+    isHindi: Boolean,
+    onInspect: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+        border = BorderStroke(1.dp, VaultTheme.cardBorder),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        color = if (type == "Premium") TealAccent.copy(alpha = 0.15f) else Color(0xFFD97706).copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = type,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (type == "Premium") TealAccent else Color(0xFFD97706),
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(text = title, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary)
+                }
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "$institution • ${if (isHindi) "देय तिथि" else "Due"}: $dueDate",
+                    fontSize = 11.sp,
+                    color = VaultTheme.textSecondary
+                )
+            }
+            OutlinedButton(
+                onClick = onInspect,
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, VaultTheme.cardBorder),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                modifier = Modifier.height(30.dp)
+            ) {
+                Text(text = if (isHindi) "देखें" else "Inspect", fontSize = 10.sp, color = VaultTheme.textPrimary)
+            }
+        }
+    }
+}
+
+@Composable
+fun ReadinessItemRow(
+    title: String,
+    isReady: Boolean,
+    statusText: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+            Icon(
+                imageVector = if (isReady) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                contentDescription = null,
+                tint = if (isReady) GreenSuccess else VaultTheme.textSecondary,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text = title, fontSize = 12.sp, color = VaultTheme.textPrimary)
+        }
+        Text(
+            text = statusText,
+            fontSize = 10.sp,
+            fontWeight = if (isReady) FontWeight.Bold else FontWeight.Normal,
+            color = if (isReady) GreenSuccess else VaultTheme.textSecondary
+        )
     }
 }
 
@@ -3311,17 +3450,19 @@ fun ContactsScreen(
     }
 }
 
-// ==================== CHECKLIST & CLAIMS SCREEN ====================
+// ==================== CHECKLIST, NOMINEE GAPS & CLAIMS SCREEN ====================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChecklistScreen(
     model: VaultViewModel,
     checklists: List<EmergencyActionItem>,
     claims: List<ClaimRecord>,
+    vaultItems: List<VaultItem> = emptyList(),
     onAddClaim: () -> Unit,
-    onEditClaim: (ClaimRecord) -> Unit
+    onEditClaim: (ClaimRecord) -> Unit,
+    onEditVaultItem: (VaultItem) -> Unit = {}
 ) {
-    var activeSubTab by remember { mutableStateOf(0) } // 0: Handover Steps, 1: Claims Tracker
+    var activeSubTab by remember { mutableStateOf(0) } // 0: Handover Steps, 1: Nominee Gaps, 2: Claims Tracker
     var selectedTaskIdForDetails by remember { mutableStateOf<Int?>(null) }
     val currentDetailTask = checklists.find { it.id == selectedTaskIdForDetails }
 
@@ -3330,34 +3471,63 @@ fun ChecklistScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // Tab switcher
+        // Tab switcher (Continuity Steps, Nominee Gaps, Claim Statuses)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Button(
                 onClick = { activeSubTab = 0 },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (activeSubTab == 0) SlatePrimary else Color.White,
-                    contentColor = if (activeSubTab == 0) Color.White else SlatePrimary
+                    containerColor = if (activeSubTab == 0) SlatePrimary else VaultTheme.cardBg,
+                    contentColor = if (activeSubTab == 0) Color.White else VaultTheme.textPrimary
                 ),
-                border = BorderStroke(1.dp, SlateBorder)
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, if (activeSubTab == 0) SlatePrimary else VaultTheme.cardBorder),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
             ) {
-                Text("Continuity Steps")
+                Text(
+                    text = if (model.isHindiMode) "एसओपी" else "Continuity",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
             Button(
                 onClick = { activeSubTab = 1 },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (activeSubTab == 1) SlatePrimary else Color.White,
-                    contentColor = if (activeSubTab == 1) Color.White else SlatePrimary
+                    containerColor = if (activeSubTab == 1) SlatePrimary else VaultTheme.cardBg,
+                    contentColor = if (activeSubTab == 1) Color.White else VaultTheme.textPrimary
                 ),
-                border = BorderStroke(1.dp, SlateBorder)
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, if (activeSubTab == 1) SlatePrimary else VaultTheme.cardBorder),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
             ) {
-                Text("Claim Statuses")
+                Text(
+                    text = if (model.isHindiMode) "नॉमिनी अंतर" else "Nominee Gaps",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Button(
+                onClick = { activeSubTab = 2 },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (activeSubTab == 2) SlatePrimary else VaultTheme.cardBg,
+                    contentColor = if (activeSubTab == 2) Color.White else VaultTheme.textPrimary
+                ),
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, if (activeSubTab == 2) SlatePrimary else VaultTheme.cardBorder),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = if (model.isHindiMode) "दावे" else "Claims",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
 
@@ -3555,6 +3725,214 @@ fun ChecklistScreen(
                                         }
                                     }
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+        } else if (activeSubTab == 1) {
+            // NOMINEE GAPS AUDIT (Grouped logically under Plan)
+            val eligibleItems = vaultItems.filter { it.category in listOf("BANK", "INSURANCE", "INVESTMENT", "PROPERTY", "LOCKER", "LIABILITY") }
+            val missingNominees = eligibleItems.filter { it.nomineeName.trim().isEmpty() }
+            val protectedItems = eligibleItems.filter { it.nomineeName.trim().isNotEmpty() }
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().testTag("nominee_gaps_list"),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+                        border = BorderStroke(1.dp, VaultTheme.cardBorder),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text(
+                                text = if (model.isHindiMode) "नॉमिनी अंतर व कानूनी सुरक्षा ऑडिट" else "NOMINEE GAP & CONTINUITY AUDIT",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TealAccent,
+                                letterSpacing = 1.sp
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = if (model.isHindiMode) "बैंक खातों, बीमा व निवेश में नॉमिनी की स्थिति" else "Audit of nominee registrations across all household assets",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = VaultTheme.textPrimary
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Surface(
+                                    color = if (missingNominees.isNotEmpty()) Color(0xFFFEF2F2) else Color(0xFFF0FDF4),
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = BorderStroke(1.dp, if (missingNominees.isNotEmpty()) RedAlert.copy(alpha = 0.3f) else GreenSuccess.copy(alpha = 0.3f)),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Column(modifier = Modifier.padding(10.dp)) {
+                                        Text(
+                                            text = "${missingNominees.size}",
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (missingNominees.isNotEmpty()) RedAlert else GreenSuccess
+                                        )
+                                        Text(
+                                            text = if (model.isHindiMode) "नॉमिनी अनुपस्थित" else "Missing Nominees",
+                                            fontSize = 11.sp,
+                                            color = VaultTheme.textSecondary
+                                        )
+                                    }
+                                }
+                                Surface(
+                                    color = Color(0xFFF0FDF4),
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = BorderStroke(1.dp, GreenSuccess.copy(alpha = 0.3f)),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Column(modifier = Modifier.padding(10.dp)) {
+                                        Text(
+                                            text = "${protectedItems.size}",
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = GreenSuccess
+                                        )
+                                        Text(
+                                            text = if (model.isHindiMode) "नॉमिनी सुरक्षित" else "Protected Records",
+                                            fontSize = 11.sp,
+                                            color = VaultTheme.textSecondary
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = if (model.isHindiMode)
+                                    "आरबीआई व बीमा विनियामक नियमों के अनुसार, पंजीकृत नॉमिनी होने पर क्लेम बिना अदालती प्रमाण-पत्र के तेजी से निपटाया जाता है।"
+                                    else "Under RBI & IRDAI frameworks, accounts with valid nominee registrations avoid lengthy court succession proceedings and probate disputes.",
+                                fontSize = 10.sp,
+                                color = VaultTheme.textSecondary,
+                                lineHeight = 13.sp
+                            )
+                        }
+                    }
+                }
+
+                if (missingNominees.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = if (model.isHindiMode) "कार्रवाई आवश्यक: नॉमिनी जोड़ें (${missingNominees.size})" else "ACTION REQUIRED: MISSING NOMINEES (${missingNominees.size})",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = RedAlert,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                    items(missingNominees) { item ->
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = if (VaultTheme.isDark) Color(0xFF2D1515) else Color(0xFFFEF2F2)),
+                            border = BorderStroke(1.dp, RedAlert.copy(alpha = 0.3f)),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth().testTag("missing_nominee_${item.id}")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = item.title, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = VaultTheme.textPrimary)
+                                    Text(text = "${item.institution} • Category: ${item.category}", fontSize = 11.sp, color = VaultTheme.textSecondary)
+                                    Text(
+                                        text = if (model.isHindiMode) "कोई नॉमिनी दर्ज नहीं है।" else "No nominee designated.",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = RedAlert,
+                                        modifier = Modifier.padding(top = 2.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Button(
+                                    onClick = { onEditVaultItem(item) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = RedAlert),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                    modifier = Modifier.height(34.dp)
+                                ) {
+                                    Text(text = if (model.isHindiMode) "नॉमिनी जोड़ें" else "Assign", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (protectedItems.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = if (model.isHindiMode) "सुरक्षित खाते: नॉमिनी सत्यापित (${protectedItems.size})" else "PROTECTED RECORDS: NOMINEE DESIGNATED (${protectedItems.size})",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GreenSuccess,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                    items(protectedItems) { item ->
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+                            border = BorderStroke(1.dp, VaultTheme.cardBorder),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = GreenSuccess, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = item.title, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = VaultTheme.textPrimary)
+                                    Text(
+                                        text = "${item.institution} • Nominee: ${item.nomineeName}${if (item.nomineeRelation.isNotBlank()) " (${item.nomineeRelation})" else ""}",
+                                        fontSize = 11.sp,
+                                        color = VaultTheme.textSecondary
+                                    )
+                                }
+                                IconButton(onClick = { onEditVaultItem(item) }) {
+                                    Icon(Icons.Default.Edit, contentDescription = "Edit nominee", tint = VaultTheme.textSecondary, modifier = Modifier.size(16.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (eligibleItems.isEmpty()) {
+                    item {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+                            border = BorderStroke(1.dp, VaultTheme.cardBorder),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(20.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(Icons.Default.Shield, contentDescription = null, tint = VaultTheme.textSecondary, modifier = Modifier.size(36.dp))
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = if (model.isHindiMode) "कोई वित्तीय रिकॉर्ड नहीं मिला" else "No financial records in Vault yet",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = VaultTheme.textPrimary
+                                )
+                                Text(
+                                    text = if (model.isHindiMode) "बैंक खाते या बीमा पॉलिसी जोड़कर नॉमिनी सुरक्षा ऑडिट करें।" else "Add bank accounts, investments, or insurance policies to audit nominee coverage.",
+                                    fontSize = 11.sp,
+                                    color = VaultTheme.textSecondary,
+                                    textAlign = TextAlign.Center
+                                )
                             }
                         }
                     }
@@ -6050,6 +6428,8 @@ fun AddEditVaultItemDialog(
     var attachmentUri by remember { mutableStateOf(initialItem?.attachmentUri ?: "") }
     var documentPhotoBase64 by remember { mutableStateOf(initialItem?.documentPhotoBase64 ?: "") }
     var showFullDocumentPhoto by remember { mutableStateOf(false) }
+    var validationError by remember { mutableStateOf<String?>(null) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val documentBitmap = remember(attachmentUri, documentPhotoBase64) {
         if (attachmentUri.isNotEmpty()) {
@@ -6142,10 +6522,25 @@ fun AddEditVaultItemDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(420.dp)
+                    .heightIn(max = 460.dp)
                     .verticalScroll(scrollState),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                if (validationError != null) {
+                    Surface(
+                        color = Color(0xFFFEF2F2),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, RedAlert.copy(alpha = 0.4f)),
+                        modifier = Modifier.fillMaxWidth().testTag("vault_item_validation_error")
+                    ) {
+                        Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = RedAlert, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = validationError!!, color = RedAlert, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+
                 Text("Category folder type", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textSecondary)
                 Row(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -6446,16 +6841,21 @@ fun AddEditVaultItemDialog(
         confirmButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (initialItem != null) {
-                    TextButton(onClick = { onDelete(initialItem) }) { Text("Archive", color = RedAlert) }
+                    TextButton(onClick = { showDeleteConfirm = true }, modifier = Modifier.testTag("btn_delete_vault_item")) {
+                        Text("Archive", color = RedAlert)
+                    }
                 }
                 Button(
                     onClick = {
-                        if (title.isNotEmpty() && category.isNotEmpty()) {
+                        if (title.trim().isEmpty()) {
+                            validationError = "Please enter an Asset Name / Title"
+                        } else {
+                            validationError = null
                             onSave(
                                 VaultItem(
                                     id = initialItem?.id ?: 0,
                                     category = category,
-                                    title = title,
+                                    title = title.trim(),
                                     ownerName = ownerName,
                                     institution = institution,
                                     numberOrId = numberOrId,
@@ -6471,6 +6871,7 @@ fun AddEditVaultItemDialog(
                                     isMasked = true
                                 )
                             )
+                            Toast.makeText(context, "Record saved securely to vault", Toast.LENGTH_SHORT).show()
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = TealAccent),
@@ -6484,6 +6885,31 @@ fun AddEditVaultItemDialog(
             TextButton(onClick = onDismiss) { Text("Cancel", color = VaultTheme.textSecondary) }
         }
     )
+
+    if (showDeleteConfirm && initialItem != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            containerColor = VaultTheme.dialogBg,
+            title = { Text("Delete Vault Record", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary) },
+            text = { Text("Are you sure you want to delete '${initialItem.title}'? This action cannot be undone.", fontSize = 13.sp, color = VaultTheme.textSecondary) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirm = false
+                        onDelete(initialItem)
+                        Toast.makeText(context, "Record deleted from vault", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = RedAlert),
+                    modifier = Modifier.testTag("btn_confirm_delete_vault_item")
+                ) {
+                    Text("Delete", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel", color = VaultTheme.textSecondary) }
+            }
+        )
+    }
 
     if (showFullDocumentPhoto && documentBitmap != null) {
         AlertDialog(
@@ -6547,42 +6973,66 @@ fun AddEditDependentDialog(
     var dependentStatus by remember { mutableStateOf(initialItem?.dependentStatus ?: "Dependent status") }
     var guardianDetails by remember { mutableStateOf(initialItem?.guardianDetails ?: "") }
     var notes by remember { mutableStateOf(initialItem?.notes ?: "") }
+    var validationError by remember { mutableStateOf<String?>(null) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     val scroll = rememberScrollState()
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (initialItem == null) "Add Family Dependent" else "Edit Dependent Details", fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+        containerColor = VaultTheme.dialogBg,
+        title = { Text(if (initialItem == null) "Add Family Dependent" else "Edit Dependent Details", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary) },
         text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(350.dp)
+                    .heightIn(max = 440.dp)
                     .verticalScroll(scroll),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = fullName, onValueChange = { fullName = it }, placeholder = { Text("Full Name") })
-                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = relation, onValueChange = { relation = it }, placeholder = { Text("Relation (Spouse, Child)") })
-                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = dob, onValueChange = { dob = it }, placeholder = { Text("DOB (yyyy-mm-dd)") })
-                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = bloodGroup, onValueChange = { bloodGroup = it }, placeholder = { Text("Blood Group") })
-                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = mobile, onValueChange = { mobile = it }, placeholder = { Text("Mobile phone") })
-                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = email, onValueChange = { email = it }, placeholder = { Text("Email identifier") })
-                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = address, onValueChange = { address = it }, placeholder = { Text("Address details") })
-                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = notes, onValueChange = { notes = it }, placeholder = { Text("Primary notes (e.g. physical Will location link)") })
+                if (validationError != null) {
+                    Surface(
+                        color = Color(0xFFFEF2F2),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, RedAlert.copy(alpha = 0.4f)),
+                        modifier = Modifier.fillMaxWidth().testTag("dependent_validation_error")
+                    ) {
+                        Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = RedAlert, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = validationError!!, color = RedAlert, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+
+                OutlinedTextField(modifier = Modifier.fillMaxWidth().testTag("dependent_form_name"), value = fullName, onValueChange = { fullName = it }, placeholder = { Text("Full Name") }, colors = vaultTextFieldColors())
+                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = relation, onValueChange = { relation = it }, placeholder = { Text("Relation (Spouse, Child)") }, colors = vaultTextFieldColors())
+                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = dob, onValueChange = { dob = it }, placeholder = { Text("DOB (yyyy-mm-dd)") }, colors = vaultTextFieldColors())
+                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = bloodGroup, onValueChange = { bloodGroup = it }, placeholder = { Text("Blood Group") }, colors = vaultTextFieldColors())
+                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = mobile, onValueChange = { mobile = it }, placeholder = { Text("Mobile phone") }, colors = vaultTextFieldColors())
+                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = email, onValueChange = { email = it }, placeholder = { Text("Email identifier") }, colors = vaultTextFieldColors())
+                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = address, onValueChange = { address = it }, placeholder = { Text("Address details") }, colors = vaultTextFieldColors())
+                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = notes, onValueChange = { notes = it }, placeholder = { Text("Primary notes (e.g. physical Will location link)") }, colors = vaultTextFieldColors())
             }
         },
         confirmButton = {
-            Row {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (initialItem != null) {
-                    TextButton(onClick = { onDelete(initialItem) }) { Text("Delete", color = RedAlert) }
+                    TextButton(onClick = { showDeleteConfirm = true }, modifier = Modifier.testTag("btn_delete_dependent")) {
+                        Text("Delete", color = RedAlert)
+                    }
                 }
                 Button(
                     onClick = {
-                        if (fullName.isNotEmpty()) {
+                        if (fullName.trim().isEmpty()) {
+                            validationError = "Please enter the family member's full name"
+                        } else {
+                            validationError = null
                             onSave(
                                 FamilyDependent(
                                     id = initialItem?.id ?: 0,
-                                    fullName = fullName,
+                                    fullName = fullName.trim(),
                                     relation = relation,
                                     dob = dob,
                                     bloodGroup = bloodGroup,
@@ -6594,15 +7044,45 @@ fun AddEditDependentDialog(
                                     notes = notes
                                 )
                             )
+                            Toast.makeText(context, "Family member saved successfully", Toast.LENGTH_SHORT).show()
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary)
+                    colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary),
+                    modifier = Modifier.testTag("btn_save_dependent")
                 ) {
-                    Text("Save Heir")
+                    Text("Save Heir", color = Color.White)
                 }
             }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel", color = VaultTheme.textSecondary) }
         }
     )
+
+    if (showDeleteConfirm && initialItem != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            containerColor = VaultTheme.dialogBg,
+            title = { Text("Delete Family Member", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary) },
+            text = { Text("Are you sure you want to remove '${initialItem.fullName}' from your family list?", fontSize = 13.sp, color = VaultTheme.textSecondary) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirm = false
+                        onDelete(initialItem)
+                        Toast.makeText(context, "Family member removed", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = RedAlert),
+                    modifier = Modifier.testTag("btn_confirm_delete_dependent")
+                ) {
+                    Text("Delete", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel", color = VaultTheme.textSecondary) }
+            }
+        )
+    }
 }
 
 @Composable
@@ -6619,40 +7099,64 @@ fun AddEditContactDialog(
     var address by remember { mutableStateOf(initialItem?.address ?: "") }
     var priority by remember { mutableStateOf(initialItem?.priority ?: "Secondary") }
     var remarks by remember { mutableStateOf(initialItem?.remarks ?: "") }
+    var validationError by remember { mutableStateOf<String?>(null) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     val scroll = rememberScrollState()
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add External continuity contact", fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+        containerColor = VaultTheme.dialogBg,
+        title = { Text(if (initialItem == null) "Add Emergency / Advisor Contact" else "Edit Contact Details", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary) },
         text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(350.dp)
+                    .heightIn(max = 440.dp)
                     .verticalScroll(scroll),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = contactName, onValueChange = { contactName = it }, placeholder = { Text("Contact Name") })
-                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = category, onValueChange = { category = it }, placeholder = { Text("Category (CA, Doctor, Lawyer)") })
-                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = phone, onValueChange = { phone = it }, placeholder = { Text("Phone") })
-                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = email, onValueChange = { email = it }, placeholder = { Text("Email") })
-                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = priority, onValueChange = { priority = it }, placeholder = { Text("Priority Level (Priority 1 / Priority 2)") })
-                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = remarks, onValueChange = { remarks = it }, placeholder = { Text("Service area notes") })
+                if (validationError != null) {
+                    Surface(
+                        color = Color(0xFFFEF2F2),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, RedAlert.copy(alpha = 0.4f)),
+                        modifier = Modifier.fillMaxWidth().testTag("contact_validation_error")
+                    ) {
+                        Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = RedAlert, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = validationError!!, color = RedAlert, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+
+                OutlinedTextField(modifier = Modifier.fillMaxWidth().testTag("contact_form_name"), value = contactName, onValueChange = { contactName = it }, placeholder = { Text("Contact Name") }, colors = vaultTextFieldColors())
+                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = category, onValueChange = { category = it }, placeholder = { Text("Category (CA, Doctor, Lawyer)") }, colors = vaultTextFieldColors())
+                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = phone, onValueChange = { phone = it }, placeholder = { Text("Phone") }, colors = vaultTextFieldColors())
+                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = email, onValueChange = { email = it }, placeholder = { Text("Email") }, colors = vaultTextFieldColors())
+                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = priority, onValueChange = { priority = it }, placeholder = { Text("Priority Level (Priority 1 / Priority 2)") }, colors = vaultTextFieldColors())
+                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = remarks, onValueChange = { remarks = it }, placeholder = { Text("Service area notes") }, colors = vaultTextFieldColors())
             }
         },
         confirmButton = {
-            Row {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (initialItem != null) {
-                    TextButton(onClick = { onDelete(initialItem) }) { Text("Delete", color = RedAlert) }
+                    TextButton(onClick = { showDeleteConfirm = true }, modifier = Modifier.testTag("btn_delete_contact")) {
+                        Text("Delete", color = RedAlert)
+                    }
                 }
                 Button(
                     onClick = {
-                        if (contactName.isNotEmpty()) {
+                        if (contactName.trim().isEmpty()) {
+                            validationError = "Please enter the contact's name"
+                        } else {
+                            validationError = null
                             onSave(
                                 ImportantContact(
                                     id = initialItem?.id ?: 0,
-                                    contactName = contactName,
+                                    contactName = contactName.trim(),
                                     category = category,
                                     phone = phone,
                                     email = email,
@@ -6661,15 +7165,45 @@ fun AddEditContactDialog(
                                     remarks = remarks
                                 )
                             )
+                            Toast.makeText(context, "Contact saved successfully", Toast.LENGTH_SHORT).show()
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary)
+                    colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary),
+                    modifier = Modifier.testTag("btn_save_contact")
                 ) {
-                    Text("Secure Contact")
+                    Text("Secure Contact", color = Color.White)
                 }
             }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel", color = VaultTheme.textSecondary) }
         }
     )
+
+    if (showDeleteConfirm && initialItem != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            containerColor = VaultTheme.dialogBg,
+            title = { Text("Delete Contact", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary) },
+            text = { Text("Are you sure you want to remove '${initialItem.contactName}' from emergency contacts?", fontSize = 13.sp, color = VaultTheme.textSecondary) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirm = false
+                        onDelete(initialItem)
+                        Toast.makeText(context, "Contact deleted", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = RedAlert),
+                    modifier = Modifier.testTag("btn_confirm_delete_contact")
+                ) {
+                    Text("Delete", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel", color = VaultTheme.textSecondary) }
+            }
+        )
+    }
 }
 
 @Composable
@@ -6686,42 +7220,66 @@ fun AddEditClaimDialog(
     var pendingDocuments by remember { mutableStateOf(initialItem?.pendingDocuments ?: "") }
     var expectedTimeline by remember { mutableStateOf(initialItem?.expectedTimeline ?: "30 Days") }
     var notes by remember { mutableStateOf(initialItem?.notes ?: "") }
+    var validationError by remember { mutableStateOf<String?>(null) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     val scroll = rememberScrollState()
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Active Claim Transfer Record", fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+        containerColor = VaultTheme.dialogBg,
+        title = { Text(if (initialItem == null) "Log New Claim / Transition" else "Edit Claim Details", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary) },
         text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(350.dp)
+                    .heightIn(max = 440.dp)
                     .verticalScroll(scroll),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = institution, onValueChange = { institution = it }, placeholder = { Text("Institution name (e.g. LIC policy)") })
-                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = itemType, onValueChange = { itemType = it }, placeholder = { Text("Type (Mutual Fund transmission, Will, etc.)") })
-                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = status, onValueChange = { status = it }, placeholder = { Text("Status (Submitted / In Review)") })
-                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = assignedPerson, onValueChange = { assignedPerson = it }, placeholder = { Text("Assigned family member") })
-                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = pendingDocuments, onValueChange = { pendingDocuments = it }, placeholder = { Text("Pending documents list") })
-                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = expectedTimeline, onValueChange = { expectedTimeline = it }, placeholder = { Text("Expected closure timeline") })
-                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = notes, onValueChange = { notes = it }, placeholder = { Text("Additional helpful hints") })
+                if (validationError != null) {
+                    Surface(
+                        color = Color(0xFFFEF2F2),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, RedAlert.copy(alpha = 0.4f)),
+                        modifier = Modifier.fillMaxWidth().testTag("claim_validation_error")
+                    ) {
+                        Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = RedAlert, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = validationError!!, color = RedAlert, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+
+                OutlinedTextField(modifier = Modifier.fillMaxWidth().testTag("claim_form_institution"), value = institution, onValueChange = { institution = it }, placeholder = { Text("Institution name (e.g. LIC, HDFC, SBI)") }, colors = vaultTextFieldColors())
+                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = itemType, onValueChange = { itemType = it }, placeholder = { Text("Type (Life Insurance, Mutual Fund, Bank FD)") }, colors = vaultTextFieldColors())
+                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = status, onValueChange = { status = it }, placeholder = { Text("Status (Submitted / In Review / Completed)") }, colors = vaultTextFieldColors())
+                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = assignedPerson, onValueChange = { assignedPerson = it }, placeholder = { Text("Assigned family member") }, colors = vaultTextFieldColors())
+                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = pendingDocuments, onValueChange = { pendingDocuments = it }, placeholder = { Text("Pending documents list") }, colors = vaultTextFieldColors())
+                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = expectedTimeline, onValueChange = { expectedTimeline = it }, placeholder = { Text("Expected closure timeline") }, colors = vaultTextFieldColors())
+                OutlinedTextField(modifier = Modifier.fillMaxWidth(), value = notes, onValueChange = { notes = it }, placeholder = { Text("Additional helpful notes") }, colors = vaultTextFieldColors())
             }
         },
         confirmButton = {
-            Row {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (initialItem != null) {
-                    TextButton(onClick = { onDelete(initialItem) }) { Text("Archive", color = RedAlert) }
+                    TextButton(onClick = { showDeleteConfirm = true }, modifier = Modifier.testTag("btn_delete_claim")) {
+                        Text("Archive", color = RedAlert)
+                    }
                 }
                 Button(
                     onClick = {
-                        if (institution.isNotEmpty()) {
+                        if (institution.trim().isEmpty()) {
+                            validationError = "Please enter the institution name"
+                        } else {
+                            validationError = null
                             onSave(
                                 ClaimRecord(
                                     id = initialItem?.id ?: 0,
                                     itemType = itemType,
-                                    institution = institution,
+                                    institution = institution.trim(),
                                     status = status,
                                     assignedPerson = assignedPerson,
                                     pendingDocuments = pendingDocuments,
@@ -6729,15 +7287,45 @@ fun AddEditClaimDialog(
                                     notes = notes
                                 )
                             )
+                            Toast.makeText(context, "Claim record logged successfully", Toast.LENGTH_SHORT).show()
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary)
+                    colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary),
+                    modifier = Modifier.testTag("btn_save_claim")
                 ) {
-                    Text("Log Claim Status")
+                    Text("Log Claim Status", color = Color.White)
                 }
             }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel", color = VaultTheme.textSecondary) }
         }
     )
+
+    if (showDeleteConfirm && initialItem != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            containerColor = VaultTheme.dialogBg,
+            title = { Text("Delete Claim Record", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary) },
+            text = { Text("Are you sure you want to remove the claim tracking record for '${initialItem.institution}'?", fontSize = 13.sp, color = VaultTheme.textSecondary) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirm = false
+                        onDelete(initialItem)
+                        Toast.makeText(context, "Claim record deleted", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = RedAlert),
+                    modifier = Modifier.testTag("btn_confirm_delete_claim")
+                ) {
+                    Text("Delete", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel", color = VaultTheme.textSecondary) }
+            }
+        )
+    }
 }
 
 @Composable
@@ -7493,11 +8081,15 @@ fun AddEditLocalSecureContactDialog(
     var phone by remember { mutableStateOf(initialItem?.phone ?: "") }
     var altPhone by remember { mutableStateOf(initialItem?.altPhone ?: "") }
     var notes by remember { mutableStateOf(initialItem?.notes ?: "") }
+    var validationError by remember { mutableStateOf<String?>(null) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     
     val scroll = rememberScrollState()
     
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = VaultTheme.dialogBg,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(imageVector = Icons.Default.VerifiedUser, tint = TealAccent, contentDescription = "Secure lock icon")
@@ -7506,7 +8098,7 @@ fun AddEditLocalSecureContactDialog(
                     text = if (initialItem == null) "Secure Local Contact" else "Edit Secure Contact",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = SlatePrimary
+                    color = VaultTheme.textPrimary
                 )
             }
         },
@@ -7514,82 +8106,132 @@ fun AddEditLocalSecureContactDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(350.dp)
+                    .heightIn(max = 440.dp)
                     .verticalScroll(scroll),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                if (validationError != null) {
+                    Surface(
+                        color = Color(0xFFFEF2F2),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, RedAlert.copy(alpha = 0.4f)),
+                        modifier = Modifier.fillMaxWidth().testTag("local_contact_validation_error")
+                    ) {
+                        Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = RedAlert, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = validationError!!, color = RedAlert, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+
                 Text(
                     text = "This contact detail remains fully local, and is protected with AES-style local sandboxing.",
                     fontSize = 11.sp,
-                    color = Color.Gray
+                    color = VaultTheme.textSecondary
                 )
                 
                 OutlinedTextField(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag("local_contact_form_name"),
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("Full Name") },
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = TealAccent)
+                    colors = vaultTextFieldColors()
                 )
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = relationship,
                     onValueChange = { relationship = it },
                     label = { Text("Relationship (e.g. Spouse, Son)") },
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = TealAccent)
+                    colors = vaultTextFieldColors()
                 )
                 OutlinedTextField(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag("local_contact_form_phone"),
                     value = phone,
                     onValueChange = { phone = it },
                     label = { Text("Primary Phone Number") },
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = TealAccent)
+                    colors = vaultTextFieldColors()
                 )
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = altPhone,
                     onValueChange = { altPhone = it },
                     label = { Text("Alternative Phone Number") },
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = TealAccent)
+                    colors = vaultTextFieldColors()
                 )
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = notes,
                     onValueChange = { notes = it },
                     label = { Text("Direct Emergency Guidelines") },
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = TealAccent)
+                    colors = vaultTextFieldColors()
                 )
             }
         },
         confirmButton = {
-            Row {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (initialItem != null) {
-                    TextButton(onClick = { onDelete(initialItem.id) }) {
+                    TextButton(onClick = { showDeleteConfirm = true }, modifier = Modifier.testTag("btn_delete_local_contact")) {
                         Text("Delete", color = RedAlert)
                     }
                 }
                 Button(
                     onClick = {
-                        if (name.isNotEmpty() && phone.isNotEmpty()) {
+                        if (name.trim().isEmpty()) {
+                            validationError = "Please enter contact full name"
+                        } else if (phone.trim().isEmpty()) {
+                            validationError = "Please enter primary phone number"
+                        } else {
+                            validationError = null
                             onSave(
                                 LocalSecureContact(
                                     id = initialItem?.id ?: java.util.UUID.randomUUID().toString(),
-                                    name = name,
+                                    name = name.trim(),
                                     relationship = relationship,
-                                    phone = phone,
+                                    phone = phone.trim(),
                                     altPhone = altPhone,
                                     notes = notes
                                 )
                             )
+                            Toast.makeText(context, "Secure local contact saved", Toast.LENGTH_SHORT).show()
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary)
+                    colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary),
+                    modifier = Modifier.testTag("btn_save_local_contact")
                 ) {
-                    Text("Secure Form")
+                    Text("Secure Form", color = Color.White)
                 }
             }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel", color = VaultTheme.textSecondary) }
         }
     )
+
+    if (showDeleteConfirm && initialItem != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            containerColor = VaultTheme.dialogBg,
+            title = { Text("Delete Secure Contact", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary) },
+            text = { Text("Are you sure you want to remove '${initialItem.name}' from secure local contacts?", fontSize = 13.sp, color = VaultTheme.textSecondary) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirm = false
+                        onDelete(initialItem.id)
+                        Toast.makeText(context, "Contact removed", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = RedAlert),
+                    modifier = Modifier.testTag("btn_confirm_delete_local_contact")
+                ) {
+                    Text("Delete", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel", color = VaultTheme.textSecondary) }
+            }
+        )
+    }
 }
 
 // ==================== INTERACTIVE OFFLINE AI CHAT ASSISTANT ====================
@@ -7799,7 +8441,7 @@ fun GeminiAssistantDialog(
                                             modifier = Modifier.padding(bottom = 4.dp)
                                         ) {
                                             Text(
-                                                text = if (model.aiOfflineModeOnly) "🔒 OFFLINE AI" else "✨ CONTINUITY BOT",
+                                                text = "📖 STATUTORY REFERENCE",
                                                 fontSize = 9.sp,
                                                 fontWeight = FontWeight.Black,
                                                 color = TealAccent
@@ -7833,7 +8475,7 @@ fun GeminiAssistantDialog(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = if (isHindi) "ऑफ़लाइन AI विश्लेषण कर रहा है..." else "Offline AI is reasoning on-device...",
+                                    text = if (isHindi) "मार्गदर्शिका संदर्भ खोजा जा रहा है..." else "Searching statutory reference guide...",
                                     fontSize = 11.sp,
                                     color = Color.Gray
                                 )
@@ -7888,7 +8530,7 @@ fun GeminiAssistantDialog(
                             .testTag("input_offline_ai_chat"),
                         placeholder = {
                             Text(
-                                text = if (isHindi) "ऑफ़लाइन AI से पूछें (बीमा, नॉमिनी, क्लेम)..." else "Ask Offline AI (claims, bank, nominees)...",
+                                text = if (isHindi) "मार्गदर्शिका खोजें (बीमा, नॉमिनी, क्लेम)..." else "Search guide (nominee rules, claims, RBI directives)...",
                                 fontSize = 11.sp
                             )
                         },

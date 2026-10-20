@@ -31,13 +31,15 @@ object DocumentStorageManager {
 
     /**
      * Saves a document from an input stream (e.g. from Photo Picker or File Picker).
-     * Validates size, extension, and saves into private app storage.
+     * Validates size, extension, encrypts with authenticated AES-256-GCM, and atomically saves into private app storage.
      */
     fun saveDocumentStream(
         context: Context,
         inputStream: InputStream,
         originalFilename: String? = null
     ): DocumentSaveResult {
+        val dir = getDocsDirectory(context)
+        var tempFile: File? = null
         return try {
             val extension = originalFilename?.substringAfterLast('.', "jpg")?.lowercase() ?: "jpg"
             if (extension !in ALLOWED_EXTENSIONS) {
@@ -45,45 +47,38 @@ object DocumentStorageManager {
             }
 
             val safeName = "doc_${UUID.randomUUID().toString().replace("-", "")}.$extension"
-            val targetFile = File(getDocsDirectory(context), safeName)
+            val targetFile = File(dir, safeName)
+            tempFile = File(dir, "$safeName.tmp")
 
+            val byteStream = java.io.ByteArrayOutputStream()
             var totalBytes = 0L
             val buffer = ByteArray(8192)
+            var read: Int
 
-            FileOutputStream(targetFile).use { output ->
-                var read: Int
-                while (inputStream.read(buffer).also { read = it } != -1) {
-                    totalBytes += read
-                    if (totalBytes > MAX_FILE_SIZE_BYTES) {
-                        targetFile.delete()
-                        return DocumentSaveResult.Error("Document exceeds maximum size limit of 10 MB.")
-                    }
-                    output.write(buffer, 0, read)
+            while (inputStream.read(buffer).also { read = it } != -1) {
+                totalBytes += read
+                if (totalBytes > MAX_FILE_SIZE_BYTES) {
+                    return DocumentSaveResult.Error("Document exceeds maximum size limit of 10 MB.")
                 }
-                output.flush()
+                byteStream.write(buffer, 0, read)
             }
 
-            DocumentSaveResult.Success(
-                relativePath = safeName,
-                fileSizeBytes = totalBytes
-            )
-        } catch (e: Exception) {
-            DocumentSaveResult.Error("Failed to store document: ${e.localizedMessage ?: "Unknown error"}")
-        }
-    }
+            val plainBytes = byteStream.toByteArray()
+            val encryptedBytes = com.example.ui.SubtleCrypto.encryptBytes(plainBytes)
 
-    /**
-     * Saves a captured Bitmap directly into private internal storage as JPEG.
-     */
-    fun saveBitmapDocument(context: Context, bitmap: Bitmap, quality: Int = 85): DocumentSaveResult {
-        return try {
-            val resized = ImageUtils.resizeBitmap(bitmap, maxDimension = 1600)
-            val safeName = "doc_${UUID.randomUUID().toString().replace("-", "")}.jpg"
-            val targetFile = File(getDocsDirectory(context), safeName)
+            // Safe atomic file handling: write to .tmp, flush, sync to disk, then atomically rename
+            FileOutputStream(tempFile).use { fos ->
+                fos.write(encryptedBytes)
+                fos.flush()
+                try {
+                    fos.fd.sync()
+                } catch (ignored: Exception) {}
+            }
 
-            FileOutputStream(targetFile).use { out ->
-                resized.compress(Bitmap.CompressFormat.JPEG, quality, out)
-                out.flush()
+            if (!tempFile.renameTo(targetFile)) {
+                // Fallback copy if direct rename fails on some file systems
+                tempFile.copyTo(targetFile, overwrite = true)
+                tempFile.delete()
             }
 
             DocumentSaveResult.Success(
@@ -91,17 +86,58 @@ object DocumentStorageManager {
                 fileSizeBytes = targetFile.length()
             )
         } catch (e: Exception) {
-            DocumentSaveResult.Error("Failed to save photo: ${e.localizedMessage ?: "Unknown error"}")
+            tempFile?.delete()
+            DocumentSaveResult.Error("Failed to store encrypted document: ${e.localizedMessage ?: "Unknown error"}")
         }
     }
 
     /**
-     * Loads a Bitmap from a stored document reference safely without CursorWindow or OOM issues.
-     * Checks private files first, then parses content URI if provided.
+     * Saves a captured Bitmap directly into private internal storage as an encrypted JPEG.
      */
-    fun loadDocumentBitmap(context: Context, pathOrUri: String?, maxDimension: Int = 1200): Bitmap? {
-        if (pathOrUri.isNullOrBlank()) return null
+    fun saveBitmapDocument(context: Context, bitmap: Bitmap, quality: Int = 85): DocumentSaveResult {
+        val dir = getDocsDirectory(context)
+        var tempFile: File? = null
+        return try {
+            val resized = ImageUtils.resizeBitmap(bitmap, maxDimension = 1600)
+            val safeName = "doc_${UUID.randomUUID().toString().replace("-", "")}.jpg"
+            val targetFile = File(dir, safeName)
+            tempFile = File(dir, "$safeName.tmp")
 
+            val byteStream = java.io.ByteArrayOutputStream()
+            resized.compress(Bitmap.CompressFormat.JPEG, quality, byteStream)
+            val plainBytes = byteStream.toByteArray()
+
+            val encryptedBytes = com.example.ui.SubtleCrypto.encryptBytes(plainBytes)
+
+            FileOutputStream(tempFile).use { fos ->
+                fos.write(encryptedBytes)
+                fos.flush()
+                try {
+                    fos.fd.sync()
+                } catch (ignored: Exception) {}
+            }
+
+            if (!tempFile.renameTo(targetFile)) {
+                tempFile.copyTo(targetFile, overwrite = true)
+                tempFile.delete()
+            }
+
+            DocumentSaveResult.Success(
+                relativePath = safeName,
+                fileSizeBytes = targetFile.length()
+            )
+        } catch (e: Exception) {
+            tempFile?.delete()
+            DocumentSaveResult.Error("Failed to save encrypted photo: ${e.localizedMessage ?: "Unknown error"}")
+        }
+    }
+
+    /**
+     * Loads raw decrypted bytes from a stored document reference safely.
+     * Supports both encrypted files (FEV_ENC1 header) and legacy unencrypted files for seamless backward compatibility.
+     */
+    fun loadDocumentBytes(context: Context, pathOrUri: String?): ByteArray? {
+        if (pathOrUri.isNullOrBlank()) return null
         return try {
             val file = if (pathOrUri.startsWith("/")) {
                 File(pathOrUri)
@@ -112,31 +148,104 @@ object DocumentStorageManager {
             }
 
             if (file.exists() && file.isFile) {
-                // Decode bounds first for memory-safe sampling
-                val options = BitmapFactory.Options().apply {
-                    inJustDecodeBounds = true
-                }
-                BitmapFactory.decodeFile(file.absolutePath, options)
-
-                var inSampleSize = 1
-                if (options.outHeight > maxDimension || options.outWidth > maxDimension) {
-                    val halfHeight = options.outHeight / 2
-                    val halfWidth = options.outWidth / 2
-                    while ((halfHeight / inSampleSize) >= maxDimension && (halfWidth / inSampleSize) >= maxDimension) {
-                        inSampleSize *= 2
-                    }
-                }
-
-                val decodeOptions = BitmapFactory.Options().apply {
-                    this.inSampleSize = inSampleSize
-                }
-                BitmapFactory.decodeFile(file.absolutePath, decodeOptions)
+                val rawBytes = file.readBytes()
+                com.example.ui.SubtleCrypto.decryptBytes(rawBytes)
             } else {
                 null
             }
         } catch (e: Exception) {
             null
         }
+    }
+
+    /**
+     * Loads a Bitmap from an encrypted stored document reference safely without CursorWindow or OOM issues.
+     * Decodes bounds from decrypted byte array, calculates optimal inSampleSize, and decodes Bitmap.
+     */
+    fun loadDocumentBitmap(context: Context, pathOrUri: String?, maxDimension: Int = 1200): Bitmap? {
+        val decryptedBytes = loadDocumentBytes(context, pathOrUri) ?: return null
+
+        return try {
+            val options = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+            BitmapFactory.decodeByteArray(decryptedBytes, 0, decryptedBytes.size, options)
+
+            var inSampleSize = 1
+            if (options.outHeight > maxDimension || options.outWidth > maxDimension) {
+                val halfHeight = options.outHeight / 2
+                val halfWidth = options.outWidth / 2
+                while ((halfHeight / inSampleSize) >= maxDimension && (halfWidth / inSampleSize) >= maxDimension) {
+                    inSampleSize *= 2
+                }
+            }
+
+            val decodeOptions = BitmapFactory.Options().apply {
+                this.inSampleSize = inSampleSize
+            }
+            BitmapFactory.decodeByteArray(decryptedBytes, 0, decryptedBytes.size, decodeOptions)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Checks whether an existing stored document file is encrypted with the FEV_ENC1 format.
+     */
+    fun isDocumentEncrypted(context: Context, pathOrUri: String?): Boolean {
+        if (pathOrUri.isNullOrBlank()) return false
+        return try {
+            val file = File(getDocsDirectory(context), pathOrUri.substringAfterLast('/'))
+            if (file.exists() && file.length() >= 20) {
+                val header = ByteArray(8)
+                file.inputStream().use { it.read(header) }
+                com.example.ui.SubtleCrypto.isEncryptedFile(header)
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Migrates any unencrypted legacy documents in private storage to authenticated AES-256-GCM.
+     * Preserves access to existing documents during migration: if encryption or writing fails,
+     * the original file is NEVER deleted or silently overwritten.
+     * Returns count of migrated documents.
+     */
+    fun migrateLegacyDocumentsToEncrypted(context: Context): Int {
+        val dir = getDocsDirectory(context)
+        if (!dir.exists() || !dir.isDirectory) return 0
+
+        var migratedCount = 0
+        val files = dir.listFiles() ?: return 0
+
+        for (file in files) {
+            if (file.isFile && !file.name.endsWith(".tmp")) {
+                try {
+                    val rawBytes = file.readBytes()
+                    if (!com.example.ui.SubtleCrypto.isEncryptedFile(rawBytes)) {
+                        // Unencrypted legacy file - encrypt safely via temp file
+                        val encryptedBytes = com.example.ui.SubtleCrypto.encryptBytes(rawBytes)
+                        val tempFile = File(dir, "${file.name}.tmp")
+                        FileOutputStream(tempFile).use { fos ->
+                            fos.write(encryptedBytes)
+                            fos.flush()
+                            try { fos.fd.sync() } catch (ignored: Exception) {}
+                        }
+                        if (tempFile.renameTo(file)) {
+                            migratedCount++
+                        } else {
+                            tempFile.delete()
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Fail safely: preserve original file untouched
+                }
+            }
+        }
+        return migratedCount
     }
 
     /**

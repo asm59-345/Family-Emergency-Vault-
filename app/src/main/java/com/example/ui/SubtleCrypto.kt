@@ -107,4 +107,59 @@ object SubtleCrypto {
             ""
         }
     }
+
+    val FILE_MAGIC = byteArrayOf(0x46, 0x45, 0x56, 0x5F, 0x45, 0x4E, 0x43, 0x31) // "FEV_ENC1"
+
+    /**
+     * Authenticated AES-256-GCM binary encryption for private documents.
+     * Prepends an 8-byte magic header ("FEV_ENC1") + 12-byte random IV + ciphertext + 16-byte GCM tag.
+     */
+    fun encryptBytes(plainBytes: ByteArray): ByteArray {
+        val cipher = Cipher.getInstance(ALGORITHM)
+        val iv = ByteArray(IV_LENGTH_BYTE)
+        SecureRandom().nextBytes(iv)
+        val spec = GCMParameterSpec(TAG_LENGTH_BIT, iv)
+        cipher.init(Cipher.ENCRYPT_MODE, getSecretKey(), spec)
+        val cipherBytes = cipher.doFinal(plainBytes)
+
+        val result = ByteArray(FILE_MAGIC.size + iv.size + cipherBytes.size)
+        System.arraycopy(FILE_MAGIC, 0, result, 0, FILE_MAGIC.size)
+        System.arraycopy(iv, 0, result, FILE_MAGIC.size, iv.size)
+        System.arraycopy(cipherBytes, 0, result, FILE_MAGIC.size + iv.size, cipherBytes.size)
+        return result
+    }
+
+    /**
+     * Checks whether raw file bytes contain the authenticated encryption magic header.
+     */
+    fun isEncryptedFile(bytes: ByteArray): Boolean {
+        if (bytes.size < FILE_MAGIC.size) return false
+        for (i in FILE_MAGIC.indices) {
+            if (bytes[i] != FILE_MAGIC[i]) return false
+        }
+        return true
+    }
+
+    /**
+     * Decrypts authenticated AES-256-GCM document bytes.
+     * If the bytes do not start with the FEV_ENC1 magic header, returns the raw bytes as-is
+     * to preserve existing documents during migration.
+     * Throws an exception or returns null if corruption/tampering occurs.
+     */
+    fun decryptBytes(encryptedBytes: ByteArray): ByteArray {
+        if (!isEncryptedFile(encryptedBytes)) {
+            // Unencrypted legacy file - preserve as-is for backward compatibility
+            return encryptedBytes
+        }
+        val iv = ByteArray(IV_LENGTH_BYTE)
+        System.arraycopy(encryptedBytes, FILE_MAGIC.size, iv, 0, IV_LENGTH_BYTE)
+        val cipherLength = encryptedBytes.size - FILE_MAGIC.size - IV_LENGTH_BYTE
+        val cipherBytes = ByteArray(cipherLength)
+        System.arraycopy(encryptedBytes, FILE_MAGIC.size + IV_LENGTH_BYTE, cipherBytes, 0, cipherLength)
+
+        val cipher = Cipher.getInstance(ALGORITHM)
+        val spec = GCMParameterSpec(TAG_LENGTH_BIT, iv)
+        cipher.init(Cipher.DECRYPT_MODE, getSecretKey(), spec)
+        return cipher.doFinal(cipherBytes)
+    }
 }

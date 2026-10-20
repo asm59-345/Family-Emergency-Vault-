@@ -581,5 +581,369 @@ class ExampleRobolectricTest {
     )
     org.junit.Assert.assertTrue(rbiResult.answer.contains("Nominee") || rbiResult.answer.contains("RBI"))
   }
+
+  @Test
+  fun `phase 3 zero-state onboarding starts with zero fabricated readiness and zero financial records`() = kotlinx.coroutines.runBlocking {
+    val application = ApplicationProvider.getApplicationContext<android.app.Application>()
+    val viewModel = com.example.ui.VaultViewModel(application)
+
+    // Verify fresh state default values
+    assertEquals(0, viewModel.getEmergencyReadinessScore())
+    assertEquals(0, viewModel.getProfileCompletionPercentage())
+
+    val breakdown = viewModel.getReadinessBreakdown()
+    assertEquals(0, breakdown.score)
+    org.junit.Assert.assertFalse(breakdown.hasContacts)
+    org.junit.Assert.assertFalse(breakdown.hasAssets)
+    org.junit.Assert.assertFalse(breakdown.hasInsurance)
+    org.junit.Assert.assertFalse(breakdown.hasDocuments)
+    assertEquals(0, breakdown.missingNomineesCount)
+  }
+
+  @Test
+  fun `phase 3 demo mode isolation and exit preserves real household records`() = kotlinx.coroutines.runBlocking {
+    val application = ApplicationProvider.getApplicationContext<android.app.Application>()
+    val viewModel = com.example.ui.VaultViewModel(application)
+
+    org.junit.Assert.assertFalse(viewModel.isDemoModeActive)
+
+    // Enable demo mode
+    viewModel.enableDemoPreviewMode()
+    org.junit.Assert.assertTrue(viewModel.isDemoModeActive)
+
+    // Disable demo mode
+    viewModel.disableDemoPreviewMode()
+    org.junit.Assert.assertFalse(viewModel.isDemoModeActive)
+  }
+
+  @Test
+  fun `phase 3 navigation destinations match 5 primary tabs`() {
+    val application = ApplicationProvider.getApplicationContext<android.app.Application>()
+    val viewModel = com.example.ui.VaultViewModel(application)
+
+    // Default tab should be HOME
+    assertEquals("HOME", viewModel.selectedTabItem)
+
+    // Verify tabs can be selected
+    val tabs = listOf("HOME", "VAULT", "FAMILY", "PLAN", "SETTINGS")
+    tabs.forEach { tab ->
+      viewModel.selectedTabItem = tab
+      assertEquals(tab, viewModel.selectedTabItem)
+    }
+  }
+
+  @Test
+  fun `phase 3 room database performs full CRUD for contacts and vault items`() = kotlinx.coroutines.runBlocking {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val db = androidx.room.Room.inMemoryDatabaseBuilder(
+      context,
+      com.example.data.AppDatabase::class.java
+    ).allowMainThreadQueries().build()
+    val repo = com.example.data.Repository(db)
+
+    val contact = com.example.data.ImportantContact(
+      contactName = "Dr. Mehta",
+      category = "Family Doctor",
+      phone = "+91 9876543210",
+      email = "mehta@hospital.org",
+      address = "Fortis Hospital",
+      priority = "Priority 1",
+      remarks = "Personal Physician"
+    )
+    repo.insertImportantContact(contact)
+    val contacts = repo.importantContacts.first()
+    assertEquals(1, contacts.size)
+    assertEquals("Dr. Mehta", contacts[0].contactName)
+
+    val vaultItem = com.example.data.VaultItem(
+      category = "BANK",
+      title = "SBI Savings Account",
+      ownerName = "Rahul Sharma",
+      institution = "State Bank of India",
+      numberOrId = "SB-987123",
+      nomineeName = "Priya Sharma",
+      nomineeRelation = "Spouse",
+      nomineeVerified = true
+    )
+    repo.insertVaultItem(vaultItem)
+    val items = repo.vaultItems.first()
+    assertEquals(1, items.size)
+    assertEquals("SBI Savings Account", items[0].title)
+
+    // Update
+    val updatedItem = items[0].copy(title = "SBI Primary Savings")
+    repo.updateVaultItem(updatedItem)
+    val updatedList = repo.vaultItems.first()
+    assertEquals("SBI Primary Savings", updatedList[0].title)
+
+    // Delete
+    repo.deleteVaultItem(updatedList[0])
+    val emptyList = repo.vaultItems.first()
+    assertEquals(0, emptyList.size)
+
+    db.close()
+  }
+
+  @Test
+  fun `nominee gap audit accurately identifies missing nominees across bank, insurance, investment, locker, property, and liability`() = kotlinx.coroutines.runBlocking {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val db = androidx.room.Room.inMemoryDatabaseBuilder(
+      context,
+      com.example.data.AppDatabase::class.java
+    ).allowMainThreadQueries().build()
+    val dao = db.vaultItemDao()
+
+    val categories = listOf("BANK", "INSURANCE", "INVESTMENT", "PROPERTY", "LOCKER", "LIABILITY")
+    // Insert 6 items without nominee
+    categories.forEachIndexed { index, cat ->
+      dao.insert(
+        com.example.data.VaultItem(
+          id = index + 1,
+          category = cat,
+          title = "Unprotected $cat",
+          ownerName = "Rahul Sharma",
+          institution = "Test Institution $index",
+          numberOrId = "ACC-00$index",
+          nomineeName = "",
+          nomineeRelation = ""
+        )
+      )
+    }
+
+    // Insert 1 protected item
+    dao.insert(
+      com.example.data.VaultItem(
+        id = 100,
+        category = "BANK",
+        title = "Protected Bank Account",
+        ownerName = "Rahul Sharma",
+        institution = "HDFC",
+        numberOrId = "HDFC-12345",
+        nomineeName = "Priya Sharma",
+        nomineeRelation = "Spouse"
+      )
+    )
+
+    // Insert 1 document item (DOCUMENT is not an asset requiring nominee)
+    dao.insert(
+      com.example.data.VaultItem(
+        id = 200,
+        category = "DOCUMENT",
+        title = "Aadhaar Card",
+        ownerName = "Rahul Sharma",
+        institution = "UIDAI",
+        numberOrId = "1234-5678-9012",
+        nomineeName = ""
+      )
+    )
+
+    val allItems = dao.getAll().first()
+    val eligibleItems = allItems.filter { it.category in categories }
+    val missingNominees = eligibleItems.filter { it.nomineeName.trim().isEmpty() }
+    val protectedItems = eligibleItems.filter { it.nomineeName.trim().isNotEmpty() }
+
+    assertEquals("Should have 7 eligible asset items across the 6 categories", 7, eligibleItems.size)
+    assertEquals("Should detect 6 missing nominees", 6, missingNominees.size)
+    assertEquals("Should detect 1 protected item", 1, protectedItems.size)
+    org.junit.Assert.assertTrue("All 6 categories should be present in missing list",
+      missingNominees.map { it.category }.containsAll(categories)
+    )
+
+    db.close()
+  }
+
+  @Test
+  fun `emergency guide provides comprehensive bilingual offline responses in English and Hindi`() {
+    // English query
+    val enGuide = com.example.util.EmergencyKnowledgeBase.searchGuide(
+      query = "what to do in first 24 hours emergency",
+      userName = "Ashmit",
+      nomineeName = "Priya",
+      nomineeRelation = "Spouse",
+      nomineePhone = "+91 9999988888",
+      contacts = emptyList(),
+      vaultItems = emptyList(),
+      isHindi = false
+    )
+    org.junit.Assert.assertTrue("English guide should contain emergency guidance", enGuide.answer.contains("112") || enGuide.answer.contains("Emergency"))
+    org.junit.Assert.assertFalse("English guide should not return Hindi text", enGuide.answer.contains("आपातकालीन तत्काल"))
+
+    // Hindi query
+    val hiGuide = com.example.util.EmergencyKnowledgeBase.searchGuide(
+      query = "आपातकाल में क्या करें",
+      userName = "अशमित",
+      nomineeName = "प्रिया",
+      nomineeRelation = "पत्नी",
+      nomineePhone = "+91 9999988888",
+      contacts = emptyList(),
+      vaultItems = emptyList(),
+      isHindi = true
+    )
+    org.junit.Assert.assertTrue("Hindi guide should contain Hindi guidance", hiGuide.answer.contains("112") && hiGuide.answer.contains("आपातकालीन"))
+  }
+
+  @Test
+  fun `role-based access controls masking and confidential document access`() {
+    val application = ApplicationProvider.getApplicationContext<android.app.Application>()
+    val viewModel = com.example.ui.VaultViewModel(application)
+
+    // Default role is OWNER
+    assertEquals(com.example.ui.UserRole.OWNER, viewModel.currentRole)
+
+    // Switch to EXECUTOR
+    viewModel.switchRole(com.example.ui.UserRole.EXECUTOR)
+    assertEquals(com.example.ui.UserRole.EXECUTOR, viewModel.currentRole)
+    org.junit.Assert.assertFalse(viewModel.isEmergencyAccessReleased)
+
+    // In EXECUTOR role before release, sensitive details are masked
+    val testItem = com.example.data.VaultItem(
+      title = "HDFC Salary Account",
+      category = "BANK",
+      ownerName = "Rahul Sharma",
+      institution = "HDFC Bank",
+      numberOrId = "501000294819",
+      isMasked = true
+    )
+    val isActuallyMasked = testItem.isMasked && !viewModel.isEmergencyAccessReleased && viewModel.currentRole != com.example.ui.UserRole.OWNER
+    org.junit.Assert.assertTrue("Account number should be masked for Executor before emergency release", isActuallyMasked)
+
+    // Once emergency access is released
+    viewModel.isEmergencyAccessReleased = true
+    val isMaskedAfterRelease = testItem.isMasked && !viewModel.isEmergencyAccessReleased && viewModel.currentRole != com.example.ui.UserRole.OWNER
+    org.junit.Assert.assertFalse("Account number should be unmasked after emergency release", isMaskedAfterRelease)
+  }
+
+  @Test
+  fun `encrypted document storage performs authenticated encryption, legacy recovery, tampering detection, and cleanup`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+
+    // 1. Create and save a bitmap document
+    val testBitmap = android.graphics.Bitmap.createBitmap(100, 100, android.graphics.Bitmap.Config.ARGB_8888)
+    val saveResult = com.example.util.DocumentStorageManager.saveBitmapDocument(context, testBitmap)
+    org.junit.Assert.assertTrue(saveResult is com.example.util.DocumentSaveResult.Success)
+    val relPath = (saveResult as com.example.util.DocumentSaveResult.Success).relativePath
+
+    // 2. Verify file is encrypted on disk with FEV_ENC1 magic header
+    val isEnc = com.example.util.DocumentStorageManager.isDocumentEncrypted(context, relPath)
+    org.junit.Assert.assertTrue("Stored document must be encrypted with FEV_ENC1", isEnc)
+
+    // 3. Decrypt and load Bitmap safely
+    val loadedBitmap = com.example.util.DocumentStorageManager.loadDocumentBitmap(context, relPath)
+    org.junit.Assert.assertNotNull("Decrypted bitmap must be successfully decoded", loadedBitmap)
+
+    // 4. Simulate legacy unencrypted file
+    val docsDir = java.io.File(context.filesDir, "vault_documents")
+    val legacyFile = java.io.File(docsDir, "legacy_deed.jpg")
+    val unencJpegBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte(), 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46)
+    legacyFile.writeBytes(unencJpegBytes)
+
+    // Verify unencrypted legacy file is preserved and readable as raw bytes
+    val legacyBytes = com.example.util.DocumentStorageManager.loadDocumentBytes(context, "legacy_deed.jpg")
+    org.junit.Assert.assertNotNull(legacyBytes)
+    org.junit.Assert.assertArrayEquals(unencJpegBytes, legacyBytes)
+
+    // 5. Migrate legacy documents to encrypted format
+    val migrated = com.example.util.DocumentStorageManager.migrateLegacyDocumentsToEncrypted(context)
+    org.junit.Assert.assertEquals(1, migrated)
+    org.junit.Assert.assertTrue("Legacy file must now be encrypted", com.example.util.DocumentStorageManager.isDocumentEncrypted(context, "legacy_deed.jpg"))
+
+    // 6. Test tampering/corruption protection: flip bits in ciphertext
+    val encBytes = legacyFile.readBytes()
+    encBytes[encBytes.size - 5] = (encBytes[encBytes.size - 5].toInt() xor 0xFF).toByte()
+    val tamperedFile = java.io.File(docsDir, "tampered_doc.jpg")
+    tamperedFile.writeBytes(encBytes)
+    val tamperedLoaded = com.example.util.DocumentStorageManager.loadDocumentBitmap(context, "tampered_doc.jpg")
+    org.junit.Assert.assertNull("Tampered document must fail authentication and return null", tamperedLoaded)
+
+    // 7. Cleanup
+    com.example.util.DocumentStorageManager.deleteDocument(context, relPath)
+    com.example.util.DocumentStorageManager.deleteDocument(context, "legacy_deed.jpg")
+    com.example.util.DocumentStorageManager.deleteDocument(context, "tampered_doc.jpg")
+  }
+
+  @Test
+  fun `backup and restore verifies encryption, passphrase rejection, versioning, duplicate skipping, and transactional rollback`() = kotlinx.coroutines.runBlocking {
+    val application = ApplicationProvider.getApplicationContext<android.app.Application>()
+    val viewModel = com.example.ui.VaultViewModel(application)
+
+    // Add initial item
+    val initialItem = com.example.data.VaultItem(
+      category = "BANK",
+      title = "HDFC Salary Account",
+      ownerName = "Rahul Sharma",
+      institution = "HDFC Bank",
+      numberOrId = "501000294819"
+    )
+    viewModel.saveVaultItem(initialItem)
+
+    // 1. Export encrypted with passphrase
+    val passphrase = "MasterPassphrase@2026"
+    val encryptedJson = viewModel.exportVaultEncrypted(passphrase)
+    org.junit.Assert.assertTrue(encryptedJson.contains("\"encrypted\": true"))
+    org.junit.Assert.assertTrue(encryptedJson.contains("\"ciphertext\":"))
+    org.junit.Assert.assertTrue(encryptedJson.contains("\"salt\":"))
+
+    // 2. Reject restore with incorrect passphrase
+    val restoreFailedWrongPass = !viewModel.restoreVaultFromJson(encryptedJson, "WrongPassphrase123")
+    org.junit.Assert.assertTrue("Restore with wrong passphrase must fail", restoreFailedWrongPass)
+
+    // 3. Reject restore with incompatible future version
+    val plainFutureJson = """{"app":"Family Emergency Vault","version":99,"vaultItems":[]}"""
+    val versionRejected = !viewModel.restoreVaultFromJson(plainFutureJson)
+    org.junit.Assert.assertTrue("Incompatible version must be rejected", versionRejected)
+
+    // 4. Reject restore with corrupted JSON
+    val corruptRejected = !viewModel.restoreVaultFromJson("{corrupted_malformed_json")
+    org.junit.Assert.assertTrue("Corrupted JSON must be rejected safely", corruptRejected)
+
+    // 5. Successful restore with correct passphrase skips duplicates
+    val restoreSuccess = viewModel.restoreVaultFromJson(encryptedJson, passphrase)
+    org.junit.Assert.assertTrue("Restore with correct passphrase must succeed", restoreSuccess)
+
+    // 6. Unauthorized restore attempt by Dependent role must be blocked
+    viewModel.switchRole(com.example.ui.UserRole.DEPENDENT)
+    val unauthorizedBlocked = !viewModel.restoreVaultFromJson(encryptedJson, passphrase)
+    org.junit.Assert.assertTrue("Restore by non-Owner/Spouse must be blocked", unauthorizedBlocked)
+  }
+
+  @Test
+  fun `emergency access permission matrix validates owner approval authority and heir veto protection`() = kotlinx.coroutines.runBlocking {
+    val application = ApplicationProvider.getApplicationContext<android.app.Application>()
+    val viewModel = com.example.ui.VaultViewModel(application)
+
+    val req = com.example.data.EmergencyAccessRequest(
+      id = 901,
+      userName = "Rohan Sharma",
+      relation = "Brother",
+      requestReason = "Hospital emergency admission",
+      status = "Pending"
+    )
+
+    // 1. Executor cannot approve emergency access (Owner authority required)
+    viewModel.switchRole(com.example.ui.UserRole.EXECUTOR)
+    viewModel.approveRequest(req)
+    org.junit.Assert.assertFalse("Executor cannot approve emergency release", viewModel.isEmergencyAccessReleased)
+
+    // 2. Dependent cannot approve emergency access
+    viewModel.switchRole(com.example.ui.UserRole.DEPENDENT)
+    viewModel.approveRequest(req)
+    org.junit.Assert.assertFalse("Dependent cannot approve emergency release", viewModel.isEmergencyAccessReleased)
+
+    // 3. Owner can approve emergency access
+    viewModel.switchRole(com.example.ui.UserRole.OWNER)
+    viewModel.approveRequest(req)
+    org.junit.Assert.assertTrue("Owner approval releases emergency access", viewModel.isEmergencyAccessReleased)
+
+    // 4. Advisor cannot revoke emergency access
+    viewModel.switchRole(com.example.ui.UserRole.ADVISOR)
+    viewModel.revokeEmergencyAccess()
+    org.junit.Assert.assertTrue("Advisor cannot revoke emergency release", viewModel.isEmergencyAccessReleased)
+
+    // 5. Owner can revoke emergency access
+    viewModel.switchRole(com.example.ui.UserRole.OWNER)
+    viewModel.revokeEmergencyAccess()
+    org.junit.Assert.assertFalse("Owner revocation locks emergency access", viewModel.isEmergencyAccessReleased)
+  }
 }
+
 

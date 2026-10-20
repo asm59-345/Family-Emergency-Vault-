@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.*
+import androidx.room.withTransaction
 import com.example.ui.theme.VaultFontTheme
 import com.example.util.DiagnosticLogItem
 import com.example.util.DiagnosticType
@@ -345,8 +346,8 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
     var isWaitingPeriodActive by mutableStateOf(false)
 
     // Dialog & Form states
-    var activeBackRoute by mutableStateOf("DASHBOARD")
-    var selectedTabItem by mutableStateOf("DASHBOARD") // DASHBOARD, VAULT, CHECKLIST, CLAIMS, SETTINGS
+    var activeBackRoute by mutableStateOf("HOME")
+    var selectedTabItem by mutableStateOf("HOME") // HOME, VAULT, FAMILY, PLAN, SETTINGS (also accepts legacy DASHBOARD, CONTACTS, CHECKLIST)
 
     // --- MPIN & BIOMETRIC SECURITY ---
     private val mpinPrefs = application.getSharedPreferences("vault_mpin_prefs", android.content.Context.MODE_PRIVATE)
@@ -802,73 +803,132 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun approveRequest(req: EmergencyAccessRequest) {
+        if (currentRole != UserRole.OWNER) {
+            viewModelScope.launch {
+                repository.logAction("Unauthorized Approval Blocked", "Role ${currentRole.name} attempted to approve emergency access without Owner authority.", currentRole.name)
+            }
+            return
+        }
+        isEmergencyAccessReleased = true
+        isWaitingPeriodActive = false
+        mockApprovalTimerProgress = 1.0f
         viewModelScope.launch {
             val updated = req.copy(status = "Approved", approvedTime = System.currentTimeMillis())
             repository.updateEmergencyAccessRequest(updated)
-            isEmergencyAccessReleased = true
-            isWaitingPeriodActive = false
-            mockApprovalTimerProgress = 1.0f
             repository.logAction("Emergency Access Approved", "Emergency access request from ${req.userName} has been APPROVED by Owner. Release Active.", "OWNER")
         }
     }
 
     fun rejectRequest(req: EmergencyAccessRequest) {
+        if (currentRole != UserRole.OWNER) {
+            viewModelScope.launch {
+                repository.logAction("Unauthorized Rejection Blocked", "Role ${currentRole.name} attempted to reject emergency access without Owner authority.", currentRole.name)
+            }
+            return
+        }
+        isWaitingPeriodActive = false
+        mockApprovalTimerProgress = 0f
         viewModelScope.launch {
             val updated = req.copy(status = "Rejected")
             repository.updateEmergencyAccessRequest(updated)
-            isWaitingPeriodActive = false
-            mockApprovalTimerProgress = 0f
             repository.logAction("Emergency Access Rejected", "Emergency access request from ${req.userName} was REJECTED by Owner.", "OWNER")
         }
     }
 
     fun revokeEmergencyAccess() {
+        if (currentRole != UserRole.OWNER && currentRole != UserRole.SPOUSE) {
+            viewModelScope.launch {
+                repository.logAction("Unauthorized Revoke Blocked", "Role ${currentRole.name} attempted to revoke emergency access.", currentRole.name)
+            }
+            return
+        }
         isEmergencyAccessReleased = false
         isWaitingPeriodActive = false
         mockApprovalTimerProgress = 0f
         viewModelScope.launch {
-            repository.logAction("Emergency Access Revoked", "Active emergency release was cancelled and revoked by Owner.", "OWNER")
+            repository.logAction("Emergency Access Revoked", "Active emergency release was cancelled and revoked by Owner.", currentRole.name)
         }
     }
 
-    // Computations & Indicators
+    // Computations & Indicators (100% grounded in real records; zero fabricated baselines)
+    data class ReadinessBreakdown(
+        val score: Int,
+        val hasContacts: Boolean,
+        val hasAssets: Boolean,
+        val hasInsurance: Boolean,
+        val hasDocuments: Boolean,
+        val totalTargetItems: Int,
+        val nominatedItemsCount: Int,
+        val missingNomineesCount: Int
+    )
+
     fun getProfileCompletionPercentage(): Int {
-        var score = 30 // base registration
-        if (familyDependents.value.isNotEmpty()) score += 15
-        if (importantContacts.value.isNotEmpty()) score += 15
-        if (vaultItems.value.any { it.category == "BANK" }) score += 15
-        if (vaultItems.value.any { it.category == "INSURANCE" }) score += 15
-        if (vaultItems.value.any { it.category == "INVESTMENT" }) score += 10
+        val items = vaultItems.value
+        val deps = familyDependents.value
+        val contacts = importantContacts.value
+        if (items.isEmpty() && deps.isEmpty() && contacts.isEmpty()) return 0
+
+        var score = 0
+        if (deps.isNotEmpty()) score += 20
+        if (contacts.isNotEmpty()) score += 20
+        if (items.any { it.category == "BANK" }) score += 20
+        if (items.any { it.category == "INSURANCE" }) score += 20
+        if (items.any { it.category == "DOCUMENT" || it.category == "INVESTMENT" }) score += 20
         return minOf(score, 100)
+    }
+
+    fun getReadinessBreakdown(): ReadinessBreakdown {
+        val items = vaultItems.value
+        val deps = familyDependents.value
+        val contacts = importantContacts.value
+
+        if (items.isEmpty() && deps.isEmpty() && contacts.isEmpty()) {
+            return ReadinessBreakdown(
+                score = 0,
+                hasContacts = false,
+                hasAssets = false,
+                hasInsurance = false,
+                hasDocuments = false,
+                totalTargetItems = 0,
+                nominatedItemsCount = 0,
+                missingNomineesCount = 0
+            )
+        }
+
+        val hasContacts = contacts.isNotEmpty() || deps.isNotEmpty()
+        val hasAssets = items.any { it.category == "BANK" || it.category == "INVESTMENT" }
+        val hasInsurance = items.any { it.category == "INSURANCE" }
+        val hasDocuments = items.any { it.category == "DOCUMENT" }
+
+        var score = 0
+        if (hasContacts) score += 25
+        if (hasAssets) score += 25
+        if (hasInsurance) score += 25
+        if (hasDocuments) score += 25
+
+        val targetItems = items.filter { it.category == "BANK" || it.category == "INVESTMENT" || it.category == "INSURANCE" }
+        val missingNominees = targetItems.count { it.nomineeName.isBlank() }
+        val nominatedCount = targetItems.size - missingNominees
+
+        if (targetItems.isNotEmpty() && missingNominees > 0) {
+            val penalty = minOf(20, missingNominees * 5)
+            score = maxOf(0, score - penalty)
+        }
+
+        return ReadinessBreakdown(
+            score = minOf(score, 100),
+            hasContacts = hasContacts,
+            hasAssets = hasAssets,
+            hasInsurance = hasInsurance,
+            hasDocuments = hasDocuments,
+            totalTargetItems = targetItems.size,
+            nominatedItemsCount = nominatedCount,
+            missingNomineesCount = missingNominees
+        )
     }
 
     fun getEmergencyReadinessScore(): Int {
-        var score = 40 // Base
-        val items = vaultItems.value
-        val dependents = familyDependents.value
-        val hasWill = items.any { it.category == "DOCUMENT" && it.title.lowercase().contains("will") }
-        val hasMedical = items.any { it.category == "INSURANCE" && it.title.lowercase().contains("health") }
-
-        if (hasWill) score += 20
-        if (hasMedical) score += 15
-        if (dependents.isNotEmpty()) score += 10
-
-        // Check for nominee coverage (all investments & bank details)
-        val nomineeTargetItems = items.filter { it.category == "BANK" || it.category == "INVESTMENT" || it.category == "INSURANCE" }
-        if (nomineeTargetItems.isNotEmpty()) {
-            val fullyNominated = nomineeTargetItems.all { it.nomineeName.isNotEmpty() }
-            if (fullyNominated) {
-                score += 15
-            } else {
-                val missingCount = nomineeTargetItems.count { it.nomineeName.isEmpty() }
-                // Deduct 2 per missing nominee
-                score += maxOf(15 - (missingCount * 3), 0)
-            }
-        } else {
-            score += 15
-        }
-
-        return minOf(score, 100)
+        return getReadinessBreakdown().score
     }
 
     fun getTotalAssetsSum(): Double {
@@ -1250,6 +1310,14 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
      * using a user-specified passphrase.
      */
     fun exportVaultEncrypted(passphrase: String): String {
+        if (currentRole != UserRole.OWNER && currentRole != UserRole.SPOUSE && !isEmergencyAccessReleased) {
+            viewModelScope.launch {
+                repository.logAction("Export Blocked", "Role ${currentRole.name} denied full encrypted export without Owner/Spouse authority.", currentRole.name)
+            }
+            return ""
+        }
+        if (passphrase.isBlank()) return ""
+
         val root = JSONObject()
         root.put("app", "Family Emergency Vault")
         root.put("version", 1)
@@ -1334,39 +1402,63 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
         return encryptedContainer.toString(2)
     }
 
-    fun importVaultFromJson(jsonString: String, passphrase: String? = null, onComplete: (Boolean) -> Unit) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                var jsonToParse = jsonString.trim()
-                val container = JSONObject(jsonToParse)
-                if (container.optBoolean("encrypted", false)) {
-                    if (passphrase.isNullOrEmpty()) {
-                        launch(Dispatchers.Main) { onComplete(false) }
-                        return@launch
-                    }
-                    val saltBase64 = container.optString("salt", "")
-                    val ivBase64 = container.optString("iv", "")
-                    val cipherBase64 = container.optString("ciphertext", "")
-                    val salt = android.util.Base64.decode(saltBase64, android.util.Base64.NO_WRAP)
-                    val iv = android.util.Base64.decode(ivBase64, android.util.Base64.NO_WRAP)
-                    val cipherBytes = android.util.Base64.decode(cipherBase64, android.util.Base64.NO_WRAP)
+    suspend fun restoreVaultFromJson(jsonString: String, passphrase: String? = null): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // Role Authorization Guard: Only Owner or Spouse can restore backups
+            if (currentRole != UserRole.OWNER && currentRole != UserRole.SPOUSE) {
+                repository.logAction("Restore Blocked", "Role ${currentRole.name} denied backup restore authorization.", currentRole.name)
+                return@withContext false
+            }
 
-                    val factory = javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
-                    val spec = javax.crypto.spec.PBEKeySpec(passphrase.toCharArray(), salt, 65536, 256)
-                    val secretKey = javax.crypto.spec.SecretKeySpec(factory.generateSecret(spec).encoded, "AES")
-
-                    val cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
-                    cipher.init(javax.crypto.Cipher.DECRYPT_MODE, secretKey, javax.crypto.spec.GCMParameterSpec(128, iv))
-                    val decryptedBytes = cipher.doFinal(cipherBytes)
-                    jsonToParse = String(decryptedBytes, Charsets.UTF_8)
+            var jsonToParse = jsonString.trim()
+            val container = JSONObject(jsonToParse)
+            if (container.optBoolean("encrypted", false)) {
+                if (passphrase.isNullOrEmpty()) {
+                    return@withContext false
                 }
+                val saltBase64 = container.optString("salt", "")
+                val ivBase64 = container.optString("iv", "")
+                val cipherBase64 = container.optString("ciphertext", "")
+                if (saltBase64.isEmpty() || ivBase64.isEmpty() || cipherBase64.isEmpty()) {
+                    return@withContext false
+                }
+                val salt = android.util.Base64.decode(saltBase64, android.util.Base64.NO_WRAP)
+                val iv = android.util.Base64.decode(ivBase64, android.util.Base64.NO_WRAP)
+                val cipherBytes = android.util.Base64.decode(cipherBase64, android.util.Base64.NO_WRAP)
 
-                val root = JSONObject(jsonToParse)
-                if (root.has("vaultItems")) {
-                    val array = root.getJSONArray("vaultItems")
-                    for (i in 0 until array.length()) {
-                        val obj = array.getJSONObject(i)
-                        val item = VaultItem(
+                val factory = javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+                val spec = javax.crypto.spec.PBEKeySpec(passphrase.toCharArray(), salt, 65536, 256)
+                val secretKey = javax.crypto.spec.SecretKeySpec(factory.generateSecret(spec).encoded, "AES")
+
+                val cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
+                cipher.init(javax.crypto.Cipher.DECRYPT_MODE, secretKey, javax.crypto.spec.GCMParameterSpec(128, iv))
+                val decryptedBytes = cipher.doFinal(cipherBytes)
+                jsonToParse = String(decryptedBytes, Charsets.UTF_8)
+            }
+
+            val root = JSONObject(jsonToParse)
+            // App identity validation
+            if (root.optString("app") != "Family Emergency Vault") {
+                return@withContext false
+            }
+            // Version compatibility validation (reject incompatible future versions)
+            val backupVersion = root.optInt("version", 1)
+            if (backupVersion > 1) {
+                repository.logAction("Restore Rejected", "Incompatible backup format version $backupVersion.", currentRole.name)
+                return@withContext false
+            }
+
+            // Parse into staging collections first to validate integrity before touching database
+            val parsedVaultItems = mutableListOf<VaultItem>()
+            val parsedDependents = mutableListOf<FamilyDependent>()
+            val parsedContacts = mutableListOf<ImportantContact>()
+
+            if (root.has("vaultItems")) {
+                val array = root.getJSONArray("vaultItems")
+                for (i in 0 until array.length()) {
+                    val obj = array.getJSONObject(i)
+                    parsedVaultItems.add(
+                        VaultItem(
                             category = obj.optString("category", "BANK"),
                             title = obj.optString("title", "Imported Item"),
                             ownerName = obj.optString("ownerName", registeredFullName.ifBlank { "Owner" }),
@@ -1383,15 +1475,16 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
                             userId = registeredEmail.ifBlank { "local_owner" },
                             isDemo = false
                         )
-                        repository.insertVaultItem(item)
-                    }
+                    )
                 }
+            }
 
-                if (root.has("familyDependents")) {
-                    val array = root.getJSONArray("familyDependents")
-                    for (i in 0 until array.length()) {
-                        val obj = array.getJSONObject(i)
-                        val dep = FamilyDependent(
+            if (root.has("familyDependents")) {
+                val array = root.getJSONArray("familyDependents")
+                for (i in 0 until array.length()) {
+                    val obj = array.getJSONObject(i)
+                    parsedDependents.add(
+                        FamilyDependent(
                             fullName = obj.optString("fullName", ""),
                             relation = obj.optString("relation", ""),
                             dob = obj.optString("dob", ""),
@@ -1405,15 +1498,16 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
                             userId = registeredEmail.ifBlank { "local_owner" },
                             isDemo = false
                         )
-                        repository.insertFamilyDependent(dep)
-                    }
+                    )
                 }
+            }
 
-                if (root.has("importantContacts")) {
-                    val array = root.getJSONArray("importantContacts")
-                    for (i in 0 until array.length()) {
-                        val obj = array.getJSONObject(i)
-                        val c = ImportantContact(
+            if (root.has("importantContacts")) {
+                val array = root.getJSONArray("importantContacts")
+                for (i in 0 until array.length()) {
+                    val obj = array.getJSONObject(i)
+                    parsedContacts.add(
+                        ImportantContact(
                             contactName = obj.optString("contactName", ""),
                             category = obj.optString("category", ""),
                             phone = obj.optString("phone", ""),
@@ -1424,15 +1518,51 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
                             userId = registeredEmail.ifBlank { "local_owner" },
                             isDemo = false
                         )
-                        repository.insertImportantContact(c)
-                    }
+                    )
                 }
+            }
 
-                repository.logAction("Vault Restored", "Successfully restored vault from JSON backup.", currentRole.name)
-                launch(Dispatchers.Main) { onComplete(true) }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                launch(Dispatchers.Main) { onComplete(false) }
+            // Check existing items to prevent duplicate records during restore
+            val existingVault = vaultItems.value.filter { !it.isDemo }
+            val existingDeps = familyDependents.value.filter { !it.isDemo }
+            val existingContacts = importantContacts.value.filter { !it.isDemo }
+
+            val itemsToInsert = parsedVaultItems.filter { candidate ->
+                existingVault.none { it.title.equals(candidate.title, ignoreCase = true) && it.category == candidate.category && it.numberOrId == candidate.numberOrId }
+            }
+            val depsToInsert = parsedDependents.filter { candidate ->
+                existingDeps.none { it.fullName.equals(candidate.fullName, ignoreCase = true) && it.relation.equals(candidate.relation, ignoreCase = true) }
+            }
+            val contactsToInsert = parsedContacts.filter { candidate ->
+                existingContacts.none { it.contactName.equals(candidate.contactName, ignoreCase = true) && it.phone == candidate.phone }
+            }
+
+            // Transactional Atomic Database Commit: all or nothing
+            database.withTransaction {
+                for (item in itemsToInsert) {
+                    database.vaultItemDao().insert(item)
+                }
+                for (dep in depsToInsert) {
+                    database.familyDependentDao().insert(dep)
+                }
+                for (c in contactsToInsert) {
+                    database.importantContactDao().insert(c)
+                }
+            }
+
+            repository.logAction("Vault Restored", "Successfully restored vault from backup (${itemsToInsert.size} new records, ${parsedVaultItems.size - itemsToInsert.size} duplicates skipped).", currentRole.name)
+            true
+        } catch (e: Exception) {
+            // Fail closed: failed restore throws, rolls back transaction, leaving existing records untouched
+            false
+        }
+    }
+
+    fun importVaultFromJson(jsonString: String, passphrase: String? = null, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val result = restoreVaultFromJson(jsonString, passphrase)
+            withContext(Dispatchers.Main) {
+                onComplete(result)
             }
         }
     }
