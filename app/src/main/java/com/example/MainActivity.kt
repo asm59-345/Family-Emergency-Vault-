@@ -4590,11 +4590,23 @@ fun SettingsScreen(
                             visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                             modifier = Modifier.fillMaxWidth()
                         )
-                        Text(
-                            text = "Save this passphrase safely. It is required to restore your data on a new device.",
-                            fontSize = 10.sp,
-                            color = Color.Gray
-                        )
+                        Surface(
+                            color = Color(0xFFFEF2F2),
+                            shape = RoundedCornerShape(8.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF87171)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = if (model.isHindiMode)
+                                    "⚠️ महत्वपूर्ण चेतावनी: यह पासफ्रेज किसी भी सर्वर या व्यक्ति द्वारा रीसेट या पुनर्प्राप्त नहीं किया जा सकता है। यदि आप इसे भूल जाते हैं, तो यह बैकअप फाइल हमेशा के लिए नष्ट हो जाएगी और कोई भी डेटा वापस नहीं लाया जा सकेगा।"
+                                else
+                                    "⚠️ CRITICAL WARNING: This passphrase CANNOT be recovered or reset by anyone. If you lose or forget this passphrase, this backup file will be permanently unrecoverable.",
+                                fontSize = 11.sp,
+                                color = Color(0xFF991B1B),
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
                     } else {
                         Surface(
                             color = AmberWarning.copy(alpha = 0.15f),

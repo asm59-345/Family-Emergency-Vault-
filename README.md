@@ -1,202 +1,273 @@
 # Family Emergency Vault 🛡️🔐
 
-[![Android Build Code](https://img.shields.io/badge/Android-Kotlin-orange.svg?style=flat&logo=android)](https://kotlinlang.org)
-[![Aesthetic-M3](https://img.shields.io/badge/Design-Material--3-violet.svg?style=flat)](https://m3.material.io)
-[![Database-Room](https://img.shields.io/badge/Storage-Room--SQL-blue.svg?style=flat)](https://developer.android.com/training/data-storage/room)
-[![Security-AES--GCM](https://img.shields.io/badge/Security-AES--GCM-green.svg?style=flat)](https://developer.android.com/reference/javax/crypto/Cipher)
-
-The **Family Emergency Vault** is a secure, offline-first personal financial continuity and emergency access organizer built for families. Developed entirely in modern Kotlin with Jetpack Compose and Material 3, it bridges the information gap during critical times. This vault allows a user to register high-fidelity assets, documents, and contacts while offering structured, delayed, and role-based custody access to designated family members and trusted executors.
+> **Secure, offline-first personal financial continuity and emergency succession organizer for families.**  
+> Built with modern Kotlin, Jetpack Compose, Material Design 3, Room SQLite, and hardware-backed Android KeyStore AES-256-GCM encryption.
 
 ---
 
-## 🌟 Core Architecture & Key Features
+## 1. Project Overview & Problem Statement
 
-### 1. ⚙️ Cryptographic Sandboxing (`AES/GCM/NoPadding`)
-All sensitive information is encrypted locally using the **SubtleCrypto** engine. 
-* **State-of-the-art symmetric encryption**: Employs AES-128 GCM with dynamic IVs derived via `SecureRandom` block providers.
-* **Separation of Concerns**: Encrypted data payloads (`Base64` formatted `IV:CipherText`) are securely stored in the local SQLite sandboxed Room database. 
+During unexpected family emergencies, sudden hospitalizations, or untimely deaths, surviving family members frequently face compounding crises:
+- **Frozen or Unknown Accounts**: Nominees often do not know where bank accounts, insurance policies, demat folios, locker keys, or title deeds are located.
+- **Critical Timeline Delays**: Statutory deadlines (e.g., insurance claim intimation Form 3707 within 24–48 hours, death certificate registration within 21 days under the RBD Act) lapse due to lack of immediate standard operating procedures (SOPs).
+- **Nominee Discrepancies**: Under Indian law (e.g., Supreme Court rulings, RBI Master Directions, and the Indian Succession Act), a nominee is only a temporary custodian/trustee, not the absolute owner, often leading to protracted disputes between legal heirs and nominees.
+- **Cloud Security Risks**: Uploading master financial portfolios, locker locations, and identity records to third-party cloud servers risks data harvesting, server breaches, and credential stuffing.
 
-### 2. 🎭 Role-Based Privilege Hierarchy (Multi-Custody)
-The system supports simulated logins representing different critical emergency contexts:
-* **Owner (Rahul)**: Full access to view or modify all assets, contacts, and manage global settings/logs.
-* **Spouse (Priya)**: Real-time high-level access with instant dual-signature or manual verify-receipt approvals.
-* **Dependent (Ramesh)**: Limited, focus-driven interface highlighting critical medical files and immediate checklist tasks.
-* **Executor (Sanjay)**: Zero-visibility sandboxed route that unlocks a guided step-by-step roadmap *only* upon emergency approval.
-* **Advisor (Alok, CA)**: Read-only compliance portal where sensitive asset tracking numbers are automatically hashed or masked.
-
-### 3. 🏦 Category-Based Resources Vault & Interactive Web Ledger
-Organize the entire family's assets under a centralized, search-filtered database with fields for nominee status, physical location binders, and digital backup links:
-* **Financial Portfolios**: Banks, Demat Investments, Insurance Covers, and Liabilities.
-* **Estate & Assets**: Registered Property details, Physical Safe Lockers, and Tax returns.
-* **Corporate Details**: Employer HR details, Income streams, and Active subscriptions.
-* **Interactive Client-Side Web Ledger**: Add, edit, or delete asset records on the browser companion with automatic `localStorage` persistence and a synchronized 2-second confirmation toast.
-* **Biometric & Master PIN Local Security**: Pure offline on-device protection with Android BiometricPrompt and 6-digit emergency access PIN for nominees.
-
-### 4. ⏳ Advanced Emergency Access & Dead-Man Switches
-* **Delayed Request Releases**: Family members or Executors can request vault release through a structured workflow.
-* **Approval Timeline Simulation**: Incorporates a visual wait timer simulating the mandatory 48-hour delay window, giving the Owner plenty of time to revoke accidental access.
-* **Check-In Dormancy Auto-Lock**: Automatically locks the screen layout and logs a dormancy check if there is no user interaction within 5 minutes.
-
-### 5. 📋 Dynamic Rescue Timelines
-Actionable items segmented logically into phases mapped for stressful situations:
-* **First 24 Hours**: Urgent actions (Funeral directors, nearest hospitals, reporting).
-* **First 7 Days**: Immediate estate reporting (Securing physical binders, contacting CA/lawyer).
-* **First 30 Days**: Financial transfers (Initiating demat inheritance, bank transfers, and claim tracking flows).
-
-### 6. 📝 Cryptographic Audit Logs
-In compliance with digital estate planning standards, an immutable local **audit database trail** monitors every security-sensitive action, including MPIN verification, asset unmasking, role switches, and emergency triggers.
+**Family Emergency Vault** solves this as a **100% offline, on-device digital continuity vault**. It allows a family head or individual to record vital assets, documents, and emergency procedures locally with hardware-backed encryption, role-based masking, and a controlled emergency access workflow that protects family members during a crisis without compromising day-to-day privacy.
 
 ---
 
-## 🛠️ Technology Stack
+## 2. Key Implemented Features
 
-* **Language**: 100% Kotlin (Modern, expressive, and type-safe async programming).
-* **UI Toolkit**: Jetpack Compose (Declarative, reactive components styled with a custom dark Slate primary theme).
-* **Local Databases**: Room (Engineered with an efficient KSP compilation layer for custom type converters and clean DAOs).
-* **Asynchronous Flow**: Kotlin Coroutines & Cold StateFlow streams enabling real-time UI synchronization.
-* **Networking**: OkHttpClient for resilient REST/JSON communication.
-* **Designing Standards**: Material Design 3 guidelines featuring dynamic colors, responsive form sheets, and generous touch-target sizing (min 48dp).
+1. **Category-Based Asset & Liability Ledger**:
+   - Organizes household records into 6 statutory categories: `BANK`, `INSURANCE`, `INVESTMENT`, `PROPERTY`, `LOCKER`, and `LIABILITY`.
+   - Tracks primary and secondary nominees, nominee verification flags, physical binder locations, digital links, and notes.
+2. **Nominee Gap Audit Engine**:
+   - Automatically cross-checks all 6 categories to detect accounts lacking designated nominees.
+   - Highlights gaps with actionable direct-edit buttons and cites statutory guidelines (RBI Master Directions on deceased depositor claims, IRDAI claim settlement norms).
+3. **Hardware-Backed Authenticated Document Encryption (`FEV_ENC1`)**:
+   - Document attachments captured via camera or Android Photo Picker are encrypted with AES-256-GCM via the Android KeyStore before touching internal storage (`filesDir/vault_documents/`).
+   - Uses atomic file writes (`.tmp` -> disk sync -> rename) to prevent file corruption during crashes.
+   - Automatically detects ciphertext tampering via GCM authentication tag verification.
+4. **PBKDF2-Encrypted Passphrase Backups**:
+   - Exports complete vault state using PBKDF2-HMAC-SHA256 (65,536 iterations) with AES-256-GCM encryption and random salt.
+   - Transactional restore with atomic rollback (`database.withTransaction`) to prevent partial or corrupted record imports.
+   - Explicit unrecoverable-passphrase warning preventing accidental data lockouts.
+5. **Role-Based Privilege Sandboxing (RBAC)**:
+   - Supports 5 distinct roles: `OWNER`, `SPOUSE`, `DEPENDENT`, `EXECUTOR`, and `ADVISOR`.
+   - Sensitive identifiers (`numberOrId`, document attachments) are masked (e.g., `••••••••`) for secondary roles until emergency access is officially released.
+6. **Controlled Emergency Access Workflow**:
+   - Family members or executors can submit emergency access requests with reason tracking.
+   - Approvals are strictly restricted to the `OWNER`; unauthorized attempts by secondary roles are blocked and logged.
+   - Revocation can be initiated immediately by `OWNER` or `SPOUSE`.
+7. **Offline Bilingual Emergency Succession Guide**:
+   - 100% on-device statutory reference in English and Hindi for RBI depositor claim procedures, death certificate timelines, locker operations, Demat transmissions, and motor vehicle succession.
+   - Zero external HTTP network calls or cloud dependencies.
+8. **1-Tap Emergency SOS Direct Dial**:
+   - High-contrast direct dialers for national emergency (112), medical trauma (108), maternal/child care (102), and national health helpline (1075).
+9. **Dual Household Isolation (Real vs. Demo Mode)**:
+   - Fully isolated sample demo dataset (`userId = "DEMO_HOUSEHOLD"`) for safe walkthroughs without contaminating real family records.
 
 ---
 
-## 🏗️ Directory Roadmap
+## 3. Technology Stack & Project Structure
 
-The layout aligns with clean architectural patterns:
-```groovy
-app/src/main/java/com/example/
-├── MainActivity.kt               # Central Navigation Hub & Screen Entry Composables
-├── data/
-│   ├── AppDatabase.kt            # Room Instance Handler
-│   ├── Dao.kt                    # Data Access Interfaces for Vault, Checklist, & Auditing
-│   ├── Entities.kt               # Secure SQLite Schema Declarations
-│   └── Repository.kt             # Clean Data Provider Abstraction Boundary
-└── ui/
-    ├── AppTermsConsentScreen.kt # Responsive Legal Terms & Cryptographic Signature Agreement
-    ├── ArchitectureAndSchemaHub.kt # Tech Reference Specs & Live Database Inspect Utility
-    ├── SubtleCrypto.kt           # On-Device AES/GCM Encryption Cipher Engine
-    ├── VaultViewModel.kt         # Secure State Repository & Inactivity Autolocks
-    └── theme/                    # High-Contrast Type.kt, Color.kt, and Theme.kt Setup
+- **Language**: Kotlin 2.0 (Kotlin DSL for Gradle)
+- **UI Framework**: Jetpack Compose (BOM 2024+) with Material Design 3
+- **Local Persistence**: AndroidX Room 2.6.1 with SQLite and Kotlin Symbol Processing (KSP)
+- **Cryptography**: Android KeyStore (`AndroidKeyStore`), AES-256-GCM (`Cipher`), PBKDF2 (`SecretKeyFactory`), HMAC-SHA256
+- **Architecture**: Clean Architecture / MVVM with Kotlin Coroutines and StateFlow
+- **Testing**: Robolectric 4.14, JUnit 4, Roborazzi Screenshot Testing
+
+```
+Family-Emergency-Vault-/
+├── app/
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── AndroidManifest.xml          # App manifest (single exported MainActivity)
+│   │   │   ├── java/com/example/
+│   │   │   │   ├── MainActivity.kt          # UI screens, dialogs, and navigation
+│   │   │   │   ├── data/
+│   │   │   │   │   ├── AppDatabase.kt       # Room database declaration, migrations, and seeding
+│   │   │   │   │   ├── Dao.kt               # Room DAOs (VaultItem, Dependents, Contacts, Audit, etc.)
+│   │   │   │   │   ├── Entities.kt          # Database entities
+│   │   │   │   │   └── Repository.kt        # Repository abstraction layer
+│   │   │   │   ├── ui/
+│   │   │   │   │   ├── VaultViewModel.kt    # UI state, role gating, and backup/restore
+│   │   │   │   │   ├── SubtleCrypto.kt      # Android KeyStore AES-256-GCM cryptographic engine
+│   │   │   │   │   ├── AuthScreens.kt       # Local registration and MPIN authentication UI
+│   │   │   │   │   └── theme/               # Color, Typography, and Theme definitions
+│   │   │   │   └── util/
+│   │   │   │       ├── DocumentStorageManager.kt  # Authenticated FEV_ENC1 file manager
+│   │   │   │       ├── EmergencyKnowledgeBase.kt  # Offline statutory succession guide
+│   │   │   │       ├── EnterpriseServerGateway.kt # Local device auth gateway (salted SHA-256)
+│   │   │   │       └── CsvImporter.kt             # Offline CSV parsing and duplicate validation
+│   │   │   └── res/
+│   │   │       ├── xml/
+│   │   │       │   ├── backup_rules.xml           # Excludes private DB & vault_documents
+│   │   │       │   └── data_extraction_rules.xml  # Excludes cloud auto-backup
+│   │   │       └── drawable/                      # Static image assets and icons
+│   │   └── test/
+│   │       └── java/com/example/
+│   │           ├── ExampleRobolectricTest.kt # 27 automated JVM tests for DB, crypto, RBAC, backups
+│   │           ├── ExampleUnitTest.kt        # Unit tests
+│   │           └── GreetingScreenshotTest.kt # Roborazzi UI snapshot verification
+│   └── build.gradle.kts                     # App module build and dependency configuration
+├── public/
+│   ├── index.html                           # Web Companion demo & SOP planning guide (Alpine.js)
+│   └── app-debug.apk                        # Developer preview debug APK build
+├── architecture.md                          # Comprehensive technical architecture specification
+└── README.md                                # This document
 ```
 
 ---
 
-## 🚀 Accessing the App
-
-### Standard Access Details
-1. **Default App-PIN**: `4321` (Master decryption key)
-2. **Instant Evaluate Mode**: Starts pre-logged into a rich mock database (10+ pre-filled mock portfolios) to make quick evaluations fast and interactive.
-3. **Legal Check**: Requires a simple scroll confirmation and a dynamic, cryptographically signed consent stamp to initialize the secure hardware sandbox.
-
----
-
-## 📖 Building from Source
-
-To compile the APK and run the application locally on an Android device:
+## 4. Prerequisites & Build Commands
 
 ### Prerequisites
-* Android Studio (Koala / Ladybug or newer)
-* Android SDK 34+
-* JDK 17
+- **JDK**: Java 17 or Java 21
+- **Android SDK**: Compile SDK 36 (Android 16 DP), Min SDK 24 (Android 7.0 Nougat)
+- **Gradle**: 9.3.1 (pre-configured)
 
-### Build Steps
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/asm59-345/Family-Emergency-Vault-.git
-   cd Family-Emergency-Vault-
-   ```
-2. Build the project debug APK:
-   ```bash
-   gradle assembleDebug
-   ```
-3. Locate your compiled APK:
-   ```bash
-   app/build/outputs/apk/debug/app-debug.apk
-   ```
+### Build & Test Commands
+Run the following commands from the project root:
 
----
-
-## 🌐 Web Companion & Vercel Deployment
-
-This project includes both the **Native Android App (Kotlin + Compose)** and a **Progressive Web App (PWA) companion dashboard**. It can be deployed to Vercel in 1 click or viewed on any desktop or mobile device.
-
-### 🚀 Deploying to Vercel
-
-The project comes with a preconfigured `vercel.json` that handles clean URLs, PWA manifests, and serves `app-debug.apk` directly with proper `Content-Type: application/vnd.android.package-archive` download headers.
-
-#### Method 1: Git Push + Vercel Dashboard (Recommended)
-1. Push your repository to GitHub.
-2. Go to [vercel.com/new](https://vercel.com/new) and select your repository.
-3. Keep the **Framework Preset** as **Other** and Root Directory as `./`.
-4. Click **Deploy**. Your app will be live globally in ~15 seconds!
-
-#### Method 2: Vercel CLI
 ```bash
-npm i -g vercel
-vercel login
-vercel --prod
-```
+# 1. Compile the project
+gradle compileDebugKotlin
 
----
+# 2. Run the automated test suite (Robolectric + Unit tests)
+gradle :app:testDebugUnitTest
 
-## 📱 Mobile Download & Cross-Platform Access
-
-### 🤖 Android Native App (Direct APK Download)
-- **Direct Download Route**: `https://your-vercel-domain.com/app-debug.apk` or via the top-right button on the web dashboard.
-- **File**: `FamilyEmergencyVault-v1.0.apk` (~22 MB).
-- **Default Master PIN**: `4321` (pre-seeded with sample records).
-- **100% Offline**: SQLite Room Database with hardware-backed AES-128 GCM encryption. No internet connection required.
-
-### 🍎 Apple iOS (iPhone & iPad Safari PWA)
-Run the vault on iOS with zero App Store friction:
-1. Open the Vercel web URL in **Safari** on your iPhone or iPad.
-2. Tap the **Share** button (⎋ square with upward arrow) in the bottom navigation bar.
-3. Scroll down and tap **"Add to Home Screen"** (⊕).
-4. Tap **"Add"** in the top-right corner.
-5. The Family Vault icon will now launch fullscreen directly from your iOS Home Screen with local offline persistence!
-
----
-
-## 🔤 Font & Typography Themes
-
-Both the Android Native App and Web Companion feature 4 curated typography themes:
-1. **Executive Banking (Default)**: Modern Swiss FinTech Sans-Serif (`Plus Jakarta Sans`). Clean, ultra-legible, and professional.
-2. **Heritage Trust & Legal**: Classic editorial Serif (`Playfair Display`). Dignified, formal, and ideal for wills, trusts, and legal documents.
-3. **High-Tech Cyber Vault**: Monospaced engineering style (`JetBrains Mono`). Maximum data density and cryptographic security feel.
-4. **Humanist Care & Family**: Soft, accessible geometry (`Lexend`). Optimized for high legibility, low stress, and elderly family members.
-
----
-
-## 🧪 Testing & Project Review
-
-### Android Native App Verification
-Run unit and local JVM tests:
-```bash
-# Compile and build the debug APK
+# 3. Assemble the Developer Preview Debug APK
 gradle assembleDebug
 
-# Run JVM Unit Tests (Robolectric Database & DAO Validation)
-gradle :app:testDebugUnitTest
+# 4. Dry-run verify the Release Build configuration
+gradle :app:assembleRelease --dry-run
 ```
 
-The automated test suite verifies:
-* **`read string from context`**: Application identity and resource configuration.
-* **`database initializes and supports attachments`**: Room database setup and schema readiness.
-* **`vault item dao and database operations work seamlessly`**: Vault record insertion, querying, count checks, and data persistence.
-* **`emergency checklist item operations work`**: Emergency action item progress tracking, completion toggling, and executor updates.
-
-### Web Dashboard & Cross-Platform Sync Review
-1. **Interactive SOS Hotbar**: Test 1-tap emergency dial buttons for National Emergency (112), Doctor, Legal Advocate, and Chartered Accountant.
-2. **Dynamic Search & Filtering**: Filter assets by Bank, Insurance, Investments, Lockers, and Property.
-3. **Web Ledger Asset Management**: Add or edit asset records with instantaneous modal editing and 2-second visual confirmation toasts.
-4. **JSON Backup & Cross-Restore**:
-   - Tap **"Export JSON"** to download your complete encrypted snapshot.
-   - Tap **"Import JSON"** to load or sync data between Android and Web instances.
-5. **Light / Dark Mode**: Toggle between daylight mode and nighttime emergency mode with 1 tap.
-6. **Typography Switcher**: Switch between Executive, Heritage, Cyber, and Humanist fonts on the fly.
+*Note: In this container environment, use `gradle` directly (the wrapper `./gradlew` is not used).*
 
 ---
 
-## 🔐 Security & Peace of Mind
-This application is designed with **privacy as a human right**. It does not transmit your master recovery phrases, bank login passwords, or MPINs to any external server. All assets and information live inside your device's sandbox.
+## 5. Onboarding & Demo Mode
 
-*Developed with ❤️ to protect corporate estate, digital records, and families.*
+### Fresh User Onboarding
+Upon first launch, a new installation starts in an unseeded, zero-data state:
+1. Displays the welcome onboarding screen explaining offline storage.
+2. Prompts the household head to create a local account with Full Name, Email, Password, and a 4-digit Master MPIN.
+3. The dashboard initializes with **0% Readiness** and zero financial items.
+
+### Demo Mode Walkthrough
+Users can explore the app's features using safe sample records:
+1. Tap the **"Explore Demo"** button on the onboarding screen or in settings.
+2. Populates 8 sample portfolio records (HDFC Bank, LIC Jeevan Anand, Zerodha Demat, SBI Locker, etc.) tagged with `userId = "DEMO_HOUSEHOLD"`.
+3. Demonstrates nominee gap flags, SOP timelines, and category breakdowns.
+4. Tapping **"Exit Demo Mode"** cleanly purges all `DEMO_HOUSEHOLD` records from Room without affecting any real user data.
+
+---
+
+## 6. Backup, Export & Restore Workflow
+
+### Encrypted Backup Export
+1. Navigate to Settings -> **"Export Vault Backup"**.
+2. Select **"AES-256 Encrypted"**.
+3. Enter a strong secret passphrase.
+4. **Unrecoverable Passphrase Warning**:
+   > ⚠️ **CRITICAL WARNING**: This passphrase CANNOT be recovered or reset by anyone. If you lose or forget this passphrase, this backup file will be permanently unrecoverable.
+5. The app derives a 256-bit AES key using PBKDF2-HMAC-SHA256 (65,536 iterations, 16-byte random salt, 12-byte IV) and produces an encrypted JSON envelope.
+
+### Backup Restore
+1. Navigate to Settings -> **"Restore Vault from Backup"**.
+2. Paste the encrypted JSON string and enter the master passphrase.
+3. The app authenticates the payload, validates compatibility (`version <= 1`), skips duplicates against existing records, and commits records within a database transaction (`database.withTransaction`).
+4. Incorrect passphrases, corrupt ciphertext, or schema errors trigger an immediate transaction rollback with zero records imported.
+5. **Role Gating**: Restores are strictly restricted to `OWNER` and `SPOUSE` roles.
+
+---
+
+## 7. Security Model & Trust Boundaries
+
+| Component | Security Mechanism | Threat Addressed |
+| :--- | :--- | :--- |
+| **Document Attachments** | Authenticated AES-256-GCM via `AndroidKeyStore` (`FEV_ENC1`) | Direct file inspection if device storage is accessed |
+| **Database Encryption** | Private internal app storage (`context.filesDir`); field-level masking in UI/exports | Unauthorized shoulder-surfing and export inspection |
+| **Passphrase Backups** | PBKDF2-HMAC-SHA256 (65,536 iterations) + AES-256-GCM | Plaintext exposure during backup transfer or cloud sharing |
+| **Cloud Auto-Backup** | Excluded via `data_extraction_rules.xml` and `backup_rules.xml` | Unintended Google Drive synchronization of KeyStore-bound data |
+| **Role-Based Access** | Role checking at ViewModel and Repository layers | Unauthorized access by secondary household members |
+| **Emergency Access** | Owner-only approval authority; 48-hour delay window; Owner/Spouse revocation | Premature or hostile vault takeover |
+
+### Known Security Limitations
+- **Single-Round Salted SHA-256 for Local Account Sign-In**: The local device authentication gateway (`EnterpriseServerGateway.kt`) hashes passwords with single-round salted SHA-256. While suitable for offline verification on non-rooted devices, single-round SHA-256 is vulnerable to fast GPU cracking if the SQLite database is extracted from a rooted device. (See Section 13 for proposed migration).
+- **No Cloud Synchronization**: By design, records do not sync across devices automatically.
+- **Physical Device Compromise**: On a rooted device with root access, memory inspection of decrypted strings in RAM is possible.
+
+---
+
+## 8. Web Companion vs. Native Android App Boundary
+
+| Dimension | Native Android Application (`app/`) | Web Companion (`public/index.html` / `index.html`) |
+| :--- | :--- | :--- |
+| **Platform** | Android OS (APK / Jetpack Compose) | Any Modern Web Browser (Alpine.js / Tailwind) |
+| **Purpose** | **Production Vault** for real family records | **Demo & SOP Planning Guide Only** |
+| **Real Data Entry** | **Enabled** (Protected by PIN, Biometrics & RBAC) | **Disabled** (Safety alert modal blocks data entry) |
+| **Data Storage** | Private SQLite (`Room`) + Encrypted Files | Browser `localStorage` (Plaintext) |
+| **Encryption** | Hardware `AndroidKeyStore` AES-256-GCM | None (Demo records only) |
+| **Sync** | None (100% Offline) | None (Does NOT sync with Android phone) |
+
+*Important: Never enter real bank account numbers or confidential credentials on the web companion.*
+
+---
+
+## 9. Current Verification Status & Test Evidence
+
+- **Verification Date**: October 21, 2026
+- **Test Framework**: Robolectric 4.14, JUnit 4, Roborazzi
+- **Total Tests Executed**: **29**
+- **Passed**: **29 (100%)** | **Failed**: 0 | **Skipped**: 0
+
+```
+Gradle Test Run :app:testDebugUnitTest
+├── ExampleRobolectricTest (27 tests) - 100% PASS
+├── ExampleUnitTest (1 test)          - 100% PASS
+└── GreetingScreenshotTest (1 test)   - 100% PASS
+BUILD SUCCESSFUL in 27s
+```
+
+---
+
+## 10. Pending Physical-Device Checks
+
+The following verifications cannot be performed inside containerized cloud JVM environments and must be completed on physical hardware prior to production release:
+1. **BiometricPrompt Hardware Interaction**: Physical fingerprint and facial recognition sensors, prompt cancellation, lockout after 5 failed attempts, and fallback to MPIN.
+2. **OEM Hardware KeyStore Retention**: Verification that the `fev_vault_hardware_key` alias persists across device reboots and major Android OS updates on various OEM hardware (Samsung Knox, Google Pixel Titan M, Xiaomi, etc.).
+3. **StrongBox Availability**: Testing on devices supporting StrongBox Keymaster to evaluate whether `setIsStrongBoxBacked(true)` can be enabled with dynamic software fallback.
+4. **Camera Resolution & Aspect Ratio**: Testing document capture across varied hardware camera sensors and lighting conditions.
+
+---
+
+## 11. Debug / Preview Build vs. Production Release Distinction
+
+| Attribute | Preview / Debug Build (`app-debug.apk`) | Production Release Build |
+| :--- | :--- | :--- |
+| **Signing Key** | Insecure default `debug.keystore` | Secure Organizational Release Keystore |
+| **Debuggable Flag** | `android:debuggable="true"` (Inspectable) | `android:debuggable="false"` (Enforced) |
+| **ProGuard / R8** | Disabled | Enabled (`proguard-android-optimize.txt`) |
+| **Distribution** | Sideloading for developer evaluation only | Google Play Store / Official APK Distribution |
+
+*Warning: The `app-debug.apk` included in the repository is strictly for developer preview and testing. It must never be published as a production release.*
+
+---
+
+## 12. Verified UI Assets & Visual Showcase
+
+The following assets are verified and present in `app/src/main/res/drawable/` and `public/`:
+- `img_vault_hero_banner_1789194543546.jpg`: Hero banner showcasing family continuity protection.
+- `img_app_mobile_showcase_1789194560982.jpg`: Mobile interface showcase showing the dashboard.
+- `img_app_features_mockup_1789322562671.jpg`: Feature showcase highlighting nominee gap audits and SOP timelines.
+- `img_family_continuity_shield_1789320119569.jpg`: Family continuity shield emblem.
+- `img_emergency_documents_organizer_1789320102141.jpg`: Physical and digital binder organizer.
+
+---
+
+## 13. Security Consistency & Future Work
+
+### Password Hashing Migration Plan (Local Account)
+- **Current State**: `EnterpriseServerGateway.kt` uses single-round SHA-256 with a 16-byte cryptographic salt.
+- **Identified Risk**: Single-round SHA-256 is fast, making it susceptible to offline dictionary/brute-force attacks if an attacker extracts `family_emergency_vault.db` from a rooted device.
+- **Proposed Safe Migration**:
+  1. Add a hash version identifier prefix to stored password hashes (e.g., `$pbkdf2$600000$salt$hash`).
+  2. For existing accounts with legacy hashes (no prefix), verify using the existing `hashPassword(password, salt)` logic.
+  3. Upon successful login, re-hash the password using `PBKDF2WithHmacSHA256` (600,000 iterations per OWASP recommendations) and update `ServerUserRecord.passwordHash`.
+  4. Ensure new registrations use the upgraded PBKDF2 scheme by default.
+  *This migration will be implemented in a dedicated security release without breaking existing local accounts.*
+
+### Base64 Attachment Support Classification
+- `VaultItem.documentPhotoBase64` is an **isolated legacy backward-compatibility field** from Phase 1.
+- All active production document saves use `DocumentStorageManager.kt` via `attachmentUri`.
+- The legacy field is retained solely to prevent deserialization failures for pre-existing database rows.
+
+### Future Roadmap
+1. Encrypted Peer-to-Peer Wi-Fi Direct export for local device transfer without third-party cloud apps.
+2. Implementation of PBKDF2 password hashing migration for the local gateway.
+3. Hardware-tested StrongBox fallback integration.

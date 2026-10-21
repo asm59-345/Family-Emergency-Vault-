@@ -114,8 +114,8 @@
                 x-text="t('Family Emergency Vault', 'फैमिली इमरजेंसी वॉल्ट')">
               Family Emergency Vault
             </span>
-            <span class="hidden sm:inline-block px-2 py-0.5 text-[11px] font-semibold rounded-full bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300"
-                  x-text="t('Secure & Offline', 'सुरक्षित व ऑफलाइन')">
+            <span class="hidden sm:inline-block px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700"
+                  x-text="t('Web Demo & Planning Guide', 'वेब डेमो व योजना गाइड')">
             </span>
           </div>
           <p class="text-[11px] hidden sm:block truncate max-w-xs md:max-w-md" :class="isDarkMode ? 'text-slate-400' : 'text-slate-500'"
@@ -1137,17 +1137,19 @@
       </div>
 
       <!-- Privacy Assurance Banner for Web Ledger -->
-      <div class="p-4 rounded-2xl bg-teal-950/40 border border-teal-500/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <!-- Planning & Demo Assurance Banner for Web Ledger -->
+      <div class="p-4 rounded-2xl bg-amber-950/40 border border-amber-500/40 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-xl bg-teal-900/60 border border-teal-500/40 flex items-center justify-center text-teal-300 text-lg">
-            🛡️
+          <div class="w-9 h-9 rounded-xl bg-amber-900/60 border border-amber-500/40 flex items-center justify-center text-amber-300 text-lg">
+            ⚠️
           </div>
           <div>
-            <div class="text-xs sm:text-sm font-bold text-teal-300"
-                 x-text="t('100% Client-Side Private Web Ledger', '100% सुरक्षित प्राइवेट वेब लेजर')">
+            <div class="text-xs sm:text-sm font-bold text-amber-300"
+                 x-text="t('Interactive Planning & Demo Mode Only', 'इंटरएक्टिव योजना व डेमो मोड')">
+              Interactive Planning & Demo Mode Only
             </div>
             <p class="text-[11px] text-slate-300"
-               x-text="t('Data exists solely in your current browser memory & localStorage. Nothing is ever uploaded to any server.', 'यह डेटा केवल आपके ब्राउज़र में सुरक्षित है। कोई भी जानकारी सर्वर पर नहीं भेजी जाती।')">
+               x-text="t('Real financial data entry is disabled on this web companion. To prevent unencrypted exposure in browser localStorage, enter real records exclusively in the native Android app (AES-256-GCM KeyStore). The web companion does NOT sync with your phone or possess Android hardware encryption.', 'ब्राउज़र में अनएन्क्रिप्टेड रिकॉर्ड्स से बचने के लिए वास्तविक डेटा प्रविष्टि अक्षम है। वेब कंपेनियन में एंड्रॉइड KeyStore एन्क्रिप्शन नहीं है। सुरक्षित AES-256-GCM स्टोरेज के लिए एंड्रॉइड ऐप का उपयोग करें।')">
             </p>
           </div>
         </div>
@@ -1158,8 +1160,8 @@
             <span x-text="isMasked ? '👁️ Show Numbers' : '🔒 Mask Numbers'"></span>
           </button>
           <button @click="openAddModal()"
-                  class="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold shadow transition flex items-center gap-1">
-            <span x-text="t('+ Add Item', '+ नया खाता जोड़ें')"></span>
+                  class="px-3 py-1.5 rounded-xl bg-amber-600/80 hover:bg-amber-600 text-white text-xs font-bold shadow transition flex items-center gap-1">
+            <span x-text="t('ℹ️ Data Entry Policy', 'ℹ️ डेटा प्रविष्टि नीति')"></span>
           </button>
         </div>
       </div>
@@ -2693,81 +2695,46 @@
         },
 
         openAddModal() {
-          this.isEditMode = false;
-          this.modalItem = {
-            id: Date.now(),
-            category: 'BANK',
-            title: '',
-            institution: '',
-            number: '',
-            nominee: '',
-            relation: '',
-            nomineeVerified: true,
-            physicalLocation: '',
-            remarks: ''
-          };
-          this.showAssetModal = true;
+          alert(this.t(
+            '⚠️ Real Financial Data Entry Disabled on Web Companion:\n\nTo safeguard your family\'s financial privacy, entering real bank accounts, locker details, or passwords into unencrypted browser storage (localStorage) is disabled.\n\nPlease install the native Android app for hardware-backed KeyStore encryption (AES-256-GCM). The web companion displays pre-loaded sample records for demonstration and SOP planning only.',
+            '⚠️ वेब कंपेनियन पर वास्तविक वित्तीय डेटा प्रविष्टि अक्षम है:\n\nआपकी गोपनीयता की सुरक्षा के लिए, ब्राउज़र localStorage में वास्तविक बैंक खाते, लॉकर या पासवर्ड दर्ज करना अक्षम किया गया है।\n\nकृपया हार्डवेयर-समर्थित KeyStore एन्क्रिप्शन (AES-256-GCM) के लिए नेटिव एंड्रॉइड ऐप का उपयोग करें। यह वेब कंपेनियन केवल प्रदर्शन और योजना के लिए है।'
+          ));
         },
 
         openEditModal(item) {
-          this.isEditMode = true;
-          this.modalItem = JSON.parse(JSON.stringify(item));
-          this.showAssetModal = true;
+          alert(this.t(
+            'ℹ️ Demo Record:\n\nThis is a sample demonstration record for succession SOP planning. Real record modification is restricted to the native Android app.',
+            'ℹ️ डेमो रिकॉर्ड:\n\nयह केवल प्रदर्शन व योजना के लिए एक सैंपल रिकॉर्ड है। वास्तविक संपादन केवल एंड्रॉइड ऐप में उपलब्ध है।'
+          ));
         },
 
         saveAsset() {
-          if (!this.modalItem.title) {
-            alert(this.t('Please enter account or asset name.', 'कृपया खाता या संपत्ति का नाम भरें।'));
-            return;
-          }
-          const isUpdate = this.isEditMode;
-          if (isUpdate) {
-            const idx = this.vaultItems.findIndex(i => i.id === this.modalItem.id);
-            if (idx !== -1) {
-              this.vaultItems[idx] = JSON.parse(JSON.stringify(this.modalItem));
-            }
-          } else {
-            this.vaultItems.unshift(JSON.parse(JSON.stringify(this.modalItem)));
-          }
-          this.saveAll();
+          alert(this.t(
+            'Real financial data cannot be stored in browser localStorage. Please use the native Android application.',
+            'ब्राउज़र localStorage में वास्तविक वित्तीय डेटा संग्रहीत नहीं किया जा सकता। कृपया नेटिव एंड्रॉइड ऐप का उपयोग करें।'
+          ));
           this.showAssetModal = false;
-
-          // Toast notification that appears for 2 seconds confirming data has been saved to the browser
-          const headline = isUpdate
-            ? this.t('Asset updated in web ledger!', 'खाता/संपत्ति लेजर में अपडेट हुई!')
-            : this.t('New asset added to web ledger!', 'नया खाता वेब लेजर में जुड़ गया!');
-          const browserConfirm = this.t('✓ Data saved to browser storage', '✓ डेटा ब्राउज़र में सुरक्षित सेव हो गया है (localStorage)');
-          this.showToastNotification(headline, browserConfirm);
         },
 
         deleteItem(id) {
-          if (confirm(this.t('Are you sure you want to delete this asset record?', 'क्या आप वाकई इस रिकॉर्ड को हटाना चाहते हैं?'))) {
-            this.vaultItems = this.vaultItems.filter(i => i.id !== id);
-            this.saveAll();
-          }
+          alert(this.t(
+            'Sample demo records cannot be deleted on the web companion.',
+            'वेब कंपेनियन पर सैंपल डेमो रिकॉर्ड्स को हटाया नहीं जा सकता।'
+          ));
         },
 
         openAddDependentModal() {
-          this.modalDependent = {
-            id: Date.now(),
-            name: '',
-            relation: '',
-            bloodGroup: '',
-            dob: '',
-            phone: '',
-            status: '',
-            notes: ''
-          };
-          this.showDependentModal = true;
+          alert(this.t(
+            '⚠️ Family Member Data Entry Disabled on Web Companion:\n\nTo protect household privacy, personal family data entry is restricted to the native Android application. The web companion is for demonstration and SOP planning only.',
+            '⚠️ वेब कंपेनियन पर सदस्य डेटा प्रविष्टि अक्षम है:\n\nगोपनीयता की सुरक्षा के लिए, व्यक्तिगत डेटा प्रविष्टि केवल एंड्रॉइड ऐप पर उपलब्ध है।'
+          ));
         },
 
         saveDependent() {
-          if (!this.modalDependent.name) {
-            alert(this.t('Please enter member name.', 'कृपया सदस्य का नाम भरें।'));
-            return;
-          }
-          this.dependents.push(this.modalDependent);
-          this.saveAll();
+          alert(this.t(
+            'Member data cannot be saved to browser storage. Please use the native Android application.',
+            'सदस्य डेटा ब्राउज़र में सेव नहीं किया जा सकता। कृपया एंड्रॉइड ऐप का उपयोग करें।'
+          ));
           this.showDependentModal = false;
         },
 
