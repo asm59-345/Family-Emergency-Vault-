@@ -218,9 +218,9 @@ BUILD SUCCESSFUL in ~1m 17s
 - **File**: `public/app-debug.apk` & `app-debug.apk`
 - **Application ID**: `com.aistudio.familyemergencyvault.kndprs`
 - **Version**: `versionCode 1`, `versionName "1.0"`
-- **Exact Size**: `30,199,211 bytes` (~28.8 MB)
+- **Exact Size**: `30,199,336 bytes` (~28.8 MB)
 - **SHA-256 Checksum**:
-  `3b1aa518b448404113905ec41f4c7d570a539b47678da301b8a4e8ea0f9b2738`
+  `e772b28959018d7b9c9069b8d2095663bca8db9ed3ffe4cfac39210b56e32ea0`
 - **Archive Integrity**: Verified via `unzip -t` (No errors detected across 6 classes.dex files and assets).
 
 ---

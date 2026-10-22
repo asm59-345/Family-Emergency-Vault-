@@ -1066,7 +1066,7 @@
               <h4 class="font-extrabold text-white text-sm sm:text-base"
                   x-text="t('Download the APK file', 'APK फाइल डाउनलोड करें')"></h4>
               <p class="text-xs sm:text-sm text-slate-300 leading-relaxed"
-                 x-html="t('Tap the <a href=\'./app-debug.apk\' download=\'FamilyEmergencyVault-v1.0.apk\' class=\'text-teal-400 underline font-bold\'>Download APK</a> button on your Android device\'s browser.', 'अपने एंड्रॉइड फोन के ब्राउज़र में <a href=\'./app-debug.apk\' download=\'FamilyEmergencyVault-v1.0.apk\' class=\'text-teal-400 underline font-bold\'>Download APK</a> बटन दबाएं।')">
+                 x-html="t('Tap the <a href=\'./app-debug.apk\' download=\'FamilyEmergencyVault-Preview-debug.apk\' class=\'text-teal-400 underline font-bold\'>Download APK</a> button on your Android device\'s browser.', 'अपने एंड्रॉइड फोन के ब्राउज़र में <a href=\'./app-debug.apk\' download=\'FamilyEmergencyVault-Preview-debug.apk\' class=\'text-teal-400 underline font-bold\'>Download APK</a> बटन दबाएं।')">
               </p>
             </div>
           </div>
@@ -2829,7 +2829,7 @@
           const url = this.getApkDownloadUrl();
           const a = document.createElement('a');
           a.href = url;
-          a.download = 'FamilyEmergencyVault-debug.apk';
+          a.download = 'FamilyEmergencyVault-Preview-debug.apk';
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
