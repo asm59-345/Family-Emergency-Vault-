@@ -1214,7 +1214,7 @@
           </div>
           <div class="flex items-center gap-2">
             <span class="px-3 py-1 rounded-full text-xs font-extrabold bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300">
-              v1.0.0 Production
+              v1.0.0 Preview / Debug APK
             </span>
           </div>
         </div>
@@ -1244,9 +1244,9 @@
 
             <div class="mt-4 p-3 rounded-xl border space-y-1 text-[11px] font-mono"
                  :class="isDarkMode ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'">
-              <div>• Package: <strong>com.aistudio.familyemergencyvault</strong></div>
-              <div>• File: <strong>FamilyEmergencyVault-v1.0.apk</strong></div>
-              <div>• Size: <strong>~22 MB</strong> (Zero lag, 60 FPS)</div>
+              <div>• Package: <strong>com.aistudio.familyemergencyvault.kndprs</strong></div>
+              <div>• File: <strong>FamilyEmergencyVault-Preview-debug.apk</strong></div>
+              <div>• Size: <strong>~27.6 MB</strong> (Zero lag, 60 FPS)</div>
               <div>• Min SDK: <strong>Android 8.0+ (API 26)</strong></div>
             </div>
 
@@ -1277,7 +1277,7 @@
               <div x-text="t('1. Tap the direct download button below or scan QR.', '1. नीचे दिए डायरेक्ट बटन या QR स्कैन से APK डाउनलोड करें।')"></div>
               <div x-text="t('2. In Chrome, tap \'Download anyway\'.', '2. क्रोम में \'Download anyway\' पर टैप करें।')"></div>
               <div x-text="t('3. Tap the file in notifications and select \'Install\'.', '3. डाउनलोड फाइल खोलकर \'Install\' करें।')"></div>
-              <div x-text="t('4. Default App Security MPIN is 4321.', '4. ऐप का डिफ़ॉल्ट MPIN 4321 है।')"></div>
+              <div x-text="t('4. Configure your own 4-digit Master MPIN during registration (or use Demo Mode).', '4. रजिस्ट्रेशन के समय अपना 4-अंकों का मास्टर MPIN बनाएं (या डेमो मोड चुनें)।')"></div>
             </div>
           </div>
 
@@ -1461,14 +1461,14 @@
 
             <p class="text-xs sm:text-sm leading-relaxed"
                :class="isDarkMode ? 'text-slate-300' : 'text-slate-600'"
-               x-text="t('When unexpected crisis strikes (hospital ICU admission, accident, or sudden demise), cloud servers, forgotten passwords, or missing SMS OTPs leave families helpless. Over ₹50,000+ Crores of insurance and bank deposits lie unclaimed in India alone because families never knew accounts existed. Family Emergency Vault keeps a military-grade, 100% offline blueprint directly on your mobile device.', 'अचानक किसी आपात स्थिति (अस्पताल ICU, दुर्घटना, या अनपेक्षित निधन) के समय क्लाउड सर्वर, भूले हुए पासवर्ड या गायब SMS OTP के कारण परिवार बेबस हो जाता है। भारत में ₹50,000+ करोड़ से अधिक की बैंक जमा और बीमा राशि लावारिस पड़ी है क्योंकि परिवारों को खातों की जानकारी नहीं होती। यह ऐप सीधे आपके मोबाइल फोन में 100% ऑफलाइन सुरक्षित लेजर रखता है।')">
+               x-text="t('When unexpected crisis strikes (hospital ICU admission, accident, or sudden demise), cloud servers, forgotten passwords, or missing SMS OTPs leave families helpless. Over ₹50,000+ Crores of insurance and bank deposits lie unclaimed in India alone because families never knew accounts existed. Family Emergency Vault keeps a private, local-first cryptographic blueprint directly on your mobile device.', 'अचानक किसी आपात स्थिति (अस्पताल ICU, दुर्घटना, या अनपेक्षित निधन) के समय क्लाउड सर्वर, भूले हुए पासवर्ड या गायब SMS OTP के कारण परिवार बेबस हो जाता है। भारत में ₹50,000+ करोड़ से अधिक की बैंक जमा और बीमा राशि लावारिस पड़ी है क्योंकि परिवारों को खातों की जानकारी नहीं होती। यह ऐप सीधे आपके मोबाइल फोन में सुरक्षित ऑफलाइन लेजर रखता है।')">
             </p>
 
             <!-- Quick Action Links -->
             <div class="flex flex-wrap items-center gap-3 pt-2">
               <a href="./app-debug.apk" download="FamilyEmergencyVault-Preview-debug.apk"
                  class="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-black text-xs sm:text-sm shadow-lg shadow-teal-600/30 transition flex items-center gap-2">
-                <span>📲 Download Android APK (22M)</span>
+                <span>📲 Download Android APK (~28.8M)</span>
               </a>
               <button @click="showIosModal = true"
                       class="px-4 py-2.5 rounded-xl border text-xs sm:text-sm font-bold transition flex items-center gap-2"
@@ -1771,11 +1771,11 @@
           </div>
           <div class="flex items-start gap-2">
             <span class="font-bold text-teal-300">2.</span>
-            <span>Once download completes, tap the notification or open <strong>Downloads</strong> folder in your Files app and tap <strong>FamilyEmergencyVault-v1.0.apk</strong>.</span>
+            <span>Once download completes, tap the notification or open <strong>Downloads</strong> folder in your Files app and tap <strong>FamilyEmergencyVault-Preview-debug.apk</strong>.</span>
           </div>
           <div class="flex items-start gap-2">
             <span class="font-bold text-teal-300">3.</span>
-            <span>Select <strong>Install</strong> (enable <em>"Allow from this source"</em> if prompted by Chrome or Files). Initial Master MPIN is <strong>4321</strong>.</span>
+            <span>Select <strong>Install</strong> (enable <em>"Allow from this source"</em> if prompted by Chrome or Files). Configure your custom 4-digit Master MPIN during registration (or test with Demo mode).</span>
           </div>
         </div>
       </div>

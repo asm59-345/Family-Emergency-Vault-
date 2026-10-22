@@ -170,7 +170,7 @@
         </button>
 
         <!-- Download APK Primary Button (Debug Build for Sideloading) -->
-        <a href="./app-debug.apk" download="FamilyEmergencyVault-debug.apk"
+        <a href="./app-debug.apk" download="FamilyEmergencyVault-Preview-debug.apk"
            title="Development / Debug APK for testing"
            class="inline-flex items-center gap-1.5 bg-teal-600 hover:bg-teal-500 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs sm:text-sm shadow-md shadow-teal-600/25 transition">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
@@ -244,7 +244,7 @@
           <span>💡</span>
           <span x-text="t('Security Architecture Guide', 'सिक्योरिटी व ऐप गाइड')"></span>
         </button>
-        <a href="./app-debug.apk" download="FamilyEmergencyVault-debug.apk"
+        <a href="./app-debug.apk" download="FamilyEmergencyVault-Preview-debug.apk"
            title="Development / Debug APK for testing"
            class="px-3 py-1.5 rounded-lg bg-teal-600 text-white font-bold text-xs flex items-center gap-1 shadow-sm">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
@@ -1293,8 +1293,8 @@
           </div>
           <div class="flex items-center gap-2">
             <span class="px-3 py-1 rounded-full text-xs font-extrabold bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300"
-                  x-text="t('v1.0.0 Production', 'v1.0.0 प्रोडक्शन')">
-              v1.0.0 Production
+                  x-text="t('v1.0.0 Preview / Debug APK', 'v1.0.0 प्रीव्यू / डीबग APK')">
+              v1.0.0 Preview / Debug APK
             </span>
           </div>
         </div>
@@ -1325,9 +1325,9 @@
 
             <div class="mt-4 p-3 rounded-xl border space-y-1 text-[11px] font-mono"
                  :class="isDarkMode ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'">
-              <div>• Package: <strong>com.aistudio.familyemergencyvault</strong></div>
-              <div>• Artifact: <strong>FamilyEmergencyVault-debug.apk</strong> (Sideload / Testing Build)</div>
-              <div>• Release Type: <strong>Debug Build</strong> (Production builds require release keystore signing)</div>
+              <div>• Package: <strong>com.aistudio.familyemergencyvault.kndprs</strong></div>
+              <div>• Artifact: <strong>FamilyEmergencyVault-Preview-debug.apk</strong> (~28.8 MB)</div>
+              <div>• Release Type: <strong>Debug / Preview Build</strong> (Preview APK built from repository source)</div>
               <div>• Min SDK: <strong>Android 8.0+ (API 26)</strong></div>
             </div>
 

@@ -1349,22 +1349,23 @@ fun LoginScreen(model: VaultViewModel) {
                 confirmButton = {
                     Button(
                         onClick = {
-                            if (recoveryAnswer.trim().lowercase() == model.registeredSecurityAns.lowercase()) {
-                                if (recoveryNewPassword.trim().length >= 4) {
-                                    model.registeredPassword = recoveryNewPassword.trim()
-                                    recoverySuccessMsg = if (model.isHindiMode) "सफल! पासवर्ड रीसेट हो गया है।" else "Success! Password reset from Question recovery active."
+                            if (recoveryNewPassword.trim().length < 4) {
+                                recoveryError = if (model.isHindiMode) "नया पासवर्ड कम से कम 4 अक्षरों का होना चाहिए।" else "New password must be at least 4 characters long."
+                                return@Button
+                            }
+                            model.resetPasswordWithSecurityAnswer(
+                                answer = recoveryAnswer.trim(),
+                                newPassword = recoveryNewPassword.trim()
+                            ) { success, msg ->
+                                if (success) {
+                                    recoverySuccessMsg = if (model.isHindiMode) "सफल! पासवर्ड रीसेट हो गया है।" else "Success! Password reset completed."
                                     recoveryError = ""
-                                    model.isLoggedIn = true
-                                    model.showMfaChallenge = false
                                     showRecoveryDialog = false
                                     recoveryAnswer = ""
                                     recoveryNewPassword = ""
-                                    recoverySuccessMsg = ""
                                 } else {
-                                    recoveryError = if (model.isHindiMode) "नया पासवर्ड कम से कम 4 अक्षरों का होना चाहिए।" else "New password must be at least 4 characters long."
+                                    recoveryError = if (model.isHindiMode) "सत्यापन विफल: गलत उत्तर।" else msg
                                 }
-                            } else {
-                                recoveryError = if (model.isHindiMode) "सत्यापन विफल: गलत उत्तर।" else "Verification Failed: Incorrect Answer key."
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = SlatePrimary)

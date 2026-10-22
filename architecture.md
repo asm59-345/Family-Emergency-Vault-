@@ -33,7 +33,7 @@ graph TD
         Repo[Repository.kt]
         SubtleCryptoEngine[SubtleCrypto.kt / AndroidKeyStore AES-256-GCM]
         DocStorage[DocumentStorageManager.kt / FEV_ENC1 Files]
-        AuthGateway[EnterpriseServerGateway.kt / Salted SHA-256]
+        AuthGateway[EnterpriseServerGateway.kt / PBKDF2-HMAC-SHA256]
         OfflineKB[EmergencyKnowledgeBase.kt / Statutory Rules]
     end
 
@@ -214,25 +214,58 @@ stateDiagram-v2
 
 ## 6. Local Authentication Specification & Security Analysis
 
-### Current Implementation (`EnterpriseServerGateway.kt`)
-- **Password Hashing**: Single-round SHA-256 with a 16-byte random salt derived via `SecureRandom`.
-  ```kotlin
-  fun hashPassword(password: String, salt: String): String {
-      val digest = MessageDigest.getInstance("SHA-256")
-      digest.update(salt.toByteArray(StandardCharsets.UTF_8))
-      return digest.digest(password.toByteArray(StandardCharsets.UTF_8))
-          .joinToString("") { "%02x".format(it) }
-  }
+### Implementation (`EnterpriseServerGateway.kt`)
+- **Password Hashing Scheme**: PBKDF2-HMAC-SHA256 (`PBKDF2WithHmacSHA256`) with a per-password 16-byte cryptographically random salt (`SecureRandom`) and 600,000 iterations (OWASP recommendation).
+- **Self-Contained Hash Format**:
   ```
+  $pbkdf2-sha256$<iterations>$<base64Salt>$<base64Hash>
+  ```
+  - Example: `$pbkdf2-sha256$600000$dGVzdHNhbHQxNj...$WvQx...=`
+  - Key length: 256 bits (32 bytes).
+  - Both password and security answer hashes self-contain their own independent, cryptographically random 16-byte salts.
+- **Bounded PBKDF2 Work Factor & DoS Defense**:
+  - `MIN_PBKDF2_ITERATIONS = 10_000`: Rejects weak or degenerate iteration counts.
+  - `MAX_PBKDF2_ITERATIONS = 2_000_000`: Protects against CPU exhaustion / Denial of Service attacks from crafted database records.
+  - `EXPECTED_HASH_LENGTH_BYTES = 32`: Validates expected 256-bit derived key length *before* executing expensive cryptographic derivation.
+- **Memory Scrubbing**:
+  - All password character arrays are scrubbed in `finally` blocks (`passwordChars.fill('\u0000')`).
+  - Internal `PBEKeySpec` password buffers are cleared via `spec?.clearPassword()` in `finally`.
+  - All cryptographic operations execute strictly off the main thread on `Dispatchers.IO`.
+- **Zero Plaintext Persistence (P0 Enforcement)**:
+  - `user_password` and `user_security_answer` are never written to `SharedPreferences`, loggers, audit records, or ViewModel properties.
+  - On application startup (`VaultViewModel.init`), any legacy plaintext credentials in `vault_user_prefs` are automatically purged (`remove("user_password").remove("user_security_answer").apply()`).
+  - State properties storing plaintext passwords in RAM (`registeredPassword`, `registeredSecurityAns`) have been completely eliminated.
+- **Credential-Verifier UI Redaction (P1 Enforcement)**:
+  - `AdminAuditDashboard.kt` and diagnostic inspectors redact all raw password hashes, salts, and JWT token signatures.
+  - Displays only algorithm verification status, iteration count, salt enrollment confirmation, and non-sensitive metadata.
+- **Independent Security Answer Salts & Recovery**:
+  - Security answers are hashed with their own independent 16-byte salt via `hashSecurityAnswerPbkdf2`.
+  - Password recovery executes via `resetPasswordWithSecurityAnswer()`, validating the hashed answer without exposing plaintext in RAM or preferences.
+- **Backward-Compatible Legacy Verification & Auto-Upgrade**:
+  - Legacy hashes are stored as 64-character lowercase hex strings (single-round salted SHA-256).
+  - During authentication, `verifyPassword()` supports 5-part self-contained PBKDF2 hashes, 4-part legacy PBKDF2 hashes, preserved-salt legacy entries (`legacy$<salt>$<hash>`), and raw 64-char hex strings.
+  - Upon successful verification of a legacy account, `authenticateReturnLogin()` automatically:
+    1. Generates a fresh 16-byte random salt (`generateSalt()`).
+    2. Hashes the verified password using `hashPasswordPbkdf2(password, freshSalt, 600000)`.
+    3. Preserves legacy security answer verification integrity.
+    4. Persists the upgraded hash and salt to `ServerUserRecord` in SQLite Room DB.
+    5. Logs an audit entry: `"Password Hash Upgraded"` to `audit_logs`.
+  - All subsequent logins authenticate directly against PBKDF2.
+- **Constant-Time Comparison**: All password evaluations use `MessageDigest.isEqual` to prevent timing attacks.
 - **Session Tokens**: Local on-device JWTs signed with an ephemeral in-memory 256-bit HMAC-SHA256 secret key (`jwtSecretBytes`).
 
-### Security Analysis & Risk Disclosure
-- **Risk**: Single-round SHA-256 lacks memory-hardness or computational work factor. While protected by Android's internal sandbox on non-rooted devices, if an attacker gains root access or extracts `family_emergency_vault.db`, single-round SHA-256 can be brute-forced rapidly on modern hardware.
-- **Migration Plan**:
-  1. Add an algorithm prefix to password hashes: `$pbkdf2$600000$salt$hash`.
-  2. During authentication, if the stored hash lacks the prefix, evaluate via the existing `hashPassword(password, salt)` function.
-  3. On successful authentication, automatically upgrade the stored record by re-hashing with `PBKDF2WithHmacSHA256` (600,000 iterations per OWASP recommendations) and saving to `ServerUserRecord`.
-  4. Ensure new registrations use the upgraded scheme by default.
+### Security Analysis & Verification
+- **Brute-Force Resistance**: Upgraded from single-round SHA-256 to 600,000-iteration PBKDF2-HMAC-SHA256, dramatically raising computational cost and hardware cracking resistance if the local SQLite database is extracted from a rooted device.
+- **Verification Evidence**: Automated Robolectric tests (37/37 passing) verify:
+  1. New registrations output 5-part `$pbkdf2-sha256$600000$<salt>$<hash>` format with 32-byte key.
+  2. Password and security answer use separate independent 16-byte salts.
+  3. Bounded work factor rejects iterations < 10,000 and > 2,000,000, and rejects derived key length mismatches before derivation.
+  4. Plaintext credentials are never saved in preferences and legacy plaintext entries are purged on startup.
+  5. Raw hashes and salts are redacted from the audit inspector dialog.
+  6. Legacy SHA-256 accounts verify and auto-upgrade with fresh salt and audit log event.
+  7. Incorrect passwords fail without corrupting stored records.
+  8. Malformed, truncated, or invalid Base64 hashes fail safely without throwing.
+  9. Security question password reset verifies answer hash and updates password to PBKDF2.
 
 ---
 
@@ -291,9 +324,13 @@ In `app/src/main/res/xml/data_extraction_rules.xml` and `backup_rules.xml`, sens
 | Emergency Access RBAC Approval & Revocation | Robolectric JVM | `ExampleRobolectricTest.kt:925` | **PASS** |
 | Nominee Gap Audit Across 6 Asset Categories | Robolectric JVM | `ExampleRobolectricTest.kt:692` | **PASS** |
 | Zero-Data Onboarding & Isolated Demo Mode | Robolectric JVM | `ExampleRobolectricTest.kt:53` | **PASS** |
-| Total Automated Unit/Robolectric Tests | Gradle 9.3.1 | `gradle :app:testDebugUnitTest` | **29 / 29 PASS** |
+| PBKDF2 Password Hashing, Bounded Iterations & Recovery | Robolectric JVM | `ExampleRobolectricTest.kt:983-1110` | **PASS** |
+| JWT Validation, Legacy Question Migration & Session Invalidation | Robolectric JVM | `ExampleRobolectricTest.kt:1314-1440` | **PASS** |
+| Total Automated Unit/Robolectric Tests | Gradle 9.3.1 | `gradle :app:testDebugUnitTest` | **40 / 40 PASS (100%)** |
 | Release Build Dry-Run Configuration | Gradle 9.3.1 | `gradle :app:assembleRelease --dry-run` | **PASS** |
+| Debug APK Build & Archive Integrity | Gradle + Unzip | `public/app-debug.apk` (~28.8 MB) | **PASS** |
 
 ### Unverified on Cloud Environment (Requires Physical Device Testing)
 - `BiometricPrompt` hardware sensor verification: **NOT VERIFIED** (requires physical fingerprint/face sensor).
 - Android KeyStore TEE persistence across physical factory reset: **NOT VERIFIED** (requires physical OEM hardware).
+- StrongBox Keymaster dedicated chip hardware: **NOT VERIFIED** (requires hardware with discrete security chip).

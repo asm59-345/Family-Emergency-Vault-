@@ -665,13 +665,27 @@ fun ServerUserInspectorDialog(
                 )
 
                 InspectorField(label = "User UUID", value = user.userId, isMonospace = true)
-                InspectorField(label = "Salted Password Hash (SHA-256)", value = user.passwordHash, isMonospace = true)
-                InspectorField(label = "Cryptographic Salt", value = user.passwordSalt, isMonospace = true)
+                val isPbkdf2 = user.passwordHash.startsWith(com.example.util.EnterpriseServerGateway.PBKDF2_PREFIX)
+                InspectorField(
+                    label = "Password Scheme & Migration Status",
+                    value = if (isPbkdf2) {
+                        val iterations = user.passwordHash.split("$").getOrNull(2) ?: "600000"
+                        "PBKDF2-HMAC-SHA256 ($iterations iterations) • Upgraded & Active"
+                    } else {
+                        "Legacy Salted SHA-256 • Scheduled for Transparent Upgrade"
+                    },
+                    isMonospace = false
+                )
+                InspectorField(
+                    label = "Credential Salt Storage",
+                    value = "128-bit CSPRNG Salt Assigned (Raw Value Redacted for Security)",
+                    isMonospace = false
+                )
                 InspectorField(label = "Master MPIN Code", value = "•••• (4-digit verified)", isMonospace = true)
                 InspectorField(label = "Digital Certificate ID", value = user.digitalCertificateId, isMonospace = true)
                 InspectorField(label = "Device Fingerprint", value = user.deviceFingerprint, isMonospace = true)
-                InspectorField(label = "JWT Token Signature", value = if (user.tokenJwt.isNotEmpty()) user.tokenJwt.take(36) + "..." else "Generated on Auth", isMonospace = true)
-                InspectorField(label = "Security Question Safeguard", value = "${user.securityQuestion}\n(Answer hash verified)")
+                InspectorField(label = "JWT Token Signature", value = if (user.tokenJwt.isNotEmpty()) user.tokenJwt.take(16) + "...[REDACTED]" else "Generated on Auth", isMonospace = true)
+                InspectorField(label = "Security Question Safeguard", value = "${user.securityQuestion}\n(Independent PBKDF2 Salt • Redacted)")
                 InspectorField(label = "Biometric Enclave Enrolled", value = if (user.isBiometricEnrolled) "YES (Android BiometricPrompt)" else "NO (PIN / Password fallback)")
             }
         },

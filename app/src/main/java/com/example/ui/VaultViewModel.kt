@@ -139,11 +139,9 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
     var registeredFullName by mutableStateOf(userPrefs.getString("user_fullname", "") ?: "")
     var registeredEmail by mutableStateOf(userPrefs.getString("user_email", "") ?: "")
     var registeredPhone by mutableStateOf(userPrefs.getString("user_phone", "") ?: "")
-    var registeredPassword by mutableStateOf("")
     var registeredNomineeName by mutableStateOf(userPrefs.getString("user_nominee_name", "") ?: "")
     var registeredNomineeRelation by mutableStateOf(userPrefs.getString("user_nominee_relation", "") ?: "")
     var registeredSecurityQuest by mutableStateOf(userPrefs.getString("user_security_question", "") ?: "")
-    var registeredSecurityAns by mutableStateOf("")
     var registeredDigitalCertificateId by mutableStateOf(userPrefs.getString("user_cert_id", "") ?: "")
 
     fun registerEnterpriseUser(
@@ -180,11 +178,9 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
                     .putString("user_fullname", fullName)
                     .putString("user_email", email)
                     .putString("user_phone", phone)
-                    .putString("user_password", password)
                     .putString("user_nominee_name", nomineeName)
                     .putString("user_nominee_relation", nomineeRelation)
                     .putString("user_security_question", securityQuestion)
-                    .putString("user_security_answer", securityAnswer)
                     .putString("user_cert_id", certId)
                     .putString("user_jwt_token", response.token)
                     .apply()
@@ -204,11 +200,9 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
                 registeredFullName = fullName
                 registeredEmail = email
                 registeredPhone = phone
-                registeredPassword = password
                 registeredNomineeName = nomineeName
                 registeredNomineeRelation = nomineeRelation
                 registeredSecurityQuest = securityQuestion
-                registeredSecurityAns = securityAnswer
                 registeredDigitalCertificateId = certId
 
                 updateMasterMpin(mpin)
@@ -270,7 +264,6 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
                     .putString("user_fullname", user.fullName)
                     .putString("user_email", user.email)
                     .putString("user_phone", user.phone)
-                    .putString("user_password", password)
                     .putString("user_nominee_name", user.nomineeName)
                     .putString("user_nominee_relation", user.nomineeRelation)
                     .putString("user_security_question", user.securityQuestion)
@@ -282,7 +275,6 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
                 registeredFullName = user.fullName
                 registeredEmail = user.email
                 registeredPhone = user.phone
-                registeredPassword = password
                 registeredNomineeName = user.nomineeName
                 registeredNomineeRelation = user.nomineeRelation
                 registeredSecurityQuest = user.securityQuestion
@@ -709,6 +701,39 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     init {
+        // P0 Security: Purge any legacy plaintext credentials in SharedPreferences
+        if (userPrefs.contains("user_password") || userPrefs.contains("user_security_answer")) {
+            userPrefs.edit()
+                .remove("user_password")
+                .remove("user_security_answer")
+                .apply()
+        }
+
+        // Validate active session token against database record on startup
+        if (isLoggedIn && registeredEmail.isNotBlank()) {
+            val storedToken = userPrefs.getString("user_jwt_token", "") ?: ""
+            viewModelScope.launch(Dispatchers.IO) {
+                val cleanEmail = registeredEmail.trim().lowercase()
+                val user = database.serverUserDao().getByEmail(cleanEmail)
+                val isValid = if (user != null && storedToken.isNotBlank()) {
+                    enterpriseGateway.validateJwtToken(storedToken) &&
+                    java.security.MessageDigest.isEqual(
+                        storedToken.toByteArray(java.nio.charset.StandardCharsets.UTF_8),
+                        user.tokenJwt.toByteArray(java.nio.charset.StandardCharsets.UTF_8)
+                    )
+                } else false
+
+                if (!isValid) {
+                    withContext(Dispatchers.Main) {
+                        isLoggedIn = false
+                        isAppMpinLocked = true
+                        userPrefs.edit().putBoolean("is_logged_in", false).remove("user_jwt_token").apply()
+                    }
+                    repository.logAction("Session Expired", "Invalidated expired or mismatched session token for $cleanEmail.", currentRole.name)
+                }
+            }
+        }
+
         // Trigger verification and proactive seeding in case the database was newly created or unseeded
         viewModelScope.launch(Dispatchers.IO) {
             repository.ensureDatabaseSeeded()
@@ -753,6 +778,46 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
         return false
     }
 
+    fun changePassword(
+        currentPass: String,
+        newPass: String,
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        if (registeredEmail.isBlank()) {
+            onResult(false, "No registered account found.")
+            return
+        }
+        viewModelScope.launch {
+            val res = enterpriseGateway.changePassword(registeredEmail, currentPass, newPass)
+            if (res.success && res.token.isNotBlank()) {
+                userPrefs.edit().putString("user_jwt_token", res.token).apply()
+            }
+            onResult(res.success, res.message)
+        }
+    }
+
+    fun resetPasswordWithSecurityAnswer(
+        answer: String,
+        newPassword: String,
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        if (registeredEmail.isBlank()) {
+            onResult(false, "No registered account found.")
+            return
+        }
+        viewModelScope.launch {
+            val res = enterpriseGateway.resetPasswordWithSecurityAnswer(registeredEmail, answer, newPassword)
+            if (res.success) {
+                if (res.token.isNotBlank()) {
+                    userPrefs.edit().putString("user_jwt_token", res.token).apply()
+                }
+                isLoggedIn = true
+                showMfaChallenge = false
+            }
+            onResult(res.success, res.message)
+        }
+    }
+
     fun verifyOtp(otp: String) {
         if (otp.length == 4 || otp.length == 6) {
             isLoggedIn = true
@@ -771,7 +836,10 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
         biometricVerified = false
         passwordInput = ""
         mfaOtpCode = ""
-        userPrefs.edit().putBoolean("is_logged_in", false).apply()
+        userPrefs.edit()
+            .putBoolean("is_logged_in", false)
+            .remove("user_jwt_token")
+            .apply()
         viewModelScope.launch {
             repository.logAction("Logout", "User explicitly logged out. Active session terminated.", currentRole.name)
         }

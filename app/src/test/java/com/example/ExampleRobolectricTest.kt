@@ -944,6 +944,508 @@ class ExampleRobolectricTest {
     viewModel.revokeEmergencyAccess()
     org.junit.Assert.assertFalse("Owner revocation locks emergency access", viewModel.isEmergencyAccessReleased)
   }
+
+  @Test
+  fun `new user registration hashes passwords with PBKDF2-HMAC-SHA256 format and constant-time verification succeeds`() = kotlinx.coroutines.runBlocking {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val db = androidx.room.Room.inMemoryDatabaseBuilder(
+      context,
+      com.example.data.AppDatabase::class.java
+    ).allowMainThreadQueries().build()
+    val gateway = com.example.util.EnterpriseServerGateway(db)
+    // Verify target 600,000 iterations
+    org.junit.Assert.assertEquals(600_000, gateway.pbkdf2Iterations)
+
+    // 1. Register new user
+    val reg = gateway.registerUserOnServer(
+      fullName = "Siddharth Menon",
+      email = "siddharth@familyvault.in",
+      phone = "+91 9123456789",
+      password = "MasterKey@2026!",
+      mpin = "2468",
+      nomineeName = "Meera Menon",
+      nomineeRelation = "Spouse",
+      securityQuestion = "First school?",
+      securityAnswer = "National Public School"
+    )
+    org.junit.Assert.assertTrue("Registration must succeed", reg.success)
+    val user = reg.user
+    org.junit.Assert.assertNotNull(user)
+
+    // 2. Format marker verification: $pbkdf2-sha256$<iterations>$<base64Salt>$<base64Hash>
+    org.junit.Assert.assertTrue("Password hash must start with PBKDF2 marker", user!!.passwordHash.startsWith(com.example.util.EnterpriseServerGateway.PBKDF2_PREFIX))
+    org.junit.Assert.assertTrue("Security answer must start with PBKDF2 marker", user.securityAnswerHash.startsWith(com.example.util.EnterpriseServerGateway.PBKDF2_PREFIX))
+    org.junit.Assert.assertFalse("PBKDF2 hash must not be flagged as legacy", gateway.isLegacyHash(user.passwordHash))
+
+    val parts = user.passwordHash.split("$")
+    org.junit.Assert.assertEquals("PBKDF2 hash must have 5 parts (prefix, algo, iter, salt, hash)", 5, parts.size)
+    org.junit.Assert.assertEquals("pbkdf2-sha256", parts[1])
+    org.junit.Assert.assertEquals("600000", parts[2])
+    val saltBytes = java.util.Base64.getDecoder().decode(parts[3])
+    org.junit.Assert.assertEquals("Embedded salt must be 16 bytes", 16, saltBytes.size)
+    val decodedBytes = java.util.Base64.getDecoder().decode(parts[4])
+    org.junit.Assert.assertEquals("PBKDF2 key length must be 256 bits (32 bytes)", 32, decodedBytes.size)
+
+    // Verify password and security answer use separate independent salts
+    val answerParts = user.securityAnswerHash.split("$")
+    org.junit.Assert.assertEquals(5, answerParts.size)
+    org.junit.Assert.assertNotEquals("Password and security answer must use independent salts", parts[3], answerParts[3])
+
+    // 3. Return login verification with correct password
+    val loginRes = gateway.authenticateReturnLogin("siddharth@familyvault.in", "MasterKey@2026!")
+    org.junit.Assert.assertTrue("Login with PBKDF2 must succeed", loginRes.success)
+    org.junit.Assert.assertEquals("siddharth@familyvault.in", loginRes.user?.email)
+    org.junit.Assert.assertTrue("JWT token must be populated", loginRes.token.isNotEmpty())
+
+    db.close()
+  }
+
+  @Test
+  fun `legacy SHA-256 account login verifies successfully and triggers transparent auto-upgrade to PBKDF2`() = kotlinx.coroutines.runBlocking {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val db = androidx.room.Room.inMemoryDatabaseBuilder(
+      context,
+      com.example.data.AppDatabase::class.java
+    ).allowMainThreadQueries().build()
+    val gateway = com.example.util.EnterpriseServerGateway(db)
+
+    // 1. Manually create legacy user with single-round salted SHA-256
+    val legacySalt = gateway.generateSalt()
+    val legacyPassword = "LegacyVaultPassword@2024"
+    val legacyHash = gateway.hashPasswordLegacy(legacyPassword, legacySalt)
+
+    org.junit.Assert.assertTrue("Legacy hash must be recognized as legacy", gateway.isLegacyHash(legacyHash))
+    org.junit.Assert.assertEquals("Legacy SHA-256 hex string must be 64 characters", 64, legacyHash.length)
+
+    val legacyUser = com.example.data.ServerUserRecord(
+      userId = "usr_fev_legacy01",
+      email = "legacy.user@familyvault.in",
+      fullName = "Sunil Kapoor",
+      phone = "+91 9811122233",
+      passwordHash = legacyHash,
+      passwordSalt = legacySalt,
+      mpin = "1357",
+      nomineeName = "Geeta Kapoor",
+      nomineeRelation = "Spouse",
+      securityQuestion = "Birth city?",
+      securityAnswerHash = gateway.hashPasswordLegacy("jaipur", legacySalt),
+      digitalCertificateId = "FEV-LOCAL-LEGACY-001",
+      createdAt = 1700000000000L,
+      lastLoginAt = 1700000000000L,
+      status = "ACTIVE_VERIFIED",
+      role = "OWNER",
+      tokenJwt = "",
+      deviceFingerprint = "Legacy-Device-001",
+      isBiometricEnrolled = false
+    )
+    db.serverUserDao().insert(legacyUser)
+
+    // 2. Perform return login with legacy credentials
+    val loginRes = gateway.authenticateReturnLogin("legacy.user@familyvault.in", legacyPassword)
+    org.junit.Assert.assertTrue("Legacy login must succeed transparently", loginRes.success)
+
+    // 3. Verify user record in database was automatically upgraded to PBKDF2
+    val upgradedUser = db.serverUserDao().getByEmail("legacy.user@familyvault.in")
+    org.junit.Assert.assertNotNull(upgradedUser)
+    org.junit.Assert.assertTrue("Upgraded hash must start with PBKDF2 marker", upgradedUser!!.passwordHash.startsWith(com.example.util.EnterpriseServerGateway.PBKDF2_PREFIX))
+    org.junit.Assert.assertFalse("Upgraded hash must no longer be legacy", gateway.isLegacyHash(upgradedUser.passwordHash))
+    org.junit.Assert.assertNotEquals("Upgraded account must receive fresh cryptographic salt", legacySalt, upgradedUser.passwordSalt)
+
+    // 4. Verify audit log recorded the upgrade
+    val auditLogs = db.auditLogDao().getAll().first()
+    val upgradeLog = auditLogs.find { it.action == "Password Hash Upgraded" }
+    org.junit.Assert.assertNotNull("Audit log must contain Password Hash Upgraded event", upgradeLog)
+    org.junit.Assert.assertTrue(upgradeLog!!.details.contains("legacy.user@familyvault.in"))
+
+    // 5. Subsequent return login verifies against the new PBKDF2 hash seamlessly
+    val secondLogin = gateway.authenticateReturnLogin("legacy.user@familyvault.in", legacyPassword)
+    org.junit.Assert.assertTrue("Second login using upgraded PBKDF2 hash must succeed", secondLogin.success)
+
+    db.close()
+  }
+
+  @Test
+  fun `password verification rejects incorrect passwords for both legacy and PBKDF2 records without corrupting hashes`() = kotlinx.coroutines.runBlocking {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val db = androidx.room.Room.inMemoryDatabaseBuilder(
+      context,
+      com.example.data.AppDatabase::class.java
+    ).allowMainThreadQueries().build()
+    val gateway = com.example.util.EnterpriseServerGateway(db)
+
+    // 1. Create PBKDF2 account
+    gateway.registerUserOnServer(
+      fullName = "PBKDF2 User",
+      email = "pbkdf2@vault.in",
+      phone = "+91 9999900001",
+      password = "CorrectPBKDF2Pass!1",
+      mpin = "1122",
+      nomineeName = "Nominee",
+      nomineeRelation = "Spouse",
+      securityQuestion = "Question?",
+      securityAnswer = "Answer"
+    )
+    val pbkdf2UserBefore = db.serverUserDao().getByEmail("pbkdf2@vault.in")!!
+
+    // 2. Create Legacy account
+    val legSalt = gateway.generateSalt()
+    val legHash = gateway.hashPasswordLegacy("CorrectLegacyPass!1", legSalt)
+    val legUser = com.example.data.ServerUserRecord(
+      userId = "usr_fev_leg02",
+      email = "legacy@vault.in",
+      fullName = "Legacy User",
+      phone = "+91 9999900002",
+      passwordHash = legHash,
+      passwordSalt = legSalt,
+      mpin = "3344",
+      nomineeName = "Nominee",
+      nomineeRelation = "Spouse",
+      securityQuestion = "Question?",
+      securityAnswerHash = "dummy",
+      digitalCertificateId = "FEV-LOCAL-002",
+      createdAt = 1700000000000L,
+      lastLoginAt = 1700000000000L,
+      status = "ACTIVE_VERIFIED",
+      role = "OWNER",
+      tokenJwt = "",
+      deviceFingerprint = "Device-002",
+      isBiometricEnrolled = false
+    )
+    db.serverUserDao().insert(legUser)
+
+    // 3. Attempt wrong passwords
+    val wrongPbkdf2 = gateway.authenticateReturnLogin("pbkdf2@vault.in", "WrongPassword!99")
+    org.junit.Assert.assertFalse("Wrong password for PBKDF2 must fail", wrongPbkdf2.success)
+    org.junit.Assert.assertEquals("INVALID_CREDENTIALS", wrongPbkdf2.errorCode)
+
+    val wrongLegacy = gateway.authenticateReturnLogin("legacy@vault.in", "WrongPassword!99")
+    org.junit.Assert.assertFalse("Wrong password for legacy must fail", wrongLegacy.success)
+    org.junit.Assert.assertEquals("INVALID_CREDENTIALS", wrongLegacy.errorCode)
+
+    // 4. Verify hashes and salts remained uncorrupted
+    val pbkdf2UserAfter = db.serverUserDao().getByEmail("pbkdf2@vault.in")!!
+    org.junit.Assert.assertEquals("PBKDF2 hash must not change on failed login", pbkdf2UserBefore.passwordHash, pbkdf2UserAfter.passwordHash)
+    org.junit.Assert.assertEquals("PBKDF2 salt must not change on failed login", pbkdf2UserBefore.passwordSalt, pbkdf2UserAfter.passwordSalt)
+
+    val legUserAfter = db.serverUserDao().getByEmail("legacy@vault.in")!!
+    org.junit.Assert.assertEquals("Legacy hash must not be upgraded on failed login", legHash, legUserAfter.passwordHash)
+    org.junit.Assert.assertEquals("Legacy salt must not change on failed login", legSalt, legUserAfter.passwordSalt)
+
+    db.close()
+  }
+
+  @Test
+  fun `password verification safely handles malformed, truncated, or corrupt stored hash records without throwing`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val db = androidx.room.Room.inMemoryDatabaseBuilder(
+      context,
+      com.example.data.AppDatabase::class.java
+    ).allowMainThreadQueries().build()
+    val gateway = com.example.util.EnterpriseServerGateway(db)
+    val validSalt = gateway.generateSalt()
+
+    val dummyValid32ByteHash = java.util.Base64.getEncoder().encodeToString(ByteArray(32) { 1.toByte() })
+    val dummyValid16ByteSalt = java.util.Base64.getEncoder().encodeToString(ByteArray(16) { 2.toByte() })
+    val dummyShort16ByteHash = java.util.Base64.getEncoder().encodeToString(ByteArray(16) { 3.toByte() })
+
+    // Test malformed permutations against verifyPassword
+    org.junit.Assert.assertFalse("Empty hash must return false", gateway.verifyPassword("Pass123", "", validSalt))
+    org.junit.Assert.assertFalse("Blank hash must return false", gateway.verifyPassword("Pass123", "   ", validSalt))
+    org.junit.Assert.assertFalse("Empty salt must return false", gateway.verifyPassword("Pass123", "\$pbkdf2-sha256\$600000\$WvQ=", ""))
+    org.junit.Assert.assertFalse("Malformed prefix must return false", gateway.verifyPassword("Pass123", "\$pbkdf1\$600000\$WvQ=", validSalt))
+    org.junit.Assert.assertFalse("Missing parts must return false", gateway.verifyPassword("Pass123", "\$pbkdf2-sha256\$600000", validSalt))
+    org.junit.Assert.assertFalse("Non-integer iterations must return false", gateway.verifyPassword("Pass123", "\$pbkdf2-sha256\$iterations\$WvQ=", validSalt))
+    org.junit.Assert.assertFalse("Degenerate iteration count (<10000) must return false", gateway.verifyPassword("Pass123", "\$pbkdf2-sha256\$1000\$$dummyValid16ByteSalt\$$dummyValid32ByteHash", validSalt))
+    org.junit.Assert.assertFalse("Excessive iteration count (>2000000 DoS defense) must return false", gateway.verifyPassword("Pass123", "\$pbkdf2-sha256\$5000000\$$dummyValid16ByteSalt\$$dummyValid32ByteHash", validSalt))
+    org.junit.Assert.assertFalse("Derived hash length mismatch (!=32 bytes) must fail before derivation", gateway.verifyPassword("Pass123", "\$pbkdf2-sha256\$600000\$$dummyValid16ByteSalt\$$dummyShort16ByteHash", validSalt))
+    org.junit.Assert.assertFalse("Corrupted base64 hash must return false", gateway.verifyPassword("Pass123", "\$pbkdf2-sha256\$600000\$***not-base64***===", validSalt))
+    org.junit.Assert.assertFalse("Corrupt payload must return false", gateway.verifyPassword("Pass123", "corrupted_garbage_hash", validSalt))
+
+    db.close()
+  }
+
+  @Test
+  fun `password change workflow validates current password, generates fresh salt, and updates stored hash to PBKDF2`() = kotlinx.coroutines.runBlocking {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val db = androidx.room.Room.inMemoryDatabaseBuilder(
+      context,
+      com.example.data.AppDatabase::class.java
+    ).allowMainThreadQueries().build()
+    val gateway = com.example.util.EnterpriseServerGateway(db)
+
+    // Register user
+    gateway.registerUserOnServer(
+      fullName = "Aditi Rao",
+      email = "aditi@familyvault.in",
+      phone = "+91 9876501234",
+      password = "InitialPass@2026",
+      mpin = "5678",
+      nomineeName = "Rohan Rao",
+      nomineeRelation = "Brother",
+      securityQuestion = "Favorite book?",
+      securityAnswer = "Gitanjali"
+    )
+
+    // 1. Password change with wrong current password fails
+    val wrongCurrent = gateway.changePassword("aditi@familyvault.in", "WrongInitialPass", "BrandNewPass@2026")
+    org.junit.Assert.assertFalse("Password change with wrong current password must fail", wrongCurrent.success)
+    org.junit.Assert.assertEquals("INVALID_CREDENTIALS", wrongCurrent.errorCode)
+
+    // 2. Password change with too short new password fails
+    val shortNew = gateway.changePassword("aditi@familyvault.in", "InitialPass@2026", "12345")
+    org.junit.Assert.assertFalse("Password change with short new password must fail", shortNew.success)
+    org.junit.Assert.assertEquals("PASSWORD_TOO_SHORT", shortNew.errorCode)
+
+    // 3. Valid password change succeeds
+    val changeSuccess = gateway.changePassword("aditi@familyvault.in", "InitialPass@2026", "BrandNewPass@2026")
+    org.junit.Assert.assertTrue("Valid password change must succeed", changeSuccess.success)
+
+    // 4. Verify login with new password succeeds and old password is rejected
+    val loginNew = gateway.authenticateReturnLogin("aditi@familyvault.in", "BrandNewPass@2026")
+    org.junit.Assert.assertTrue("Login with new password must succeed", loginNew.success)
+
+    val loginOld = gateway.authenticateReturnLogin("aditi@familyvault.in", "InitialPass@2026")
+    org.junit.Assert.assertFalse("Login with old password must be rejected", loginOld.success)
+
+    db.close()
+  }
+
+  @Test
+  fun `cryptographic salt generation produces unique 16-byte random salts across registrations`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val db = androidx.room.Room.inMemoryDatabaseBuilder(
+      context,
+      com.example.data.AppDatabase::class.java
+    ).allowMainThreadQueries().build()
+    val gateway = com.example.util.EnterpriseServerGateway(db)
+
+    val salts = mutableSetOf<String>()
+    for (i in 1..50) {
+      val salt = gateway.generateSalt()
+      val decoded = java.util.Base64.getDecoder().decode(salt)
+      org.junit.Assert.assertEquals("Salt must decode to 16 bytes", 16, decoded.size)
+      salts.add(salt)
+    }
+    org.junit.Assert.assertEquals("All 50 generated salts must be distinct", 50, salts.size)
+
+    db.close()
+  }
+
+  @Test
+  fun `plaintext credentials are never persisted in shared preferences and legacy plaintext entries are purged on startup`() = kotlinx.coroutines.runBlocking {
+    val application = ApplicationProvider.getApplicationContext<android.app.Application>()
+    val prefs = application.getSharedPreferences("vault_user_prefs", Context.MODE_PRIVATE)
+
+    // 1. Pre-populate legacy insecure plaintext credentials
+    prefs.edit()
+      .putString("user_password", "PlaintextSecretLeak!1")
+      .putString("user_security_answer", "PlaintextSecretAnswer")
+      .apply()
+    org.junit.Assert.assertTrue("Pre-condition: legacy plaintext password exists", prefs.contains("user_password"))
+    org.junit.Assert.assertTrue("Pre-condition: legacy plaintext answer exists", prefs.contains("user_security_answer"))
+
+    // 2. Initialize ViewModel: init block must purge plaintext entries
+    val viewModel = com.example.ui.VaultViewModel(application)
+    org.junit.Assert.assertFalse("P0: user_password must be purged from SharedPreferences", prefs.contains("user_password"))
+    org.junit.Assert.assertFalse("P0: user_security_answer must be purged from SharedPreferences", prefs.contains("user_security_answer"))
+
+    // 3. Register user and verify no plaintext password is added
+    viewModel.registerEnterpriseUser(
+      fullName = "Ananya Roy",
+      email = "ananya@familyvault.in",
+      phone = "+91 9888877777",
+      password = "SecurePassword@2026",
+      mpin = "4321",
+      nomineeName = "Kabir Roy",
+      nomineeRelation = "Spouse",
+      securityQuestion = "Birthplace?",
+      securityAnswer = "Kolkata"
+    )
+    org.junit.Assert.assertFalse("P0: user_password must NEVER be written to SharedPreferences on registration", prefs.contains("user_password"))
+    org.junit.Assert.assertFalse("P0: user_security_answer must NEVER be written to SharedPreferences on registration", prefs.contains("user_security_answer"))
+
+    // 4. Change password and verify no plaintext password is added
+    viewModel.changePassword("SecurePassword@2026", "UpdatedPassword@2026")
+    org.junit.Assert.assertFalse("P0: user_password must NEVER be written to SharedPreferences on changePassword", prefs.contains("user_password"))
+  }
+
+  @Test
+  fun `security question password reset flow verifies hashed answer, updates to PBKDF2, and rejects invalid answers`() = kotlinx.coroutines.runBlocking {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val db = androidx.room.Room.inMemoryDatabaseBuilder(
+      context,
+      com.example.data.AppDatabase::class.java
+    ).allowMainThreadQueries().build()
+    val gateway = com.example.util.EnterpriseServerGateway(db)
+
+    // 1. Register account
+    val reg = gateway.registerUserOnServer(
+      fullName = "Tarun Mathur",
+      email = "tarun@familyvault.in",
+      phone = "+91 9777766666",
+      password = "OldMasterKey@2026",
+      mpin = "3322",
+      nomineeName = "Rekha Mathur",
+      nomineeRelation = "Spouse",
+      securityQuestion = "Childhood pet name?",
+      securityAnswer = "Shadow"
+    )
+    org.junit.Assert.assertTrue(reg.success)
+
+    // 2. Recovery attempt with incorrect answer fails
+    val wrongAnswer = gateway.resetPasswordWithSecurityAnswer("tarun@familyvault.in", "WrongPet", "NewRecoveredKey@2026")
+    org.junit.Assert.assertFalse("Reset with incorrect security answer must fail", wrongAnswer.success)
+    org.junit.Assert.assertEquals("INVALID_CREDENTIALS", wrongAnswer.errorCode)
+
+    // 3. Recovery attempt with correct answer succeeds
+    val successReset = gateway.resetPasswordWithSecurityAnswer("tarun@familyvault.in", "Shadow", "NewRecoveredKey@2026")
+    org.junit.Assert.assertTrue("Reset with correct security answer must succeed", successReset.success)
+
+    // 4. Login with newly recovered password succeeds
+    val loginRecovered = gateway.authenticateReturnLogin("tarun@familyvault.in", "NewRecoveredKey@2026")
+    org.junit.Assert.assertTrue("Login with recovered password must succeed", loginRecovered.success)
+
+    // 5. Old password is rejected
+    val loginOld = gateway.authenticateReturnLogin("tarun@familyvault.in", "OldMasterKey@2026")
+    org.junit.Assert.assertFalse("Login with old password must be rejected after reset", loginOld.success)
+
+    db.close()
+  }
+
+  @Test
+  fun `jwt validation validates genuine tokens, rejects tampered signatures, and rejects malformed formats`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val db = androidx.room.Room.inMemoryDatabaseBuilder(
+      context,
+      com.example.data.AppDatabase::class.java
+    ).allowMainThreadQueries().build()
+    val gateway = com.example.util.EnterpriseServerGateway(db)
+
+    val validToken = gateway.generateJwtToken("usr_test_123", "user@familyvault.in", "OWNER")
+    org.junit.Assert.assertTrue("Genuine token must be valid", gateway.validateJwtToken(validToken))
+
+    // Tampered signature
+    val tamperedToken = validToken.substring(0, validToken.length - 4) + "XXXX"
+    org.junit.Assert.assertFalse("Tampered token signature must be rejected", gateway.validateJwtToken(tamperedToken))
+
+    // Malformed strings
+    org.junit.Assert.assertFalse("Empty token must be rejected", gateway.validateJwtToken(""))
+    org.junit.Assert.assertFalse("Random string must be rejected", gateway.validateJwtToken("not.a.valid.jwt.token"))
+    org.junit.Assert.assertFalse("Two-part token must be rejected", gateway.validateJwtToken("header.payload"))
+
+    db.close()
+  }
+
+  @Test
+  fun `security question legacy migration preserves old salt after password upgrade and allows recovery to PBKDF2`() = kotlinx.coroutines.runBlocking {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val db = androidx.room.Room.inMemoryDatabaseBuilder(
+      context,
+      com.example.data.AppDatabase::class.java
+    ).allowMainThreadQueries().build()
+    val gateway = com.example.util.EnterpriseServerGateway(db)
+
+    // 1. Manually insert legacy account with SHA-256 password and SHA-256 security answer (using same passwordSalt)
+    val legSalt = gateway.generateSalt()
+    val legPassHash = gateway.hashPasswordLegacy("OldLegacyPassword#1", legSalt)
+    val legAnswerHash = gateway.hashPasswordLegacy("jaipur", legSalt)
+
+    val legacyUser = com.example.data.ServerUserRecord(
+      userId = "usr_fev_legacy_recovery",
+      email = "legacy.recovery@vault.in",
+      fullName = "Vikram Rathore",
+      phone = "+91 9111122222",
+      passwordHash = legPassHash,
+      passwordSalt = legSalt,
+      mpin = "9988",
+      nomineeName = "Pooja Rathore",
+      nomineeRelation = "Spouse",
+      securityQuestion = "Birth city?",
+      securityAnswerHash = legAnswerHash,
+      digitalCertificateId = "FEV-LOCAL-LEGACY-003",
+      createdAt = 1690000000000L,
+      lastLoginAt = 1690000000000L,
+      status = "ACTIVE_VERIFIED",
+      role = "OWNER",
+      tokenJwt = "legacy_token",
+      deviceFingerprint = "Device-Legacy",
+      isBiometricEnrolled = false
+    )
+    db.serverUserDao().insert(legacyUser)
+
+    // 2. Perform login: triggers transparent upgrade of password hash, which preserves old salt in securityAnswerHash
+    val loginRes = gateway.authenticateReturnLogin("legacy.recovery@vault.in", "OldLegacyPassword#1")
+    org.junit.Assert.assertTrue("Login must succeed", loginRes.success)
+
+    val upgradedRecord = db.serverUserDao().getByEmail("legacy.recovery@vault.in")!!
+    org.junit.Assert.assertTrue("Password hash must be upgraded to PBKDF2", upgradedRecord.passwordHash.startsWith(com.example.util.EnterpriseServerGateway.PBKDF2_PREFIX))
+    org.junit.Assert.assertTrue("Security answer hash must preserve legacy format with old salt", upgradedRecord.securityAnswerHash.startsWith("legacy\$$legSalt\$"))
+
+    // 3. Perform password reset using security answer: verifies preserved legacy hash and upgrades answer to PBKDF2
+    val resetRes = gateway.resetPasswordWithSecurityAnswer("legacy.recovery@vault.in", "Jaipur", "BrandNewSecureKey@2026")
+    org.junit.Assert.assertTrue("Password reset using security answer must succeed", resetRes.success)
+
+    val postResetRecord = db.serverUserDao().getByEmail("legacy.recovery@vault.in")!!
+    org.junit.Assert.assertTrue("Security answer must now be fully upgraded to PBKDF2", postResetRecord.securityAnswerHash.startsWith(com.example.util.EnterpriseServerGateway.PBKDF2_PREFIX))
+
+    // 4. Verify login with new password
+    val newLogin = gateway.authenticateReturnLogin("legacy.recovery@vault.in", "BrandNewSecureKey@2026")
+    org.junit.Assert.assertTrue("Login with new password must succeed", newLogin.success)
+
+    db.close()
+  }
+
+  @Test
+  fun `password reset and change rotate JWT tokens and defense against account enumeration returns generic invalid credentials`() = kotlinx.coroutines.runBlocking {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val db = androidx.room.Room.inMemoryDatabaseBuilder(
+      context,
+      com.example.data.AppDatabase::class.java
+    ).allowMainThreadQueries().build()
+    val gateway = com.example.util.EnterpriseServerGateway(db)
+
+    gateway.registerUserOnServer(
+      fullName = "Sunita Menon",
+      email = "sunita@vault.in",
+      phone = "+91 9444455555",
+      password = "InitialPassword#2026",
+      mpin = "1234",
+      nomineeName = "Dev Menon",
+      nomineeRelation = "Son",
+      securityQuestion = "Favorite food?",
+      securityAnswer = "Dosa"
+    )
+
+    val initialUser = db.serverUserDao().getByEmail("sunita@vault.in")!!
+    val initialJwt = initialUser.tokenJwt
+    org.junit.Assert.assertTrue(gateway.validateJwtToken(initialJwt))
+
+    // 1. Password change rotates token
+    val changeRes = gateway.changePassword("sunita@vault.in", "InitialPassword#2026", "ChangedPassword#2026")
+    org.junit.Assert.assertTrue(changeRes.success)
+    org.junit.Assert.assertNotEquals("JWT token must rotate on password change", initialJwt, changeRes.token)
+
+    val userAfterChange = db.serverUserDao().getByEmail("sunita@vault.in")!!
+    org.junit.Assert.assertEquals(changeRes.token, userAfterChange.tokenJwt)
+
+    // 2. Password reset rotates token
+    val resetRes = gateway.resetPasswordWithSecurityAnswer("sunita@vault.in", "Dosa", "ResetPassword#2026")
+    org.junit.Assert.assertTrue(resetRes.success)
+    org.junit.Assert.assertNotEquals("JWT token must rotate on password reset", changeRes.token, resetRes.token)
+
+    val userAfterReset = db.serverUserDao().getByEmail("sunita@vault.in")!!
+    org.junit.Assert.assertEquals(resetRes.token, userAfterReset.tokenJwt)
+
+    // 3. Account enumeration defense: verify non-existent user and wrong answer return identical INVALID_CREDENTIALS
+    val wrongUserRes = gateway.resetPasswordWithSecurityAnswer("nonexistent@vault.in", "AnyAnswer", "NewPass#2026")
+    val wrongAnswerRes = gateway.resetPasswordWithSecurityAnswer("sunita@vault.in", "WrongAnswer", "NewPass#2026")
+
+    org.junit.Assert.assertEquals("Non-existent user must return INVALID_CREDENTIALS", "INVALID_CREDENTIALS", wrongUserRes.errorCode)
+    org.junit.Assert.assertEquals("Wrong answer must return INVALID_CREDENTIALS", "INVALID_CREDENTIALS", wrongAnswerRes.errorCode)
+    org.junit.Assert.assertEquals("Both errors must have identical message to prevent user enumeration", wrongUserRes.message, wrongAnswerRes.message)
+
+    db.close()
+  }
 }
 
 
