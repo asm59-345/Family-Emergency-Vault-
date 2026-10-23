@@ -1446,6 +1446,38 @@ class ExampleRobolectricTest {
 
     db.close()
   }
+
+  @Test
+  fun `demo preview mode activates and deactivates seamlessly in ViewModel`() {
+    val application = ApplicationProvider.getApplicationContext<android.app.Application>()
+    val vm = com.example.ui.VaultViewModel(application)
+
+    org.junit.Assert.assertFalse("Initial demo mode must be false", vm.isDemoModeActive)
+
+    vm.enableDemoPreviewMode()
+    org.junit.Assert.assertTrue("Demo mode must be active", vm.isDemoModeActive)
+    org.junit.Assert.assertTrue("User must be logged in during demo mode", vm.isLoggedIn)
+    org.junit.Assert.assertFalse("MPIN lock must be bypassed during demo mode", vm.isAppMpinLocked)
+    org.junit.Assert.assertFalse("Login screen must not show during demo mode", vm.isShowingLoginScreen)
+
+    vm.disableDemoPreviewMode()
+    org.junit.Assert.assertFalse("Demo mode must be deactivated", vm.isDemoModeActive)
+  }
+
+  @Test
+  fun `navigation between signup and login toggles cleanly`() {
+    val application = ApplicationProvider.getApplicationContext<android.app.Application>()
+    val vm = com.example.ui.VaultViewModel(application)
+
+    vm.navigateToLogin()
+    org.junit.Assert.assertTrue("Login screen must be visible", vm.isShowingLoginScreen)
+    org.junit.Assert.assertFalse("Must not be logged in yet", vm.isLoggedIn)
+
+    vm.navigateToSignup()
+    org.junit.Assert.assertFalse("Login screen must be hidden", vm.isShowingLoginScreen)
+    org.junit.Assert.assertFalse("Account created must be false", vm.isAccountCreated)
+  }
 }
+
 
 

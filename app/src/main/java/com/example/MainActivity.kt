@@ -156,15 +156,22 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
     var showEmergencySosDialog by remember { mutableStateOf(false) }
     var showMedicalEmergencyCardDialog by remember { mutableStateOf(false) }
 
-    // First time user onboarding starts directly with account registration & privacy consent
-    if (!model.isAccountCreated) {
+    // Main routing logic:
+    // If demo mode is active, allow exploring the main app directly with preview data
+    if (!model.isDemoModeActive && model.isShowingLoginScreen) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            com.example.ui.LoginScreen(model = model)
+        }
+    } else if (!model.isDemoModeActive && !model.isAccountCreated) {
         com.example.ui.SignupScreen(model = model)
-    } else if (model.isAppMpinLocked) {
+    } else if (!model.isDemoModeActive && model.isAppMpinLocked) {
         Box(modifier = Modifier.fillMaxSize()) {
             AppMpinLockScreen(
                 model = model,
                 onTriggerBiometric = { (context as? MainActivity)?.triggerBiometricPrompt() },
-                onTriggerSos = { showEmergencySosDialog = true }
+                onTriggerSos = { showEmergencySosDialog = true },
+                onSwitchToLogin = { model.navigateToLogin() },
+                onSwitchToDemo = { model.enableDemoPreviewMode() }
             )
             if (showEmergencySosDialog) {
                 com.example.ui.EmergencySosDialog(
@@ -471,7 +478,7 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
                                 .fillMaxSize()
                                 .widthIn(max = 1200.dp)
                         ) {
-                            if (!model.isLoggedIn) {
+                            if (!model.isLoggedIn && !model.isDemoModeActive) {
                                 com.example.ui.LoginScreen(model = model)
                             } else {
                                 when (model.selectedTabItem) {
@@ -7827,22 +7834,31 @@ fun EmergencyAccessRequestDialog(
 fun AppMpinLockScreen(
     model: VaultViewModel,
     onTriggerBiometric: () -> Unit = {},
-    onTriggerSos: () -> Unit = {}
+    onTriggerSos: () -> Unit = {},
+    onSwitchToLogin: () -> Unit = {},
+    onSwitchToDemo: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val enteredCount = model.enteredMpinDigits.length
     val biometricAvailability = remember { BiometricAuthManager.checkBiometricAvailability(context) }
     
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(SlatePrimary)
             .statusBarsPadding()
-            .navigationBarsPadding()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .navigationBarsPadding(),
+        contentAlignment = Alignment.Center
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .widthIn(max = 480.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
         // Top Language Switcher on Lock Screen
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
@@ -8068,13 +8084,51 @@ fun AppMpinLockScreen(
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.15f)),
             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
-            modifier = Modifier.fillMaxWidth(0.75f)
+            modifier = Modifier.fillMaxWidth(0.85f)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(imageVector = Icons.Default.Key, contentDescription = "Bypass", tint = TealAccent, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text("Evaluator Sandbox Quick Unlock", color = Color.White, fontSize = 11.sp)
             }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Switch to Password Login
+        TextButton(
+            onClick = onSwitchToLogin,
+            modifier = Modifier.testTag("btn_lockscreen_to_login")
+        ) {
+            Icon(Icons.Default.Password, contentDescription = null, tint = TealAccent, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = if (model.isHindiMode) "पासवर्ड से लॉगिन करें" else "Sign In with Account Password",
+                color = TealAccent,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+
+        // Demo Mode Exploration
+        OutlinedButton(
+            onClick = onSwitchToDemo,
+            border = BorderStroke(1.dp, TealAccent.copy(alpha = 0.5f)),
+            shape = RoundedCornerShape(8.dp),
+            modifier = Modifier
+                .fillMaxWidth(0.85f)
+                .height(40.dp)
+                .testTag("btn_lockscreen_to_demo")
+        ) {
+            Icon(Icons.Default.Visibility, contentDescription = null, tint = TealAccent, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = if (model.isHindiMode) "✨ डेमो मोड देखें (नमूना डेटा)" else "✨ Explore Demo Mode (Preview)",
+                color = TealAccent,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
         }
     }
 }

@@ -125,13 +125,15 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     var isAccountCreated by mutableStateOf(userPrefs.getBoolean("account_created", false))
+    var isShowingLoginScreen by mutableStateOf(false)
 
     fun navigateToSignup() {
+        isShowingLoginScreen = false
         isAccountCreated = false
     }
 
     fun navigateToLogin() {
-        isAccountCreated = true
+        isShowingLoginScreen = true
         isLoggedIn = false
         showMfaChallenge = false
     }
@@ -210,6 +212,7 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
 
                 isLoggedIn = true
                 isAppMpinLocked = false
+                isShowingLoginScreen = false
 
                 repository.logAction(
                     "Server Account Registered",
@@ -286,6 +289,7 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
                 isLoggedIn = true
                 isAppMpinLocked = false
                 showMfaChallenge = false
+                isShowingLoginScreen = false
 
                 currentRole = when (user.role.uppercase()) {
                     "ADMIN" -> UserRole.OWNER
@@ -311,6 +315,9 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
     fun enableDemoPreviewMode() {
         viewModelScope.launch {
             isDemoModeActive = true
+            isShowingLoginScreen = false
+            isLoggedIn = true
+            isAppMpinLocked = false
             AppDatabase.seedDemoData(database)
             repository.logAction("Demo Mode Enabled", "Sample preview records loaded for demonstration. Isolated with isDemo=true.", currentRole.name)
         }
@@ -319,6 +326,8 @@ class VaultViewModel(application: Application) : AndroidViewModel(application) {
     fun disableDemoPreviewMode() {
         viewModelScope.launch {
             isDemoModeActive = false
+            isLoggedIn = userPrefs.getBoolean("is_logged_in", false)
+            isAppMpinLocked = userPrefs.getBoolean("account_created", false) && mpinPrefs.getBoolean("mpin_active_enabled", true)
             database.vaultItemDao().clearDemoItems()
             database.familyDependentDao().clearDemoItems()
             database.importantContactDao().clearDemoItems()

@@ -40,6 +40,7 @@ fun SignupScreen(model: VaultViewModel) {
     var enableBiometrics by remember { mutableStateOf(false) }
     var termsAccepted by remember { mutableStateOf(true) }
     var showTermsDialog by remember { mutableStateOf(false) }
+    var showSignupPassword by remember { mutableStateOf(false) }
     
     var validationError by remember { mutableStateOf("") }
     var isCheckingOut by remember { mutableStateOf(false) }
@@ -60,16 +61,23 @@ fun SignupScreen(model: VaultViewModel) {
         "In what city did you meet your spouse?"
     )
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(SlatePrimary)
             .statusBarsPadding()
             .navigationBarsPadding()
-            .verticalScroll(scrollState)
-            .padding(horizontal = 20.dp, vertical = 14.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .imePadding(),
+        contentAlignment = Alignment.TopCenter
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .widthIn(max = 560.dp)
+                .verticalScroll(scrollState)
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
         // Top Bar with Language Switcher
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
@@ -380,20 +388,45 @@ fun SignupScreen(model: VaultViewModel) {
                         .padding(vertical = 4.dp)
                         .testTag("signup_password_input"),
                     placeholder = { Text(if (model.isHindiMode) "•••••••• (सुरक्षित पासवर्ड बनाएं)" else "Example: •••••••• (Create secure password)") },
-                    visualTransformation = PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = { showSignupPassword = !showSignupPassword }) {
+                            Icon(
+                                imageVector = if (showSignupPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (showSignupPassword) "Hide password" else "Show password",
+                                tint = VaultTheme.textSecondary
+                            )
+                        }
+                    },
+                    visualTransformation = if (showSignupPassword) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
                     singleLine = true,
                     colors = vaultTextFieldColors()
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Master 4-Digit MPIN
-                Text(
-                    text = if (model.isHindiMode) "4-अंकों का मास्टर MPIN (जैसे 4321)" else "4-Digit Secure Transaction MPIN (Numeric Only)",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = VaultTheme.textSecondary
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (model.isHindiMode) "4-अंकों का मास्टर MPIN (जैसे 4321)" else "4-Digit Master MPIN (Numeric)",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = VaultTheme.textSecondary
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        for (i in 1..4) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(if (i <= mpin.length) TealAccent else Color.White.copy(alpha = 0.25f))
+                            )
+                        }
+                    }
+                }
                 OutlinedTextField(
                     value = mpin,
                     onValueChange = { if (it.length <= 4 && it.all { ch -> ch.isDigit() }) mpin = it },
@@ -722,6 +755,35 @@ fun SignupScreen(model: VaultViewModel) {
             }
         }
 
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Switch to Login CTA
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color.White.copy(alpha = 0.08f))
+                .clickable { model.navigateToLogin() }
+                .padding(vertical = 12.dp, horizontal = 16.dp)
+                .testTag("btn_switch_to_login"),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (model.isHindiMode) "पहले से खाता बना हुआ है? " else "Already have an account? ",
+                color = Color.White.copy(alpha = 0.85f),
+                fontSize = 13.sp
+            )
+            Text(
+                text = if (model.isHindiMode) "लॉगिन करें →" else "Sign In →",
+                color = TealAccent,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
         // Explicit Demo Mode
         OutlinedButton(
             onClick = {
@@ -730,7 +792,10 @@ fun SignupScreen(model: VaultViewModel) {
             colors = ButtonDefaults.outlinedButtonColors(contentColor = TealAccent),
             border = BorderStroke(1.dp, TealAccent.copy(alpha = 0.5f)),
             shape = RoundedCornerShape(8.dp),
-            modifier = Modifier.fillMaxWidth().height(42.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(42.dp)
+                .testTag("btn_signup_to_demo")
         ) {
             Icon(Icons.Default.Visibility, contentDescription = null, tint = TealAccent, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(6.dp))
@@ -760,6 +825,7 @@ fun SignupScreen(model: VaultViewModel) {
                 fontSize = 10.sp,
                 color = Color.White.copy(alpha = 0.4f)
             )
+        }
         }
     }
 
@@ -837,6 +903,7 @@ Biometric scanning is purely optional. You may toggle it on or off at any time f
 fun LoginScreen(model: VaultViewModel) {
     var password by remember { mutableStateOf("") }
     var enteredOtp by remember { mutableStateOf("") }
+    var isPasswordVisible by remember { mutableStateOf(false) }
     
     // Recovery states
     var showRecoveryDialog by remember { mutableStateOf(false) }
@@ -849,15 +916,24 @@ fun LoginScreen(model: VaultViewModel) {
 
     val scrollState = rememberScrollState()
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(VaultTheme.background)
-            .verticalScroll(scrollState)
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .imePadding(),
+        contentAlignment = Alignment.Center
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .widthIn(max = 520.dp)
+                .verticalScroll(scrollState)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
         // Top Language Switcher on Login Screen
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
@@ -1059,7 +1135,16 @@ fun LoginScreen(model: VaultViewModel) {
                             .padding(vertical = 4.dp)
                             .testTag("password_input"),
                         placeholder = { Text(if (model.isHindiMode) "पासवर्ड दर्ज करें" else "Enter authorization password") },
-                        visualTransformation = PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                                Icon(
+                                    imageVector = if (isPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = if (isPasswordVisible) "Hide password" else "Show password",
+                                    tint = VaultTheme.textSecondary
+                                )
+                            }
+                        },
+                        visualTransformation = if (isPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
                         singleLine = true,
                         colors = vaultTextFieldColors()
                     )
@@ -1379,6 +1464,7 @@ fun LoginScreen(model: VaultViewModel) {
                     }
                 }
             )
+        }
         }
     }
 }
