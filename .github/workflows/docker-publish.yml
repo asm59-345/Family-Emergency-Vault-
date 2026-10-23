@@ -18,8 +18,8 @@ on:
 env:
   # Use docker.io for Docker Hub if empty
   REGISTRY: ghcr.io
-  # github.repository as <account>/<repo>
-  IMAGE_NAME: ${{ github.repository }}
+  # github.repository as <account>/<repo> (trailing hyphen removed for valid OCI image reference)
+  IMAGE_NAME: ${{ github.repository_owner }}/family-emergency-vault
 
 
 jobs:
