@@ -4,6 +4,13 @@ build/
 app/build/
 *.apk
 *.aab
-.env
+.env*
+!.env.example
 local.properties
+*.keystore
+*.jks
+debug.keystore*
+.git
+.github
 .DS_Store
+

@@ -44,11 +44,13 @@ RUN mkdir -p ${ANDROID_HOME}/cmdline-tools && \
 RUN yes | sdkmanager --licenses
 
 # Download appropriate Platforms & Build-Tools
-# Family Emergency Vault targets Android SDK/api-level 36 (minorApiLevel 1) and minapi 24
+# Family Emergency Vault targets Android SDK 36 (minorApiLevel 1 requires platforms;android-36.1 and build-tools 36.1.0/36.0.0)
 RUN sdkmanager \
     "platform-tools" \
+    "platforms;android-36.1" \
     "platforms;android-36" \
     "platforms;android-34" \
+    "build-tools;36.1.0" \
     "build-tools;36.0.0" \
     "build-tools;34.0.0"
 
@@ -59,27 +61,30 @@ WORKDIR /workspace
 # Copy local repository files into the docker image
 COPY . .
 
-# Ensure Gradle wrapper has execute permissions
-RUN chmod +x ./gradlew || true
+# Ensure Gradle wrapper is executable
+RUN chmod +x ./gradlew
 
-# Install compatible Gradle version (matching Gradle 9.3.1 used by project)
-ENV GRADLE_VERSION=9.3.1
-RUN wget -q https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -O /tmp/gradle.zip && \
-    unzip -q /tmp/gradle.zip -d /opt && \
-    rm -f /tmp/gradle.zip
-ENV PATH=${PATH}:/opt/gradle-${GRADLE_VERSION}/bin
+# Configure Android SDK location for deterministic build
+RUN echo "sdk.dir=/opt/android-sdk" > /workspace/local.properties
 
-# Pre-build to cache dependencies and verify project integrity
-RUN gradle dependencies :app:dependencies --no-daemon
+# Generate standard Android debug keystore required by app/build.gradle.kts (debugConfig signingConfig)
+# using standard Android debug credentials (storepass android, alias androiddebugkey, keypass android),
+# ensuring host keystores/secrets are never copied into the container image.
+RUN if [ ! -f /workspace/debug.keystore ]; then \
+        keytool -genkey -v -keystore /workspace/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"; \
+    fi
+
+# Pre-build to cache dependencies using the project's Gradle wrapper
+RUN ./gradlew dependencies :app:dependencies --no-daemon
 
 # Compile & Assemble the debug APK
-RUN gradle assembleDebug --no-daemon
+RUN ./gradlew assembleDebug --no-daemon
 
 # Run unit tests to verify build integrity
-RUN gradle testDebugUnitTest --no-daemon
+RUN ./gradlew testDebugUnitTest --no-daemon
 
 # Output directory for artifacts
 VOLUME ["/workspace/app/build/outputs/apk"]
 
-# Default entrypoint builds a fresh clean APK
-CMD ["gradle", "assembleDebug", "--no-daemon"]
+# Default entrypoint builds a fresh clean APK using the project wrapper
+CMD ["./gradlew", "assembleDebug", "--no-daemon"]

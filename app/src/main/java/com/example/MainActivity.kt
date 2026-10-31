@@ -155,6 +155,7 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
     var selectedLocalContactForEdit by remember { mutableStateOf<LocalSecureContact?>(null) }
     var showEmergencySosDialog by remember { mutableStateOf(false) }
     var showMedicalEmergencyCardDialog by remember { mutableStateOf(false) }
+    var showTopBarOverflowMenu by remember { mutableStateOf(false) }
 
     // Main routing logic:
     // If demo mode is active, allow exploring the main app directly with preview data
@@ -221,142 +222,168 @@ fun MainAppSurface(model: VaultViewModel = viewModel()) {
                             }
                         },
                         actions = {
-                            // Emergency Reference Guide (Offline, strictly optional)
-                            Box(
+                            // Emergency SOS Trigger Button (High-priority emergency action)
+                            FilledTonalButton(
+                                onClick = { showEmergencySosDialog = true },
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = Color(0xFFDC2626),
+                                    contentColor = Color.White
+                                ),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                shape = RoundedCornerShape(8.dp),
                                 modifier = Modifier
+                                    .height(36.dp)
                                     .padding(end = 6.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color.White.copy(alpha = 0.15f))
-                                    .clickable { model.isAiChatOpen = true }
-                                    .padding(horizontal = 8.dp, vertical = 6.dp)
-                                    .testTag("btn_topbar_guide"),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.MenuBook,
-                                        contentDescription = "Emergency Reference Guide",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = if (model.isHindiMode) "गाइड" else "Guide",
-                                        color = Color.White,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-
-                            // Emergency SOS Trigger Button (Accessible header destination)
-                            Box(
-                                modifier = Modifier
-                                    .padding(end = 6.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFFDC2626))
-                                    .clickable { showEmergencySosDialog = true }
-                                    .padding(horizontal = 8.dp, vertical = 6.dp)
-                                    .testTag("btn_topbar_emergency_sos"),
-                                contentAlignment = Alignment.Center
+                                    .testTag("btn_topbar_emergency_sos")
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
                                         imageVector = Icons.Default.Warning,
                                         contentDescription = "Emergency SOS",
                                         tint = Color.White,
-                                        modifier = Modifier.size(14.dp)
+                                        modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = "SOS",
                                         color = Color.White,
-                                        fontSize = 11.sp,
+                                        fontSize = 12.sp,
                                         fontWeight = FontWeight.Black
                                     )
                                 }
                             }
 
-                            // Language Switcher (EN / हिंदी)
-                            Box(
+                            // Emergency Reference Guide (Offline, quick reference icon)
+                            IconButton(
+                                onClick = { model.isAiChatOpen = true },
                                 modifier = Modifier
-                                    .padding(end = 6.dp)
+                                    .size(36.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(Color.White.copy(alpha = 0.2f))
-                                    .clickable { model.toggleLanguage() }
-                                    .padding(horizontal = 8.dp, vertical = 6.dp)
-                                    .testTag("btn_topbar_language"),
-                                contentAlignment = Alignment.Center
+                                    .background(Color.White.copy(alpha = 0.15f))
+                                    .testTag("btn_topbar_guide")
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.MenuBook,
+                                    contentDescription = if (model.isHindiMode) "आपातकालीन गाइड" else "Emergency Reference Guide",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(4.dp))
+
+                            // Consolidated Overflow Menu (Language, Role, About/Legal, System Health)
+                            Box {
+                                IconButton(
+                                    onClick = { showTopBarOverflowMenu = true },
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color.White.copy(alpha = 0.15f))
+                                        .testTag("btn_topbar_more_menu")
+                                ) {
                                     Icon(
-                                        imageVector = Icons.Default.Language,
-                                        contentDescription = "Language",
+                                        imageVector = Icons.Default.MoreVert,
+                                        contentDescription = "More Options",
                                         tint = Color.White,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = if (model.isHindiMode) "हिंदी" else "English",
-                                        color = Color.White,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
-                            }
 
-                            // Legal, Policies & About Hub Icon
-                            Box(
-                                modifier = Modifier
-                                    .padding(end = 6.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color.White.copy(alpha = 0.2f))
-                                    .clickable { model.openLegalAboutHub(0) }
-                                    .padding(horizontal = 8.dp, vertical = 6.dp)
-                                    .testTag("btn_topbar_about"),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.Info,
-                                        contentDescription = "Info and Legal",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(14.dp)
+                                DropdownMenu(
+                                    expanded = showTopBarOverflowMenu,
+                                    onDismissRequest = { showTopBarOverflowMenu = false },
+                                    modifier = Modifier.background(VaultTheme.cardBg)
+                                ) {
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = if (model.isHindiMode) "भाषा बदलें (English)" else "Switch Language (हिन्दी)",
+                                                color = VaultTheme.textPrimary,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Language,
+                                                contentDescription = "Language",
+                                                tint = TealAccent
+                                            )
+                                        },
+                                        onClick = {
+                                            model.toggleLanguage()
+                                            showTopBarOverflowMenu = false
+                                        },
+                                        modifier = Modifier.testTag("btn_topbar_language")
                                     )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = if (model.isHindiMode) "जानकारी" else "About",
-                                        color = Color.White,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
 
-                            // Role Switcher Badge
-                            Box(
-                                modifier = Modifier
-                                    .padding(end = 8.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(TealAccent)
-                                    .clickable { showRoleSelector = true }
-                                    .padding(horizontal = 8.dp, vertical = 6.dp)
-                                    .testTag("btn_topbar_role_selector"),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.SwitchAccount,
-                                        contentDescription = "Switch Active Persona",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = (if (model.isHindiMode) "भूमिका: " else "Active Role: ") + model.currentRole.label.split(" ")[0],
+                                                color = VaultTheme.textPrimary,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.SwitchAccount,
+                                                contentDescription = "Switch Active Persona",
+                                                tint = TealAccent
+                                            )
+                                        },
+                                        onClick = {
+                                            showRoleSelector = true
+                                            showTopBarOverflowMenu = false
+                                        },
+                                        modifier = Modifier.testTag("btn_topbar_role_selector")
                                     )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = model.currentRole.label.split(" ")[0],
-                                        color = Color.White,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold
+
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = if (model.isHindiMode) "जानकारी एवं कानूनी नीतियां" else "Legal, Privacy & About",
+                                                color = VaultTheme.textPrimary,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Info,
+                                                contentDescription = "Info and Legal",
+                                                tint = TealAccent
+                                            )
+                                        },
+                                        onClick = {
+                                            model.openLegalAboutHub(0)
+                                            showTopBarOverflowMenu = false
+                                        },
+                                        modifier = Modifier.testTag("btn_topbar_about")
+                                    )
+
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = if (model.isHindiMode) "सिस्टम स्वास्थ्य और स्थिति" else "System Health & Observability",
+                                                color = VaultTheme.textPrimary,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Speed,
+                                                contentDescription = "System Health",
+                                                tint = TealAccent
+                                            )
+                                        },
+                                        onClick = {
+                                            model.showObservabilityDialog = true
+                                            showTopBarOverflowMenu = false
+                                        },
+                                        modifier = Modifier.testTag("btn_topbar_observability")
                                     )
                                 }
                             }
@@ -1932,21 +1959,22 @@ fun OverviewStatPill(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(12.dp),
         color = VaultTheme.subCardBg,
         border = BorderStroke(1.dp, VaultTheme.cardBorder),
         modifier = Modifier.minimumInteractiveComponentSize()
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(imageVector = icon, contentDescription = null, tint = TealAccent, modifier = Modifier.size(13.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(text = value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary)
+                Icon(imageVector = icon, contentDescription = null, tint = TealAccent, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(text = value, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary)
             }
-            Text(text = label, fontSize = 10.sp, color = VaultTheme.textSecondary)
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(text = label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = VaultTheme.textSecondary)
         }
     }
 }
@@ -1967,7 +1995,7 @@ fun UpcomingPaymentCard(
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -1975,34 +2003,37 @@ fun UpcomingPaymentCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
                         color = if (type == "Premium") TealAccent.copy(alpha = 0.15f) else Color(0xFFD97706).copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(4.dp)
+                        shape = RoundedCornerShape(6.dp)
                     ) {
                         Text(
                             text = type,
-                            fontSize = 9.sp,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (type == "Premium") TealAccent else Color(0xFFD97706),
-                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = title, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = VaultTheme.textPrimary)
                 }
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "$institution • ${if (isHindi) "देय तिथि" else "Due"}: $dueDate",
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     color = VaultTheme.textSecondary
                 )
             }
+            Spacer(modifier = Modifier.width(8.dp))
             OutlinedButton(
                 onClick = onInspect,
                 shape = RoundedCornerShape(8.dp),
                 border = BorderStroke(1.dp, VaultTheme.cardBorder),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                modifier = Modifier.height(30.dp)
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                modifier = Modifier
+                    .height(36.dp)
+                    .minimumInteractiveComponentSize()
             ) {
-                Text(text = if (isHindi) "देखें" else "Inspect", fontSize = 10.sp, color = VaultTheme.textPrimary)
+                Text(text = if (isHindi) "देखें" else "Inspect", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = VaultTheme.textPrimary)
             }
         }
     }
@@ -8312,6 +8343,14 @@ fun GeminiAssistantDialog(
     
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        ),
+        modifier = Modifier
+            .fillMaxWidth(0.95f)
+            .padding(16.dp)
+            .imePadding(),
         title = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -8390,7 +8429,7 @@ fun GeminiAssistantDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(430.dp)
+                    .heightIn(min = 260.dp, max = 500.dp)
             ) {
                 // Privacy Guarantee Banner
                 Surface(
@@ -8597,11 +8636,22 @@ fun GeminiAssistantDialog(
                         placeholder = {
                             Text(
                                 text = if (isHindi) "मार्गदर्शिका खोजें (बीमा, नॉमिनी, क्लेम)..." else "Search guide (nominee rules, claims, RBI directives)...",
-                                fontSize = 11.sp
+                                fontSize = 12.sp
                             )
                         },
-                        maxLines = 2,
-                        textStyle = LocalTextStyle.current.copy(fontSize = 12.sp),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            imeAction = androidx.compose.ui.text.input.ImeAction.Send
+                        ),
+                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                            onSend = {
+                                if (inputMessage.isNotBlank()) {
+                                    model.sendMsgToAi(inputMessage)
+                                    inputMessage = ""
+                                }
+                            }
+                        ),
+                        maxLines = 3,
+                        textStyle = LocalTextStyle.current.copy(fontSize = 13.sp),
                         shape = RoundedCornerShape(10.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -8613,13 +8663,13 @@ fun GeminiAssistantDialog(
                             }
                         },
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(48.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .background(TealAccent)
                             .testTag("btn_send_offline_ai"),
                         colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White)
                     ) {
-                        Icon(imageVector = Icons.Default.Send, contentDescription = "Send prompt button", modifier = Modifier.size(18.dp))
+                        Icon(imageVector = Icons.Default.Send, contentDescription = "Send prompt button", modifier = Modifier.size(20.dp))
                     }
                 }
             }

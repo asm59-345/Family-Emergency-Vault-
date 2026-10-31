@@ -291,55 +291,58 @@ fun SignupScreen(model: VaultViewModel) {
                 // Legal Full Name
                 Text(
                     text = if (model.isHindiMode) "खाताधारक का पूरा नाम" else "Legal Full Name",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = VaultTheme.textSecondary
                 )
                 OutlinedTextField(
                     value = fullName,
                     onValueChange = { fullName = it },
+                    enabled = !isCheckingOut,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
                         .testTag("signup_fullname_input"),
-                    placeholder = { Text(if (model.isHindiMode) "उदा. राहुल शर्मा" else "Example: Rahul Sharma") },
+                    placeholder = { Text(if (model.isHindiMode) "उदा. राहुल शर्मा" else "Example: Rahul Sharma", fontSize = 13.sp) },
                     singleLine = true,
                     colors = vaultTextFieldColors()
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Registered Phone Number
                 Text(
                     text = if (model.isHindiMode) "मोबाइल नंबर" else "Registered Mobile Number",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = VaultTheme.textSecondary
                 )
                 OutlinedTextField(
                     value = phone,
                     onValueChange = { phone = it },
+                    enabled = !isCheckingOut,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
                         .testTag("signup_phone_input"),
-                    placeholder = { Text(if (model.isHindiMode) "उदा. +91 98765 43210" else "Example: +91 98765 43210") },
+                    placeholder = { Text(if (model.isHindiMode) "उदा. +91 98765 43210" else "Example: +91 98765 43210", fontSize = 13.sp) },
                     singleLine = true,
                     colors = vaultTextFieldColors()
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Registered Owner Email Address
                 Text(
                     text = if (model.isHindiMode) "मालिक का ईमेल पता (बैकअप हेतु)" else "Registered Owner Email (Backup Communication)",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = VaultTheme.textSecondary
                 )
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
+                    enabled = !isCheckingOut,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
@@ -727,7 +730,11 @@ fun SignupScreen(model: VaultViewModel) {
                     )
                 }
             },
-            colors = ButtonDefaults.buttonColors(containerColor = TealAccent),
+            enabled = !isCheckingOut,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = TealAccent,
+                disabledContainerColor = TealAccent.copy(alpha = 0.5f)
+            ),
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier
                 .fillMaxWidth()
@@ -993,56 +1000,58 @@ fun LoginScreen(model: VaultViewModel) {
         Spacer(modifier = Modifier.height(24.dp))
 
         if (!model.showMfaChallenge) {
-            // Personalized Security Account Card
-            Card(
-                colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
-                border = BorderStroke(1.dp, VaultTheme.cardBorder),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            // Personalized Security Account Card (only show if profile was previously detected)
+            if (model.registeredFullName.isNotBlank()) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = VaultTheme.cardBg),
+                    border = BorderStroke(1.dp, VaultTheme.cardBorder),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(TealAccent),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = model.registeredFullName.take(1).uppercase(),
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = (if (model.isHindiMode) "खाताधारक: " else "Detected Holder: ") + model.registeredFullName,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            color = VaultTheme.textPrimary
-                        )
-                        Text(
-                            text = (if (model.isHindiMode) "मोबाइल: " else "Mobile: ") + model.registeredPhone.run {
-                                if (length > 6) take(4) + "•••" + takeLast(3) else this
-                            },
-                            fontSize = 11.sp,
-                            color = VaultTheme.textSecondary
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFF16A34A).copy(alpha = 0.15f))
-                            .padding(horizontal = 6.dp, vertical = 4.dp)
-                    ) {
-                        Text(if (model.isHindiMode) "सक्रिय" else "ACTIVE", color = Color(0xFF16A34A), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(TealAccent),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = model.registeredFullName.take(1).uppercase(),
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = (if (model.isHindiMode) "खाताधारक: " else "Detected Holder: ") + model.registeredFullName,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = VaultTheme.textPrimary
+                            )
+                            Text(
+                                text = (if (model.isHindiMode) "मोबाइल: " else "Mobile: ") + model.registeredPhone.run {
+                                    if (length > 6) take(4) + "•••" + takeLast(3) else this
+                                },
+                                fontSize = 12.sp,
+                                color = VaultTheme.textSecondary
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0xFF16A34A).copy(alpha = 0.15f))
+                                .padding(horizontal = 6.dp, vertical = 4.dp)
+                        ) {
+                            Text(if (model.isHindiMode) "सक्रिय" else "ACTIVE", color = Color(0xFF16A34A), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
@@ -1056,12 +1065,12 @@ fun LoginScreen(model: VaultViewModel) {
                         .padding(bottom = 14.dp)
                 ) {
                     Row(
-                        modifier = Modifier.padding(8.dp),
+                        modifier = Modifier.padding(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(imageVector = Icons.Default.Error, contentDescription = "Error", tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
+                        Icon(imageVector = Icons.Default.Error, contentDescription = "Error", tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = localLoginError, color = Color(0xFFEF4444), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(text = localLoginError, color = Color(0xFFEF4444), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -1094,49 +1103,51 @@ fun LoginScreen(model: VaultViewModel) {
                                 .background(Color(0xFF10B981).copy(alpha = 0.15f))
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
-                            Text("TLS 1.3 ENCRYPTED", color = Color(0xFF10B981), fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                            Text("TLS 1.3 ENCRYPTED", color = Color(0xFF10B981), fontSize = 9.sp, fontWeight = FontWeight.Bold)
                         }
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     // Registered Email Field
                     Text(
                         text = if (model.isHindiMode) "पंजीकृत ईमेल पता" else "Registered Owner Email Address",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
                         color = VaultTheme.textSecondary
                     )
                     OutlinedTextField(
                         value = emailInput,
                         onValueChange = { emailInput = it; localLoginError = "" },
+                        enabled = !isAuthenticating,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
                             .testTag("login_email_input"),
-                        placeholder = { Text("e.g. rahul@gmail.com") },
+                        placeholder = { Text("e.g. rahul@gmail.com", fontSize = 13.sp) },
                         singleLine = true,
                         colors = vaultTextFieldColors()
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     // Password Field
                     Text(
                         text = if (model.isHindiMode) "खाता पासवर्ड" else "Authorization Password",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
                         color = VaultTheme.textSecondary
                     )
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it; localLoginError = "" },
+                        enabled = !isAuthenticating,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
                             .testTag("password_input"),
-                        placeholder = { Text(if (model.isHindiMode) "पासवर्ड दर्ज करें" else "Enter authorization password") },
+                        placeholder = { Text(if (model.isHindiMode) "पासवर्ड दर्ज करें" else "Enter authorization password", fontSize = 13.sp) },
                         trailingIcon = {
-                            IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                            IconButton(onClick = { isPasswordVisible = !isPasswordVisible }, enabled = !isAuthenticating) {
                                 Icon(
                                     imageVector = if (isPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                     contentDescription = if (isPasswordVisible) "Hide password" else "Show password",
@@ -1149,7 +1160,7 @@ fun LoginScreen(model: VaultViewModel) {
                         colors = vaultTextFieldColors()
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
 
                     Button(
                         onClick = {
@@ -1175,7 +1186,11 @@ fun LoginScreen(model: VaultViewModel) {
                                 }
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = if (VaultTheme.isDark) Color(0xFF0284C7) else SlatePrimary),
+                        enabled = !isAuthenticating,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (VaultTheme.isDark) Color(0xFF0284C7) else SlatePrimary,
+                            disabledContainerColor = (if (VaultTheme.isDark) Color(0xFF0284C7) else SlatePrimary).copy(alpha = 0.6f)
+                        ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp)
@@ -1187,16 +1202,17 @@ fun LoginScreen(model: VaultViewModel) {
                             Text(
                                 text = if (model.isHindiMode) "प्रमाणीकरण जारी है..." else "Querying Server Records...",
                                 color = Color.White,
-                                fontSize = 13.sp
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
                             )
                         } else {
-                            Icon(imageVector = Icons.Default.LockOpen, contentDescription = "Sign In", modifier = Modifier.size(16.dp))
+                            Icon(imageVector = Icons.Default.LockOpen, contentDescription = "Sign In", modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = if (model.isHindiMode) "सर्वर से प्रमाणित कर लॉगिन करें" else "Authenticate Against Server Records",
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
+                                fontSize = 14.sp
                             )
                         }
                     }
